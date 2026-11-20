@@ -21,7 +21,7 @@
    "https://overclockers.co.uk/asrock-27-pg27qft2a-2560x1440-180hz-1ms-freesync-hdr400-widescreen-gaming-mon-asr-02431.html"
   ],
   "confidence": "medium",
-  "notes": "Matte surface per ocinside. HDMI 2.0 limited to 144 Hz; 180 Hz only via DP. 7.7 kg with stand (Wi-Fi antenna stand). Sources conflict on DP version (1.2 vs 1.4) and HDMI count (ocinside lists 1, retailers list 2x HDMI 2.0). Manufacturer site blocked automated fetch.",
+  "notes": "Superficie mate (ocinside). HDMI 2.0 limitado a 144 Hz; 180 Hz sólo por DP. 7,7 kg con base (base con antena Wi-Fi). Las fuentes no coinciden en la versión de DP (1.2 vs 1.4) ni en la cantidad de HDMI (1 según ocinside, 2x HDMI 2.0 según tiendas). El sitio del fabricante bloqueó la consulta automática.",
   "verified_at": "2026-11"
  },
  {
@@ -45,7 +45,7 @@
    "https://1fodiscount.com/ressources/site/document/product/brochure-commerciale-pour-asrock-pg-pg27qft1b_11587.pdf"
   ],
   "confidence": "high",
-  "notes": "ASRock product brief: Anti-Glare surface, HDMI 2.0 signal range 48-144 Hz, DP 48-180 Hz, 2x2W speakers, tilt only. 5.8 kg with stand. Internal PSU implied (power cord in box, '1*US Power Cord', varies by region) but input voltage not stated.",
+  "notes": "Ficha de ASRock: superficie antirreflejo, HDMI 2.0 de 48-144 Hz, DP de 48-180 Hz, parlantes 2x2 W, base sólo con inclinación. 5,8 kg con base. Fuente interna (viene cable de alimentación, '1*US Power Cord' según región), pero no informa el voltaje.",
   "verified_at": "2026-11"
  },
  {
@@ -71,7 +71,7 @@
    "https://ldlc.com/en/product/PB00653087.html"
   ],
   "confidence": "medium",
-  "notes": "Gigabyte lists 'Non-glare' surface, Flicker-free yes, TUV Low Blue Light, internal PSU AC 100-240V. Ports 2x HDMI 2.0 + 1x DP 1.4; HDMI max refresh not stated by Gigabyte (HDMI 2.0 normally caps QHD at ~144 Hz; a Micro Center listing claims 180 Hz over HDMI, unverified). Gigabyte site blocked direct fetch; values via search snippets of official pages.",
+  "notes": "Gigabyte: superficie 'Non-glare', flicker-free, TÜV Low Blue Light, fuente interna AC 100-240 V. Puertos 2x HDMI 2.0 + 1x DP 1.4; no informa los Hz máximos por HDMI (HDMI 2.0 en QHD suele llegar a ~144 Hz; una publicación de Micro Center dice 180 Hz por HDMI, sin verificar). Datos tomados de extractos de búsqueda de las páginas oficiales (el sitio bloqueó la consulta directa).",
   "verified_at": "2026-11"
  },
  {
@@ -99,7 +99,7 @@
    "https://storage-asset.msi.com/datasheet/monitor/global/MAG-275QF-E21.pdf"
   ],
   "confidence": "high",
-  "notes": "Base 275QF: DP 1.4 (HBR2) 180 Hz, 2x HDMI 2.0b @144 Hz, anti-glare, 3.95 kg with stand. E20 variant: 200 Hz over DP 1.4a (HBR3), HDMI still 144 Hz, same 3.57 kg panel weight, otherwise same. E21 variant: 210 Hz (OC), DisplayHDR 400, 4.4 kg net. MSI lists 'Less Blue Light' (software); flicker-free not stated in MSI sheets. Internal power.",
+  "notes": "275QF base: DP 1.4 (HBR2) 180 Hz, 2x HDMI 2.0b a 144 Hz, antirreflejo, 3,95 kg con base. Variante E20: 200 Hz por DP 1.4a (HBR3), HDMI sigue en 144 Hz, mismo panel de 3,57 kg. Variante E21: 210 Hz (OC), DisplayHDR 400, 4,4 kg. MSI informa 'Less Blue Light' (por software); no dice flicker-free. Fuente interna.",
   "verified_at": "2026-11"
  },
  {
@@ -124,7 +124,7 @@
    "https://storage-asset.msi.com/specSheet/de/monitor/MAG%20274QF%20X24.pdf"
   ],
   "confidence": "high",
-  "notes": "2x HDMI 2.0b (QHD@144 Hz), DP 1.4a 240 Hz. 4.7 kg net with stand. Tilt only. 'Less Blue Light' software; flicker-free not stated. MSI US store lists VESA 75x75 but MSI datasheets say 100x100. Internal power board.",
+  "notes": "2x HDMI 2.0b (QHD a 144 Hz), DP 1.4a a 240 Hz. 4,7 kg con base. Sólo inclinación. 'Less Blue Light' por software; no dice flicker-free. La tienda de MSI en EE.UU. dice VESA 75x75, pero las fichas de MSI dicen 100x100. Fuente interna.",
   "search": "274QF X24",
   "verified_at": "2026-11"
  },
@@ -150,7 +150,7 @@
    "https://www.lg.com/us/monitors/lg-27gs75q-b-gaming-monitor"
   ],
   "confidence": "medium",
-  "notes": "180 Hz native, 200 Hz OC via DP only. HDMI version/max refresh not stated by LG. Surface coating not listed on LG page. Flicker Safe + Reader Mode. External 40W (19V) adapter, AC 100-240V. Flatness inferred (no curvature listed).",
+  "notes": "180 Hz nativo, 200 Hz con OC sólo por DP. LG no informa versión ni Hz máximos de HDMI, ni el tipo de superficie. Flicker Safe + Modo lectura. Fuente externa de 40 W (19 V), AC 100-240 V. Que es plano se deduce (no informa curvatura).",
   "verified_at": "2026-11"
  },
  {
@@ -175,7 +175,7 @@
    "https://www.benq.eu/en-eu/monitor/home/ew270q/spec.html"
   ],
   "confidence": "high",
-  "notes": "Matte coating, Flicker-free, Low Blue Light Plus. 1x HDMI 2.0, 1x DP 1.4, 1x USB-C (DP Alt, 65W PD). 4.64 kg with base. Built-in PSU. Per-input refresh not published; HDMI 2.0 likely limited below 200 Hz (unconfirmed). Flatness inferred.",
+  "notes": "Superficie mate, flicker-free, Low Blue Light Plus. 1x HDMI 2.0, 1x DP 1.4, 1x USB-C (DP Alt, carga 65 W). 4,64 kg con base. Fuente interna. No publica Hz por entrada; por HDMI 2.0 probablemente menos de 200 Hz (sin confirmar). Que es plano se deduce.",
   "verified_at": "2026-11"
  },
  {
@@ -200,7 +200,7 @@
    "https://pcmonitors.info/samsung/samsung-odyssey-g50f-g5-180hz-qhd-ips/"
   ],
   "confidence": "medium",
-  "notes": "Data from sibling SKU LS27FG500ENXZA (Canada); no page found for the ELXZB suffix. Fast IPS, flat. 1x HDMI 2.0 + 1x DP 1.2; per-input refresh not stated (HDMI 2.0 likely 144 Hz). Matte anti-glare per pcmonitors. External 48W adapter. Eye Saver Mode.",
+  "notes": "Datos del modelo hermano LS27FG500ENXZA (Canadá); no hay página para el sufijo ELXZB. Fast IPS, plano. 1x HDMI 2.0 + 1x DP 1.2; no informa Hz por entrada (HDMI 2.0 probablemente 144 Hz). Mate antirreflejo según pcmonitors. Fuente externa de 48 W. Eye Saver Mode.",
   "verified_at": "2026-11"
  },
  {
@@ -226,7 +226,7 @@
    "https://www.tomshardware.com/monitors/gaming-monitors/ktc-m27t6s-27-inch-qhd-mini-led-gaming-monitor-review"
   ],
   "confidence": "medium",
-  "notes": "1152-zone mini-LED FALD, DisplayHDR 1000; 200 Hz (210 Hz OC). HDMI 2.0 limited to 144 Hz at QHD. Matte low-haze coating. Flicker-free except when MPRT mode is on. Integrated PSU per DisplayNinja; KTC support page lists 100-240V. Typical SDR brightness spec not found (measured ~626 nits SDR). Weight without stand not found (listings give 6.55-7 kg, unclear). Flatness inferred.",
+  "notes": "Mini-LED de 1152 zonas, DisplayHDR 1000; 200 Hz (210 Hz OC). HDMI 2.0 limitado a 144 Hz en QHD. Superficie mate de bajo haze. Flicker-free salvo con el modo MPRT activo. Fuente interna (DisplayNinja); el soporte de KTC indica 100-240 V. Sin dato oficial de brillo SDR (medido ~626 nits). Sin peso sin base (las publicaciones dicen 6,55-7 kg, sin aclarar). Que es plano se deduce.",
   "verified_at": "2026-11"
  },
  {
@@ -251,7 +251,7 @@
    "https://www.mercadolibre.com.ar/monitor-gamer-ktc-27gt670-27-pulgadas-fast-ips-180hz-2k-1440p-negro/p/MLA53189469"
   ],
   "confidence": "low",
-  "notes": "Argentina/LatAm-market code; no KTC global page or review found. Data only from an Argentine retailer listing: 2x HDMI 2.0 + 1x DP 1.4, flat, 616x364x42 mm without base. HDMI 2.0 likely caps at 144 Hz (unconfirmed). Coating, brightness, eye-care, PSU unknown.",
+  "notes": "Código para Argentina/LatAm; no hay página global de KTC ni reseñas. Datos sólo de una tienda argentina: 2x HDMI 2.0 + 1x DP 1.4, plano, 616x364x42 mm sin base. HDMI 2.0 probablemente limita a 144 Hz (sin confirmar). Superficie, brillo, cuidado visual y fuente: desconocidos.",
   "verified_at": "2026-11"
  },
  {
@@ -277,7 +277,7 @@
    "https://fullh4rd.com.ar/prod/32921"
   ],
   "confidence": "low",
-  "notes": "Values are for the P (pivot/height stand) version, from Argentine retailer spec tables (no manufacturer page found): matte 3H haze 25%, 2x DP 1.4 @210 Hz, 2x HDMI 2.0 @144 Hz, VESA 75x75, 6.1 kg with stand, external adapter. The non-P ARK27210QI8 differs per FullH4rd: Fast IPS 300 nits, 2x HDMI 2.1 (still 144 Hz), VESA 100x100, tilt-only stand, external 12V/4A adapter (100-240V); weight not listed.",
+  "notes": "Datos de la versión P (base con altura y pivot), de fichas de tiendas argentinas (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 210 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 6,1 kg con base, fuente externa. El ARK27210QI8 sin P es distinto según FullH4rd: Fast IPS 300 nits, 2x HDMI 2.1 (igual 144 Hz), VESA 100x100, base sólo inclinación, fuente externa 12 V/4 A (100-240 V); sin peso.",
   "search": "ARK27210",
   "verified_at": "2026-11"
  },
@@ -303,7 +303,7 @@
    "https://cdn.sanity.io/files/ssso0is3/production/af3d2936f0c7fa0dceecaa8fd4150841d5095020.pdf"
   ],
   "confidence": "medium",
-  "notes": "From official Raptor user manual: flat, 300 cd/m2, 2x HDMI 2.0 + 2x DP 1.2, external PSU (DC in), fixed tilt stand, VESA 100x100 in drawing, <=30W. HDMI 2.0 likely caps at 144 Hz (not stated). Do not confuse with FHD variant RAP-MON-27FHD-200IPS. No weight, coating, or eye-care data.",
+  "notes": "Del manual oficial de Raptor: plano, 300 cd/m², 2x HDMI 2.0 + 2x DP 1.2, fuente externa, base fija con inclinación, VESA 100x100 en el plano, ≤30 W. HDMI 2.0 probablemente limita a 144 Hz (no lo dice). No confundir con la variante FHD RAP-MON-27FHD-200IPS. Sin datos de peso, superficie ni cuidado visual.",
   "search": "Hawk Eye",
   "verified_at": "2026-11"
  },
@@ -329,7 +329,7 @@
    "https://rockethard.com.ar/monitores/monitor-27a/monitor-valkyrie-27a-qhd-1440p-200hz-1ms-ips-g-sync-hdr-163028.html"
   ],
   "confidence": "medium",
-  "notes": "Official page: anti-reflective IPS 400 nits HDR400, 2x HDMI 2.1 + 2x DP, VESA 75x75, Low Blue mode. Retailer: HDMI up to 144 Hz, DP up to 200 Hz, 4.18 kg without base. Flicker-free and PSU voltage not stated.",
+  "notes": "Página oficial: IPS antirreflejo 400 nits HDR400, 2x HDMI 2.1 + 2x DP, VESA 75x75, modo Low Blue. Según tienda: HDMI hasta 144 Hz, DP hasta 200 Hz, 4,18 kg sin base. No informa flicker-free ni voltaje de la fuente.",
   "verified_at": "2026-11"
  },
  {
@@ -354,7 +354,7 @@
    "https://www.mexx.com.ar/productos-rubro/monitores/50546-monitor-gamer-27-x-micro-qhd-ips-180hz-1ms-hdmi-x27f-k01aq.html"
   ],
   "confidence": "medium",
-  "notes": "Official page: flat, 2x HDMI + 2x DP, AC 100-240V / DC 12V (external adapter likely), 45W, full ergonomic stand (150 mm height, pivot). Panel type IPS from retailer titles (official page omits it). HDMI max refresh, coating, eye-care, weight not published.",
+  "notes": "Página oficial: plano, 2x HDMI + 2x DP, AC 100-240 V / DC 12 V (probable fuente externa), 45 W, base ergonómica completa (150 mm de altura, pivot). Panel IPS según los títulos de las tiendas (la página oficial no lo dice). No publica Hz por HDMI, superficie, cuidado visual ni peso.",
   "search": "X27F-K01AQ",
   "verified_at": "2026-11"
  },
@@ -380,7 +380,7 @@
    "https://fullh4rd.com.ar/prod/32145"
   ],
   "confidence": "low",
-  "notes": "Retailer specs: 2x HDMI + 2x DP, HDR400, external 12V/4A adapter (AC 100-240V), tilt only. Weight 6.59 kg listed without saying whether the stand is included (FullH4rd says ~5.5 kg). Argentine listings say 'Ficha USA' (US plug). HDMI max refresh and coating not stated.",
+  "notes": "Datos de tiendas: 2x HDMI + 2x DP, HDR400, fuente externa 12 V/4 A (AC 100-240 V), sólo inclinación. Peso 6,59 kg sin aclarar si incluye base (FullH4rd dice ~5,5 kg). Las publicaciones argentinas dicen 'Ficha USA'. No informa Hz por HDMI ni superficie.",
   "search": "TE-2754G",
   "verified_at": "2026-11"
  },
@@ -405,7 +405,7 @@
    "https://www.viewsonic.com/global/products/sheet/VX2728J-2K"
   ],
   "confidence": "high",
-  "notes": "Official sheet: anti-glare 3H, HDMI 2.1 x2 (48-144 Hz), DP 1.4 (48-180 Hz), flicker-free, software blue-light filter, external AC/DC adapter. Some regional sheets label HDMI as 2.0.",
+  "notes": "Ficha oficial: antirreflejo 3H, 2x HDMI 2.1 (48-144 Hz), DP 1.4 (48-180 Hz), flicker-free, filtro de luz azul por software, fuente externa. Algunas fichas regionales dicen HDMI 2.0.",
   "verified_at": "2026-11"
  },
  {
@@ -429,7 +429,7 @@
    "https://www.asus.com/displays-desktops/monitors/tuf-gaming/tuf-gaming-vg27aql5a/techspec/"
   ],
   "confidence": "high",
-  "notes": "210 Hz (OC) over DP 1.4; HDMI 2.0 x2 limited to 144 Hz. USB-C is a service port only (no video/PD). Height/swivel/pivot stand. Internal PSU. Flatness inferred.",
+  "notes": "210 Hz (OC) por DP 1.4; 2x HDMI 2.0 limitados a 144 Hz. El USB-C es sólo de servicio (sin video ni carga). Base con altura, giro y pivot. Fuente interna. Que es plano se deduce.",
   "verified_at": "2026-11"
  },
  {
@@ -453,7 +453,7 @@
    "https://www.asus.com/uk/displays-desktops/monitors/tuf-gaming/tuf-gaming-vg27aql3a/techspec/"
   ],
   "confidence": "high",
-  "notes": "HDMI 2.0 x2 48-144 Hz, DP 48-180 Hz. 2x USB-A hub, no USB-C. ~6.9 kg with stand (Guru3D). Internal PSU. Flatness inferred.",
+  "notes": "2x HDMI 2.0 de 48-144 Hz, DP de 48-180 Hz. Hub 2x USB-A, sin USB-C. ~6,9 kg con base (Guru3D). Fuente interna. Que es plano se deduce.",
   "verified_at": "2026-11"
  },
  {
@@ -478,7 +478,7 @@
    "https://pcmonitors.info/gigabyte/gigabyte-gs27q-x-budget-250hz-qhd-ips/"
   ],
   "confidence": "medium",
-  "notes": "Official name 'GS27Q X'. 240 Hz native, 250 Hz OC. 2x HDMI 2.0 + 1x DP 1.4; HDMI max refresh not stated (likely 144 Hz). Matte anti-glare, flicker-free, LBL (pcmonitors). Built-in PSU AC 100-240V. Weight 4.7 kg without / 5.7 kg with stand from search snippet of Gigabyte page (not independently re-verified). Tilt only.",
+  "notes": "Nombre oficial 'GS27Q X'. 240 Hz nativo, 250 Hz OC. 2x HDMI 2.0 + 1x DP 1.4; no informa Hz por HDMI (probablemente 144 Hz). Mate antirreflejo, flicker-free, LBL (pcmonitors). Fuente interna AC 100-240 V. Peso 4,7 kg sin base / 5,7 kg con base, de un extracto de la página de Gigabyte (sin re-verificar). Sólo inclinación.",
   "verified_at": "2026-11"
  },
  {
@@ -503,7 +503,7 @@
    "https://bestgaming.com.ar/producto/black/monitor-gamer-ktc-27gs600-27-qhd-1440p-fast-ips-300hz-1ms-hdr400-freesync-premium-g-sync"
   ],
   "confidence": "low",
-  "notes": "Argentina-market code; no KTC global page found. Retailer data only: Fast IPS 300 Hz, HDR400, flat, 2x HDMI 2.1 + 2x DP 1.4. Possibly a rebrand of KTC H27E6 (300 Hz, HDMI 2.1 @300 Hz, VESA 100) but NOT confirmed. Most fields unknown.",
+  "notes": "Código para el mercado argentino; no hay página global de KTC. Sólo datos de tiendas: Fast IPS 300 Hz, HDR400, plano, 2x HDMI 2.1 + 2x DP 1.4. Podría ser un rebrand del KTC H27E6 (300 Hz, HDMI 2.1 a 300 Hz, VESA 100), pero NO está confirmado. La mayoría de los campos son desconocidos.",
   "verified_at": "2026-11"
  },
  {
@@ -528,7 +528,7 @@
    "https://coolblue.de/en/productreviews/950457"
   ],
   "confidence": "medium",
-  "notes": "180 Hz native, 200 Hz OC via DP 1.4. HDMI max 144 Hz (Coolblue). Anti-glare per retailer listings (not on LG page). DisplayHDR 400. USB 3.0 hub (1 up/2 down), no USB-C. External 65W (19V) adapter, AC 100-240V. Flatness inferred.",
+  "notes": "180 Hz nativo, 200 Hz OC por DP 1.4. HDMI hasta 144 Hz (Coolblue). Antirreflejo según tiendas (la página de LG no lo dice). DisplayHDR 400. Hub USB 3.0 (1 subida / 2 bajada), sin USB-C. Fuente externa de 65 W (19 V), AC 100-240 V. Que es plano se deduce.",
   "verified_at": "2026-11"
  },
  {
@@ -553,7 +553,7 @@
    "https://www.gigabyte.com/sg/Monitor/M27Q2-ICE/sp"
   ],
   "confidence": "medium",
-  "notes": "Quantum-dot SS IPS, 200 Hz (210 Hz OC), DisplayHDR 400. 2x HDMI 2.0 + 1x DP 1.4 + USB-C (DP Alt, PD 18W, 'dynamic 65W' on some regional pages), KVM. HDMI max refresh not stated (likely 144 Hz). Non-glare surface. Built-in PSU AC 100-240V. 5.91 kg with stand. Gigabyte site blocked direct fetch; values via search snippets of official pages.",
+  "notes": "SS IPS quantum dot, 200 Hz (210 Hz OC), DisplayHDR 400. 2x HDMI 2.0 + 1x DP 1.4 + USB-C (DP Alt, carga 18 W; 'dinámico 65 W' en algunas páginas regionales), KVM. No informa Hz por HDMI (probablemente 144 Hz). Superficie non-glare. Fuente interna AC 100-240 V. 5,91 kg con base. Datos de extractos de búsqueda (el sitio de Gigabyte bloqueó la consulta directa).",
   "search": "M27Q2",
   "verified_at": "2026-11"
  },
@@ -579,7 +579,7 @@
    "https://storage-asset.msi.com/specSheet/us/monitor/MAG%20274QPF%20X32.pdf"
   ],
   "confidence": "high",
-  "notes": "2x HDMI 2.1 (FRL 6G) @320 Hz and DP 1.4a @320 Hz. DisplayHDR 400. Height/swivel/pivot stand; 6.7 kg with stand. 'Less Blue Light' software; flicker-free not stated. Internal power.",
+  "notes": "2x HDMI 2.1 (FRL 6G) a 320 Hz y DP 1.4a a 320 Hz. DisplayHDR 400. Base con altura, giro y pivot; 6,7 kg con base. 'Less Blue Light' por software; no dice flicker-free. Fuente interna.",
   "search": "274QPF X32",
   "verified_at": "2026-11"
  },
@@ -604,7 +604,7 @@
    "https://sharecomputacion.com/producto/monitor-27-arkham-275hz-fast-ips-qhd-0-5ms-hdmi-dp/"
   ],
   "confidence": "low",
-  "notes": "Single Argentine retailer spec table (no manufacturer page found): matte 3H haze 25%, 2x DP 1.4 @275 Hz, 2x HDMI 2.0 @144 Hz, VESA 75x75, 5.7 kg with stand, external 12V/4A adapter (AC input voltage not stated), height/swivel/pivot stand.",
+  "notes": "Ficha de una sola tienda argentina (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 275 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 5,7 kg con base, fuente externa 12 V/4 A (no informa voltaje de entrada), base con altura, giro y pivot.",
   "search": "ARK27275",
   "verified_at": "2026-11"
  },
@@ -629,7 +629,7 @@
    "https://solarmax.lat/productos/monitores/gaming/sx27f1gw/"
   ],
   "confidence": "low",
-  "notes": "Official page: IPS, 165 Hz over DP / 144 Hz over HDMI, 250 nits, flicker-free, LBL, 1x HDMI + 1x DP + 1x USB (type unspecified), RGB, white. Weight 3 kg (unclear if with stand). Flat not explicitly stated (frameless design). VESA not listed. Some MercadoLibre listings say 144 Hz; one retailer lists VGA+HDMI (likely wrong).",
+  "notes": "Página oficial: IPS, 165 Hz por DP / 144 Hz por HDMI, 250 nits, flicker-free, LBL, 1x HDMI + 1x DP + 1x USB (tipo sin especificar), RGB, blanco. Peso 3 kg (sin aclarar si con base). No dice explícitamente que sea plano (diseño sin bordes). No informa VESA. Algunas publicaciones de Mercado Libre dicen 144 Hz; una tienda indica VGA+HDMI (probablemente un error).",
   "verified_at": "2026-11"
  }
 ]

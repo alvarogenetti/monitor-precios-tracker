@@ -31,12 +31,23 @@ def main() -> int:
                     help="login OAuth único con tu cuenta de Mercado Libre (guarda el token cifrado)")
     ap.add_argument("--meli-check", action="store_true",
                     help="prueba la API oficial de Mercado Libre con tus credenciales")
+    ap.add_argument("--summary", action="store_true",
+                    help="manda por Telegram el resumen diario (o lo imprime si no hay Telegram)")
     ap.add_argument("--discover", action="store_true",
                     help="descubrimiento: busca modelos que cumplan config/discovery.json")
     ap.add_argument("--json", action="store_true", help="imprimir el resumen en JSON")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     setup_logging(args.verbose)
+
+    if args.summary:
+        from services.notifier import send_telegram
+        from services.summary import build_summary
+
+        text = build_summary()
+        sent = False if args.no_alerts else asyncio.run(send_telegram(text))
+        print(text if not sent else "Resumen enviado por Telegram")
+        return 0
 
     if args.meli_login or args.meli_check:
         return meli_cli(args.meli_login)
@@ -121,7 +132,7 @@ def meli_cli(login: bool) -> int:
         print(f"/products/search?q={q}: {len(prods)} productos")
         for p in prods[:3]:
             items = client.product_items(p["id"])
-            o = best_offer(items)
+            o = best_offer(items, seller_ok=client.seller_ok)
             price = f"$ {o['price']:,.0f}".replace(",", ".") if o else "sin publicaciones"
             print(f"  {p['id']}  {p.get('name', '')[:60]:60}  {len(items)} vendedores  {price}")
         return 0

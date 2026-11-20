@@ -124,7 +124,7 @@ def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
         except Exception as e:  # noqa: BLE001 — producto sin vendedores activos, etc.
             log_ml.debug("ML %s sin items: %s", p["id"], e)
             continue
-        o = best_offer(items)
+        o = best_offer(items, seller_ok=client.seller_ok)
         if o and (best is None or o["price"] < best[1]["price"]):
             best = (p, o)
     if not best:

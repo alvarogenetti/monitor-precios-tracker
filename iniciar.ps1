@@ -15,10 +15,10 @@ if (-not (Test-Path '.venv\Scripts\python.exe')) {
 
 # 2) Base de precios: la oficial es la que commitea GitHub Actions
 if (-not $SinActualizar) {
-    Write-Host 'Bajando el historial de precios de GitHub...'
-    git checkout -- data/prices.db 2>$null
-    git pull --ff-only --quiet
-    if ($LASTEXITCODE -ne 0) { Write-Warning 'No se pudo actualizar desde GitHub; sigo con la base local.' }
+    Write-Host 'Actualizando código e historial de precios desde GitHub...'
+    if (-not (git status --porcelain)) { git pull --ff-only --quiet }
+    & .venv\Scripts\python.exe -m services.datastore pull
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'No se pudo bajar la base de GitHub; sigo con la base local.' }
 }
 
 # 3) Dashboard

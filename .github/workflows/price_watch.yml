@@ -6,7 +6,9 @@ on:
   workflow_dispatch: {}      # botón "Run workflow" para correrlo a mano
 
 permissions:
-  contents: write            # necesario para commitear data/prices.db
+  contents: write            # publicar la base en la rama "data"
+  pages: write               # publicar el dashboard en GitHub Pages
+  id-token: write
 
 concurrency:
   group: price-watch
@@ -16,16 +18,24 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
+      ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
 
       - name: Cache de Chromium (Playwright)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
@@ -35,40 +45,40 @@ jobs:
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
+      - name: Bajar la base de la rama data
+        run: python -m services.datastore pull
+
       - name: Escanear precios
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
-          ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
         run: python scan.py --once
 
-      # Una vez por día (corrida de las 12 UTC = 9 AR) o a mano: busca modelos nuevos que cumplan
-      - name: Descubrir modelos nuevos
+      # Una vez por día (corrida de las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen diario
+      - name: Descubrir modelos nuevos y resumen diario
         if: always()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
-          ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%H)" = "12" ]; then
             python scan.py --discover
+            python scan.py --summary
           else
-            echo "Descubrimiento: sólo en la corrida de las 12 UTC"
+            echo "Sólo en la corrida de las 12 UTC"
           fi
 
-      - name: Commitear base actualizada
+      - name: Publicar la base en la rama data
         if: always()
-        run: |
-          git config user.name "price-watch-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/prices.db
-          [ -f data/meli_token.enc ] && git add data/meli_token.enc || true
-          if git diff --cached --quiet; then
-            echo "Sin cambios en la base"
-          else
-            git commit -m "chore(data): snapshot de precios $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git pull --rebase --autostash
-            git push
-          fi
+        run: python -m services.datastore push
+
+      - name: Generar dashboard público
+        if: always()
+        run: python -m app.site site
+
+      - uses: actions/configure-pages@v6
+        if: always()
+
+      - uses: actions/upload-pages-artifact@v5
+        if: always()
+        with:
+          path: site
+
+      - name: Publicar en GitHub Pages
+        id: deploy
+        if: always()
+        uses: actions/deploy-pages@v5

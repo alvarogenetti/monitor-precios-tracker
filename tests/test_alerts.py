@@ -39,3 +39,17 @@ def test_out_of_stock_price_does_not_alert(tmp_path):
     db = Database(tmp_path / "a.db")
     kinds(db, res(350000))
     assert kinds(db, res(300000, stock=False)) == []
+
+
+def test_tiny_drop_under_1pct_does_not_alert(tmp_path):
+    db = Database(tmp_path / "a.db")
+    kinds(db, res(350000))
+    assert kinds(db, res(348000)) == []            # -0,57 %: ruido
+    assert kinds(db, res(340000)) == ["price_drop"]
+
+
+def test_absurd_price_never_alerts(tmp_path):
+    db = Database(tmp_path / "a.db")
+    kinds(db, res(None, stock=False))
+    # high = 335000 * 1.15 = 385000; x1.5 = 577500 -> un aviso "volvió el stock" a $999.990 se ignora
+    assert kinds(db, res(999990)) == []

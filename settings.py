@@ -42,6 +42,9 @@ class Settings:
     meli_redirect_uri: str = os.getenv(
         "ML_REDIRECT_URI", "https://github.com/alvarogenetti/monitor-precios-tracker").strip()
     meli_token_path: Path = _path("ML_TOKEN_PATH", "data/meli_token.enc")
+    # Alertas: baja mínima (%) para avisar, y tope de cordura respecto del rango "alto"
+    alert_min_drop_pct: float = _float("ALERT_MIN_DROP_PCT", 1.0)
+    alert_max_over_high: float = _float("ALERT_MAX_OVER_HIGH", 1.5)
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(_float("PORT", 8000))
     scheduler_enabled: bool = _bool("SCHEDULER_ENABLED", False)

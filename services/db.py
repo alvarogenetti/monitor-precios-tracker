@@ -153,6 +153,64 @@ class Database:
                 (target_id, kind, message, int(sent), utcnow()),
             )
 
+    # ---------------------------------------------------------------- mantenimiento
+    def compact(self) -> None:
+        """Achica la base antes de publicarla: sólo la última corrida de descubrimiento guarda el
+        detalle completo (el precio de cada modelo igual queda en discovery_prices) + VACUUM."""
+        with self.connect() as con:
+            con.execute("""UPDATE discovery_runs SET results=NULL WHERE results IS NOT NULL AND id <
+                           (SELECT MAX(id) FROM discovery_runs WHERE finished_at IS NOT NULL)""")
+        con = sqlite3.connect(self.path)
+        try:
+            con.execute("VACUUM")
+        finally:
+            con.close()
+
+    def merge_from(self, other: Path | str) -> int:
+        """Agrega a esta base las filas de `other` que no tiene (escaneos hechos en otro lado).
+
+        Las corridas se identifican por (trigger, started_at); los snapshots por
+        (target_id, url, scanned_at); las alertas por (target_id, kind, created_at)."""
+        n = 0
+        with self.connect() as con:
+            con.execute("ATTACH DATABASE ? AS o", (str(other),))
+            run_map: dict[int, int] = {}
+            for r in con.execute("SELECT * FROM o.scan_runs ORDER BY id").fetchall():
+                row = con.execute("SELECT id FROM scan_runs WHERE trigger=? AND started_at=?",
+                                  (r["trigger"], r["started_at"])).fetchone()
+                if row:
+                    run_map[r["id"]] = row["id"]
+                    continue
+                cur = con.execute(
+                    """INSERT INTO scan_runs (trigger, started_at, finished_at, n_ok, n_error, n_alerts)
+                       VALUES (?,?,?,?,?,?)""",
+                    (r["trigger"], r["started_at"], r["finished_at"], r["n_ok"], r["n_error"], r["n_alerts"]))
+                run_map[r["id"]] = cur.lastrowid
+                n += 1
+            for s in con.execute("SELECT * FROM o.snapshots ORDER BY id").fetchall():
+                if con.execute("SELECT 1 FROM snapshots WHERE target_id=? AND url=? AND scanned_at=?",
+                               (s["target_id"], s["url"], s["scanned_at"])).fetchone():
+                    continue
+                con.execute(
+                    """INSERT INTO snapshots (target_id, store, url, title, seller, product_url,
+                       price_cash, price_list, in_stock, error, scanned_at, run_id)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (s["target_id"], s["store"], s["url"], s["title"], s["seller"], s["product_url"],
+                     s["price_cash"], s["price_list"], s["in_stock"], s["error"], s["scanned_at"],
+                     run_map.get(s["run_id"])))
+                n += 1
+            for a in con.execute("SELECT * FROM o.alerts ORDER BY id").fetchall():
+                if con.execute("SELECT 1 FROM alerts WHERE target_id=? AND kind=? AND created_at=?",
+                               (a["target_id"], a["kind"], a["created_at"])).fetchone():
+                    continue
+                con.execute("""INSERT INTO alerts (target_id, kind, message, sent, created_at)
+                               VALUES (?,?,?,?,?)""",
+                            (a["target_id"], a["kind"], a["message"], a["sent"], a["created_at"]))
+                n += 1
+            con.commit()
+            con.execute("DETACH DATABASE o")
+        return n
+
     # ---------------------------------------------------------------- descubrimiento
     def start_discovery(self, trigger: str) -> int:
         with self.connect() as con:

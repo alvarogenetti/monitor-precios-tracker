@@ -39,6 +39,9 @@ class FakeClient:
                          {"price": 349999, "condition": "new", "seller_id": 7, "item_id": "MLA77",
                           "international_delivery_mode": "none"}]}.get(pid, [])
 
+    def seller_ok(self, uid):
+        return uid != 9
+
     def nickname(self, uid):
         return {7: "ARMYTECH"}.get(uid, str(uid))
 
@@ -51,3 +54,9 @@ def test_api_scrape_search():
     r = api_scrape(FakeClient(), "https://listado.mercadolibre.com.ar/asrock-pg27qft2a", t)
     assert (r.price_cash, r.in_stock, r.seller) == (349999, True, "ARMYTECH")   # el internacional no gana
     assert r.product_url == "https://articulo.mercadolibre.com.ar/MLA-77"
+
+
+def test_best_offer_skips_untrusted_sellers():
+    items = [{"price": 999990, "seller_id": 1}, {"price": 1169999, "seller_id": 2}]
+    assert best_offer(items, seller_ok=lambda u: u == 2)["price"] == 1169999
+    assert best_offer(items, seller_ok=lambda u: False) is None

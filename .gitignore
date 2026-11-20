@@ -8,3 +8,7 @@ data/*.db-wal
 data/*.db-shm
 data/debug/
 data/escaneo-local.log
+data/prices.db
+data/.data_sha
+site/
+data/meli_token.enc

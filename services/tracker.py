@@ -41,6 +41,9 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult) -> list[Ale
     prev_known = db.last_snapshot(target.id, res.url, known_stock=True)
     price = res.price_cash
     sellable = res.in_stock is not False and price is not None
+    # Precio absurdo (muy por encima del rango "alto"): no se alerta nada, ni stock ni precio
+    if price is not None and price > target.high * settings.alert_max_over_high:
+        return []
 
     name = html.escape(target.name)
     where = html.escape(res.store + (f" ({res.seller})" if res.seller else ""))
@@ -54,7 +57,8 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult) -> list[Ale
 
     if sellable:
         prev_price = prev_valid["price_cash"] if prev_valid else None
-        dropped = prev_price is not None and price < prev_price
+        dropped = (prev_price is not None and price < prev_price
+                   and (prev_price - price) / prev_price * 100 >= settings.alert_min_drop_pct)
         # 2) Bajó el precio respecto al último registro válido
         if dropped:
             pct = (prev_price - price) / prev_price * 100

@@ -79,7 +79,7 @@ class MeliClient:
         self.mode: str | None = None
         self._min_gap = 0.6
         self._last_call = 0.0
-        self._nicknames: dict[int, str] = {}
+        self._nicknames: dict[int, dict] = {}
 
     # ---- auth
     def login_url(self) -> str:
@@ -166,15 +166,25 @@ class MeliClient:
     def item(self, item_id: str) -> dict:
         return self.get(f"/items/{item_id}")
 
-    def nickname(self, user_id: int | None) -> str | None:
+    def user(self, user_id: int | None) -> dict:
         if not user_id:
-            return None
+            return {}
         if user_id not in self._nicknames:
             try:
-                self._nicknames[user_id] = self.get(f"/users/{user_id}").get("nickname") or str(user_id)
+                self._nicknames[user_id] = self.get(f"/users/{user_id}")
             except MeliError:
-                self._nicknames[user_id] = str(user_id)
-        return self._nicknames[user_id]
+                self._nicknames[user_id] = {}
+        return self._nicknames[user_id]  # type: ignore[return-value]
+
+    def nickname(self, user_id: int | None) -> str | None:
+        return self.user(user_id).get("nickname") or (str(user_id) if user_id else None)
+
+    def seller_ok(self, user_id: int | None, min_sales: int = 10) -> bool:
+        """Descarta vendedores nuevos o con mala reputación (cuentas sin ventas con precios raros)."""
+        rep = self.user(user_id).get("seller_reputation") or {}
+        sales = (rep.get("transactions") or {}).get("total") or 0
+        level = rep.get("level_id") or ""
+        return sales >= min_sales and not level.startswith(("1_", "2_"))
 
 
 def item_url(item_id: str) -> str:
@@ -199,10 +209,19 @@ def classify_url(url: str) -> tuple[str, str | None]:
     return "search", None
 
 
-def best_offer(items: list[dict]) -> dict | None:
-    """La publicación nueva más barata (si no hay nuevas, la más barata)."""
-    priced = [i for i in items if isinstance(i.get("price"), (int, float)) and i["price"] > 0]
-    new = [i for i in priced if (i.get("condition") or "new") == "new"
-           and (i.get("international_delivery_mode") or "none") == "none"]
-    pool = new or priced
-    return min(pool, key=lambda i: i["price"]) if pool else None
+def best_offer(items: list[dict], seller_ok=None) -> dict | None:
+    """La publicación nueva, local y de un vendedor confiable más barata.
+
+    Si ninguna cumple todo, se relaja en orden: vendedor -> envío internacional -> condición."""
+    priced = sorted((i for i in items if isinstance(i.get("price"), (int, float)) and i["price"] > 0),
+                    key=lambda i: i["price"])
+    new = [i for i in priced if (i.get("condition") or "new") == "new"]
+    local = [i for i in new if (i.get("international_delivery_mode") or "none") == "none"]
+    if seller_ok:
+        trusted = next((i for i in local if seller_ok(i.get("seller_id"))), None)
+        if trusted:
+            return trusted
+        if local:
+            return None   # hay publicaciones, pero sólo de vendedores sin reputación: mejor nada
+    pool = local or new or priced
+    return pool[0] if pool else None
