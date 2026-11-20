@@ -77,6 +77,9 @@ class MeliClient:
         self._expires = 0.0
         self.http = httpx.Client(timeout=timeout, headers={"Accept": "application/json"})
         self.mode: str | None = None
+        self._min_gap = 0.6
+        self._last_call = 0.0
+        self._nicknames: dict[int, str] = {}
 
     # ---- auth
     def login_url(self) -> str:
@@ -131,12 +134,21 @@ class MeliClient:
 
     # ---- requests
     def get(self, path: str, **params: Any) -> Any:
-        r = self.http.get(f"{API}{path}", params=params,
-                          headers={"Authorization": f"Bearer {self.token()}"})
-        if r.status_code == 401:  # token vencido antes de tiempo
-            self._access = None
+        # Respeta el rate limit de ML: pausa corta entre llamadas y reintento ante 429
+        for attempt in range(4):
+            wait = self._min_gap - (time.time() - self._last_call)
+            if wait > 0:
+                time.sleep(wait)
             r = self.http.get(f"{API}{path}", params=params,
                               headers={"Authorization": f"Bearer {self.token()}"})
+            self._last_call = time.time()
+            if r.status_code == 401:  # token vencido antes de tiempo
+                self._access = None
+                continue
+            if r.status_code == 429:
+                time.sleep(2 * (attempt + 1))
+                continue
+            break
         if r.status_code != 200:
             raise MeliError(f"GET {path}: HTTP {r.status_code} {r.text[:160]}")
         return r.json()
@@ -153,6 +165,21 @@ class MeliClient:
 
     def item(self, item_id: str) -> dict:
         return self.get(f"/items/{item_id}")
+
+    def nickname(self, user_id: int | None) -> str | None:
+        if not user_id:
+            return None
+        if user_id not in self._nicknames:
+            try:
+                self._nicknames[user_id] = self.get(f"/users/{user_id}").get("nickname") or str(user_id)
+            except MeliError:
+                self._nicknames[user_id] = str(user_id)
+        return self._nicknames[user_id]
+
+
+def item_url(item_id: str) -> str:
+    m = re.match(r"([A-Z]+)(\d+)$", item_id or "")
+    return f"https://articulo.mercadolibre.com.ar/{m.group(1)}-{m.group(2)}" if m else ""
 
 
 # ------------------------------------------------------------------ helpers de URLs
@@ -175,6 +202,7 @@ def classify_url(url: str) -> tuple[str, str | None]:
 def best_offer(items: list[dict]) -> dict | None:
     """La publicación nueva más barata (si no hay nuevas, la más barata)."""
     priced = [i for i in items if isinstance(i.get("price"), (int, float)) and i["price"] > 0]
-    new = [i for i in priced if (i.get("condition") or "new") == "new"]
+    new = [i for i in priced if (i.get("condition") or "new") == "new"
+           and (i.get("international_delivery_mode") or "none") == "none"]
     pool = new or priced
     return min(pool, key=lambda i: i["price"]) if pool else None

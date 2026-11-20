@@ -32,8 +32,15 @@ class FakeClient:
                 {"id": "MLA2", "name": "Soporte para monitor"}]
 
     def product_items(self, pid):
-        return {"MLA1": [{"price": 355000, "condition": "new", "seller_id": 9, "original_price": 400000},
-                         {"price": 349999, "condition": "new", "seller_id": 7}]}.get(pid, [])
+        return {"MLA1": [{"price": 355000, "condition": "new", "seller_id": 9, "original_price": 400000,
+                          "item_id": "MLA9", "international_delivery_mode": "none"},
+                         {"price": 300000, "condition": "new", "seller_id": 5, "item_id": "MLA5",
+                          "international_delivery_mode": "cbt"},
+                         {"price": 349999, "condition": "new", "seller_id": 7, "item_id": "MLA77",
+                          "international_delivery_mode": "none"}]}.get(pid, [])
+
+    def nickname(self, uid):
+        return {7: "ARMYTECH"}.get(uid, str(uid))
 
     def product(self, pid):
         return {"name": "x"}
@@ -42,5 +49,5 @@ class FakeClient:
 def test_api_scrape_search():
     t = Target(id="a", name="ASRock", target_price=335000, keywords=["PG27QFT2A"])
     r = api_scrape(FakeClient(), "https://listado.mercadolibre.com.ar/asrock-pg27qft2a", t)
-    assert (r.price_cash, r.in_stock, r.seller) == (349999, True, "7")
-    assert r.product_url == "https://www.mercadolibre.com.ar/p/MLA1"
+    assert (r.price_cash, r.in_stock, r.seller) == (349999, True, "ARMYTECH")   # el internacional no gana
+    assert r.product_url == "https://articulo.mercadolibre.com.ar/MLA-77"

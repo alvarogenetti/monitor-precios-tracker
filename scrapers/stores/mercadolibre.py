@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from services.targets import Target
 
 import logging
+import re
 
 log_ml = logging.getLogger("scraper.mercadolibre.api")
 
@@ -76,9 +77,23 @@ def meli_client():
     return _CLIENT
 
 
+def search_query(target: "Target") -> str:
+    """El catálogo de ML busca mejor por marca + modelo que por el código solo."""
+    name = re.sub(r"\(.*?\)", " ", target.name)
+    return re.sub(r"\s+", " ", name).strip() or " ".join(target.keywords)
+
+
+def search_queries(target: "Target") -> list[str]:
+    """Varias formulaciones: el buscador de catálogo de ML es difuso y cambia mucho según la frase."""
+    brand = target.name.split()[0] if target.name else ""
+    codes = " ".join(k.split("|")[0] for k in target.keywords)
+    out = [search_query(target), f"{brand} {codes}", f"Monitor {brand} {codes}"]
+    return list(dict.fromkeys(q.strip() for q in out if q.strip()))
+
+
 def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
-    """Precio vía API oficial. Para búsquedas usa el catálogo: /products/search + /products/{id}/items."""
-    from services.meli_api import best_offer, classify_url
+    """Precio vía API oficial. Búsquedas: /products/search (catálogo) + /products/{id}/items."""
+    from services.meli_api import best_offer, classify_url, item_url
 
     kind, ident = classify_url(url)
     exclude = target.exclude if target.exclude is not None else DEFAULT_EXCLUDE
@@ -88,16 +103,22 @@ def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
         return ScrapeResult(store="mercadolibre", url=url, title=it.get("title"),
                             price_cash=it.get("price"), price_list=it.get("original_price"),
                             in_stock=sellable, product_url=it.get("permalink") or url,
-                            seller=str(it.get("seller_id") or "") or None)
+                            seller=client.nickname(it.get("seller_id")))
 
     if kind == "product":
         products = [{"id": ident, "name": None}]
     else:
-        q = " ".join(k.split("|")[0] for k in target.keywords) or ident or target.name
-        products = [p for p in client.search_products(q)
-                    if matches_keywords(p.get("name", ""), target.keywords or q.split(), exclude)]
+        kws = target.keywords or search_query(target).split()
+        products, seen = [], set()
+        for q in search_queries(target):
+            for p in client.search_products(q):
+                if p["id"] not in seen and matches_keywords(p.get("name", ""), kws, exclude):
+                    seen.add(p["id"])
+                    products.append(p)
+            if products:
+                break
     best = None
-    for p in products[:5]:
+    for p in products[:4]:
         try:
             items = client.product_items(p["id"])
         except Exception as e:  # noqa: BLE001 — producto sin vendedores activos, etc.
@@ -110,11 +131,13 @@ def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
         return ScrapeResult(store="mercadolibre", url=url, in_stock=False,
                             title=f"(sin publicaciones activas para {target.name})")
     p, o = best
-    name = p.get("name") or client.product(p["id"]).get("name")
-    return ScrapeResult(store="mercadolibre", url=url, title=name, price_cash=o["price"],
+    intl = (o.get("international_delivery_mode") or "none") != "none"
+    seller = client.nickname(o.get("seller_id"))
+    return ScrapeResult(store="mercadolibre", url=url, title=p.get("name"), price_cash=o["price"],
                         price_list=o.get("original_price"), in_stock=True,
-                        seller=str(o.get("seller_id") or "") or None,
-                        product_url=f"https://www.mercadolibre.com.ar/p/{p['id']}")
+                        seller=(seller or "") + (" (internacional)" if intl else "") or None,
+                        product_url=item_url(o.get("item_id", ""))
+                        or f"https://www.mercadolibre.com.ar/p/{p['id']}")
 
 
 class MercadoLibreScraper(GenericScraper):

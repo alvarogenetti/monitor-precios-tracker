@@ -99,8 +99,13 @@ def meli_cli(login: bool) -> int:
         print("1) Abrí este link, iniciá sesión en Mercado Libre y autorizá la app:\n")
         print("   " + client.login_url() + "\n")
         print(f"2) Te va a redirigir a {settings.meli_redirect_uri}?code=TG-...")
-        raw = input("   Pegá acá la URL completa a la que te redirigió (o sólo el code): ").strip()
-        code = parse_qs(urlparse(raw).query).get("code", [raw])[0]
+        code = ""
+        while not code:
+            raw = input("   Pegá acá la URL completa a la que te redirigió (o sólo el code): ")
+            raw = raw.strip().strip('"').strip("'")
+            code = parse_qs(urlparse(raw).query).get("code", [raw])[0].strip()
+            if not code:
+                print("   (llegó vacío; pegalo de nuevo con clic derecho o Ctrl+V y Enter)")
         try:
             body = client.exchange_code(code)
         except MeliError as e:
@@ -111,7 +116,7 @@ def meli_cli(login: bool) -> int:
     try:
         client.token()
         print(f"Autenticación OK (modo: {client.mode}).")
-        q = "PG27QFT2A"
+        q = "Gigabyte GS27QA"
         prods = client.search_products(q, limit=5)
         print(f"/products/search?q={q}: {len(prods)} productos")
         for p in prods[:3]:

@@ -24,8 +24,7 @@
         {
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/asrock-pg27qft2a",
-          "active": false,
-          "note": "ML suele pedir verificación anti-bot a navegadores automatizados; activalo si te funciona"
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -49,6 +48,11 @@
           "store": "hardgamers",
           "url": "https://www.hardgamers.com.ar/search?text=PG27QFT1B",
           "active": true
+        },
+        {
+          "store": "mercadolibre",
+          "url": "https://listado.mercadolibre.com.ar/asrock-pg27qft1b",
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -82,9 +86,8 @@
         },
         {
           "store": "mercadolibre",
-          "url": "https://www.mercadolibre.com.ar/monitor-gamer-gigabyte-gs27qa-ips-hdmi-27-180hz-1ms-3/up/MLAU3233183988",
-          "active": false,
-          "note": "ML suele pedir verificación anti-bot a navegadores automatizados; activalo si te funciona"
+          "url": "https://listado.mercadolibre.com.ar/gigabyte-gs27qa",
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -123,8 +126,7 @@
         {
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/msi-mag-275qf",
-          "active": false,
-          "note": "ML suele pedir verificación anti-bot a navegadores automatizados; activalo si te funciona"
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -159,8 +161,7 @@
         {
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/lg-27gs75q-b",
-          "active": false,
-          "note": "ML suele pedir verificación anti-bot a navegadores automatizados; activalo si te funciona"
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -195,8 +196,7 @@
         {
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/benq-ew270q",
-          "active": false,
-          "note": "ML suele pedir verificación anti-bot a navegadores automatizados; activalo si te funciona"
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -220,6 +220,11 @@
           "store": "hardgamers",
           "url": "https://www.hardgamers.com.ar/search?text=S27FG500EL",
           "active": true
+        },
+        {
+          "store": "mercadolibre",
+          "url": "https://listado.mercadolibre.com.ar/samsung-odyssey-g5-s27fg500el",
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     },
@@ -243,6 +248,11 @@
           "store": "hardgamers",
           "url": "https://www.hardgamers.com.ar/search?text=M27T6S",
           "active": true
+        },
+        {
+          "store": "mercadolibre",
+          "url": "https://listado.mercadolibre.com.ar/ktc-m27t6s",
+          "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
         }
       ]
     }
