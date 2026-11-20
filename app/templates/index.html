@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor de precios</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <style>
+    .tabular { font-variant-numeric: tabular-nums; }
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    thead th, #prices tbody > tr > td:not(:first-child) { white-space: nowrap; }
+    #prices tbody > tr > td:first-child { min-width: 22rem; }
+    .chart text { font-size: 10px; fill: currentColor; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 min-h-screen">
+<main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- Encabezado -->
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Monitor de precios</h1>
+      <p class="text-sm text-slate-500">
+        Precios transferencia/especial en ARS ·
+        Telegram: {% if telegram %}<span class="text-emerald-600">activo</span>{% else %}<span class="text-amber-600">sin configurar</span>{% endif %} ·
+        Scheduler: {% if scheduler %}cada {{ interval }} min{% else %}apagado{% endif %}
+        {% if last_run %} · Último escaneo: <span data-ts="{{ last_run.finished_at or last_run.started_at }}"></span>
+          ({{ last_run.n_ok }} ok, {{ last_run.n_error }} errores){% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="scan-status" class="text-sm text-slate-500"></div>
+      <button id="scan-btn" onclick="startScan()"
+              class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-wait">
+        <svg id="scan-spin" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"/></svg>
+        Escanear ahora
+      </button>
+      <button id="disc-btn" onclick="startDiscover()" title="Busca en todo Compra Gamer, HardGamers y Frávega monitores que cumplan tus requisitos obligatorios"
+              class="inline-flex items-center gap-2 rounded-lg border border-indigo-400 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-wait dark:text-indigo-300 dark:hover:bg-indigo-950">
+        🔎 Descubrir
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra de progreso -->
+  <div id="progress-wrap" class="hidden h-1.5 w-full rounded bg-slate-200 dark:bg-slate-800 overflow-hidden">
+    <div id="progress" class="h-full bg-indigo-500 transition-all" style="width:0%"></div>
+  </div>
+
+  <!-- Tabla comparativa -->
+  <section class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <table id="prices" class="min-w-full text-sm">
+      <thead class="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60">
+        <tr>
+          <th class="px-4 py-3">Monitor</th>
+          <th class="px-4 py-3 text-right">Mejor precio</th>
+          <th class="px-4 py-3">Tienda</th>
+          <th class="px-4 py-3" title="Bajo: a este precio o menos conviene comprar (alerta). Alto: por encima de este valor.">Rango (bajo ≤ · alto &gt;)</th>
+          <th class="px-4 py-3">Historial</th>
+          <th class="px-4 py-3 text-right">Mín. histórico</th>
+          <th class="px-4 py-3">Stock</th>
+          <th class="px-4 py-3">Link</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+      {% for r in rows %}
+        {% set t = r.target %}
+        <tr class="{% if r.hit %}bg-emerald-50 dark:bg-emerald-950/40{% endif %} {% if not t.active %}opacity-50{% endif %}"
+            data-series='{{ r.series|tojson }}' data-lo="{{ t.target_price }}" data-hi="{{ r.high }}">
+          <td class="px-4 py-3 align-top">
+            <details>
+              <summary class="font-medium hover:text-indigo-600">
+                ▸ {{ t.name }}
+                <span class="ml-1 text-xs font-normal text-slate-400">{{ t.urls|length }} links</span>
+              </summary>
+              <div class="mt-3 space-y-2 text-xs">
+                {% for o in r.offers %}
+                  {% set s = o.snap %}
+                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700 {% if not o.active %}opacity-50{% endif %}">
+                    <span class="font-semibold uppercase">{{ o.store }}</span>
+                    {% if not s %}
+                      <span class="text-slate-400">sin escanear</span>
+                    {% elif s.error %}
+                      <span class="text-rose-600" title="{{ s.error }}">⚠ {{ s.error[:70] }}</span>
+                    {% else %}
+                      <span class="tabular">{{ s.price_cash|ars }}</span>
+                      {% if s.price_list %}<span class="tabular text-slate-400">lista {{ s.price_list|ars }}</span>{% endif %}
+                      {% if s.in_stock == 0 %}<span class="text-rose-600">sin stock</span>{% endif %}
+                      {% if s.seller %}<span class="text-slate-500">@ {{ s.seller }}</span>{% endif %}
+                    {% endif %}
+                    {% if s %}<span class="text-slate-400" data-ts="{{ s.scanned_at }}"></span>{% endif %}
+                    <a class="text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ (s.product_url if s and s.product_url) or o.url }}">abrir ↗</a>
+                    <span class="ml-auto flex gap-2">
+                      <button class="text-slate-500 hover:text-slate-800 dark:hover:text-white" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
+                      <button class="text-rose-500 hover:text-rose-700" onclick="deleteUrl('{{ t.id }}', {{ o.url|tojson|forceescape }})">quitar</button>
+                    </span>
+                    {% if o.note %}<div class="w-full text-slate-400">{{ o.note }}</div>{% endif %}
+                  </div>
+                {% endfor %}
+                <form class="flex flex-wrap gap-2 pt-1" onsubmit="addUrl(event, '{{ t.id }}')">
+                  <select name="store" class="rounded border border-slate-300 bg-transparent px-2 py-1 dark:border-slate-700">
+                    <option value="generic">genérica (auto)</option>
+                    <option value="compragamer">compragamer</option>
+                    <option value="hardgamers">hardgamers</option>
+                    <option value="mercadolibre">mercadolibre</option>
+                    <option value="maximus">maximus</option>
+                    <option value="mexx">mexx</option>
+                    <option value="fullh4rd">fullh4rd</option>
+                    <option value="tryhardware">tryhardware</option>
+                    <option value="fravega">fravega</option>
+                    <option value="venex">venex</option>
+                  </select>
+                  <input name="url" type="url" required placeholder="https://… URL de la ficha o búsqueda"
+                         class="min-w-[260px] flex-1 rounded border border-slate-300 bg-transparent px-2 py-1 dark:border-slate-700">
+                  <button class="rounded bg-slate-800 px-3 py-1 text-white hover:bg-slate-700 dark:bg-slate-700">Agregar link</button>
+                </form>
+                <div class="text-slate-400">keywords: {{ t.keywords|join(', ') or '—' }} · id: {{ t.id }}</div>
+                {% if t.notes %}<div class="text-slate-500">📝 {{ t.notes }}</div>{% endif %}
+                <div class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div class="mb-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <span class="font-semibold">Historial del mejor precio</span>
+                    {% if r.stats %}
+                      <span class="text-slate-500 tabular">mín {{ r.stats.min|ars }} · mediana {{ r.stats.median|ars }} · máx {{ r.stats.max|ars }} · {{ r.stats.n }} escaneos</span>
+                    {% endif %}
+                    <a class="ml-auto text-indigo-600 hover:underline" href="/api/history/{{ t.id }}.csv">descargar CSV</a>
+                  </div>
+                  <div class="chart-big text-slate-500" style="height:180px"></div>
+                </div>
+              </div>
+            </details>
+          </td>
+          <td class="px-4 py-3 text-right align-top tabular font-semibold {% if r.hit %}text-emerald-600{% endif %}">
+            {% if r.best %}
+              {{ r.best.price_cash|ars }}
+              {% set bc = {'bajo': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+                           'normal': 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300',
+                           'alto': 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'} %}
+              <div><span class="rounded-full px-2 py-0.5 text-xs font-medium {{ bc[r.band] }}">{{ bands[r.band] }}</span></div>
+              {% if r.diff is not none %}
+                <div class="text-xs font-normal {% if r.diff <= 0 %}text-emerald-600{% else %}text-slate-400{% endif %}">
+                  {{ '%+.1f'|format(r.diff) }}% vs objetivo
+                </div>
+              {% endif %}
+              {% if r.best.price_list %}<div class="text-xs font-normal text-slate-400">lista {{ r.best.price_list|ars }}</div>{% endif %}
+            {% else %}<span class="text-slate-400">—</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 align-top">
+            {% if r.best %}{{ r.best.store }}{% if r.best.seller %}<div class="text-xs text-slate-500">{{ r.best.seller }}</div>{% endif %}{% endif %}
+          </td>
+          <td class="px-4 py-3 align-top">
+            <form class="flex items-center gap-1 text-xs" onsubmit="saveRange(event, '{{ t.id }}')">
+              <span class="text-emerald-600">≤</span>
+              <input name="lo" type="number" min="1" step="1000" value="{{ t.target_price|int }}" title="Bajo · comprá (precio objetivo)"
+                     class="w-24 rounded border border-emerald-300 bg-transparent px-1.5 py-1 text-right tabular dark:border-emerald-800">
+              <span class="text-rose-500">&gt;</span>
+              <input name="hi" type="number" min="1" step="1000" value="{{ r.high|int }}" title="Alto"
+                     class="w-24 rounded border border-rose-300 bg-transparent px-1.5 py-1 text-right tabular dark:border-rose-800">
+              <button title="Guardar" class="rounded px-1.5 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">✓</button>
+            </form>
+          </td>
+          <td class="px-4 py-3 align-top">
+            <div class="spark text-slate-500" style="width:140px;height:38px"></div>
+          </td>
+          <td class="px-4 py-3 text-right align-top tabular">
+            {% if r.hist %}{{ r.hist.price_cash|ars }}
+              <div class="text-xs text-slate-400">{{ r.hist.store }}{% if r.hist.seller %} · {{ r.hist.seller }}{% endif %}</div>
+            {% else %}<span class="text-slate-400">—</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 align-top">
+            {% if r.stock == 'in' %}<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">Con stock</span>
+            {% elif r.stock == 'out' %}<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Sin stock</span>
+            {% else %}<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800">?</span>{% endif %}
+          </td>
+          <td class="px-4 py-3 align-top">
+            {% if r.best %}<a class="text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ r.best.product_url or r.best.url }}">Ver ↗</a>{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">No hay productos cargados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+
+  <!-- Descubrimiento -->
+  <section id="discover" class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex flex-wrap items-baseline gap-x-4 gap-y-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+      <h2 class="font-semibold">Descubrir: monitores que cumplen tus requisitos</h2>
+      {% if discovery %}
+        <span class="text-xs text-slate-500">
+          <span data-ts="{{ discovery.finished_at }}"></span> · {{ discovery.n_offers }} ofertas · {{ discovery.n_models }} modelos
+          {% if discovery.errors %}<span class="text-rose-600" title="{{ discovery.errors|join(' | ') }}">· {{ discovery.errors|length }} fuente(s) con error</span>{% endif %}
+        </span>
+        <div class="ml-auto flex flex-wrap gap-1 text-xs" id="disc-filters">
+          {% for st in ['cumple', 'oled_oferta', 'a_confirmar', 'descartado'] %}
+            {% set n = discovery.results|selectattr('status', 'equalto', st)|list|length %}
+            <button data-st="{{ st }}" onclick="toggleStatus('{{ st }}')"
+                    class="disc-filter rounded-full border px-2 py-0.5 {% if st == 'descartado' %}opacity-40{% endif %} border-slate-300 dark:border-slate-700">
+              {{ status_labels[st] }} ({{ n }})
+            </button>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% if not discovery %}
+      <p class="px-4 py-6 text-sm text-slate-400">Todavía no corriste un descubrimiento. Apretá <b>🔎 Descubrir</b>: recorre el catálogo de Compra Gamer y búsquedas amplias de HardGamers y Frávega, y evalúa cada modelo contra los requisitos de <code>config/discovery.json</code> (27" plano, QHD, ≥120 Hz, IPS, mate, VESA 75/100, &lt;8 kg, HDMI). Lo que no figura en los títulos sale de <code>config/specs.json</code>.</p>
+    {% else %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/60">
+          <tr>
+            <th class="px-4 py-2">Estado</th>
+            <th class="px-4 py-2">Modelo</th>
+            <th class="px-4 py-2 text-right">Mejor precio</th>
+            <th class="px-4 py-2">Requisitos</th>
+            <th class="px-4 py-2">Notas</th>
+            <th class="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+        {% set sc = {'cumple': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+                     'oled_oferta': 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
+                     'a_confirmar': 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+                     'descartado': 'bg-slate-100 text-slate-500 dark:bg-slate-800'} %}
+        {% for m in discovery.results %}
+          <tr class="disc-row align-top" data-st="{{ m.status }}" {% if m.status == 'descartado' %}hidden{% endif %}>
+            <td class="px-4 py-2"><span class="whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium {{ sc[m.status] }}">{{ status_labels[m.status] }}</span></td>
+            <td class="px-4 py-2" style="min-width:18rem">
+              <div class="font-medium">{{ m.name }}
+                {% if m.is_new %}<span class="ml-1 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white">NUEVO</span>{% endif %}
+              </div>
+              <div class="mt-0.5 flex flex-wrap gap-1 text-[11px] text-slate-500">
+                <span class="font-mono">{{ m.search }}</span>
+                {% for b in m.badges %}<span class="rounded bg-slate-100 px-1.5 dark:bg-slate-800">{{ b }}</span>{% endfor %}
+              </div>
+            </td>
+            <td class="px-4 py-2 text-right tabular">
+              <a class="font-semibold text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.best.price|ars }}</a>
+              <div class="text-xs text-slate-500">{{ m.best.store }}{% if m.best.seller %} · {{ m.best.seller }}{% endif %}</div>
+              <div class="text-xs text-slate-400">{{ m.n_stores }} tienda{{ 's' if m.n_stores != 1 }}{% if m.min_price and m.min_price < m.best.price %} · mín {{ m.min_price|ars }}{% endif %}</div>
+            </td>
+            <td class="px-4 py-2">
+              <div class="flex flex-wrap gap-1 text-[11px]" style="width:15rem">
+                {% for k, v in m.checks.items() %}
+                  <span class="rounded px-1.5 py-0.5 {% if v == 'ok' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300{% elif v == 'fail' %}bg-rose-50 text-rose-700 line-through dark:bg-rose-950 dark:text-rose-300{% else %}bg-slate-100 text-slate-500 dark:bg-slate-800{% endif %}"
+                        title="{{ {'ok': 'cumple', 'fail': 'no cumple', '?': 'sin dato: confirmar'}[v] }}">{{ '✓' if v == 'ok' else ('✗' if v == 'fail' else '?') }} {{ k }}</span>
+                {% endfor %}
+              </div>
+            </td>
+            <td class="px-4 py-2 text-xs" style="min-width:14rem">
+              {% if m.fails %}<div class="text-rose-600">✗ {{ m.fails|join(' · ') }}</div>{% endif %}
+              {% if m.missing %}<div class="text-amber-600">Confirmar: {{ m.missing|join(', ') }}</div>{% endif %}
+              {% if m.warnings %}<div class="text-slate-500">⚠ {{ m.warnings|join(' · ') }}</div>{% endif %}
+              {% if m.spec and m.spec.notes %}<div class="text-slate-400 line-clamp-2" title="{{ m.spec.notes }}">{{ m.spec.notes }}</div>{% endif %}
+            </td>
+            <td class="px-4 py-2 text-xs">
+              {% if m.tracked %}<span class="text-emerald-600">✓ seguido</span>
+              {% elif m.status != 'descartado' %}<button onclick="trackModel({{ m.key|tojson|forceescape }})" class="rounded bg-slate-800 px-2 py-1 text-white hover:bg-slate-700 dark:bg-slate-700">+ Seguir</button>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  <div class="grid gap-6 md:grid-cols-2">
+    <!-- Nuevo producto -->
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h2 class="mb-3 font-semibold">Agregar monitor</h2>
+      <form class="grid gap-2 text-sm" onsubmit="addTarget(event)">
+        <input name="name" required placeholder="Nombre (ej. Samsung Odyssey G5 LS27CG510)" class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
+        <div class="flex gap-2">
+          <input name="price" type="number" min="1" step="1000" required placeholder="Precio objetivo" class="w-40 rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
+          <input name="keywords" placeholder="Keywords separadas por coma (ej. LS27CG510)" class="flex-1 rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
+        </div>
+        <p class="text-xs text-slate-400">Las keywords filtran resultados en páginas de búsqueda (HardGamers, Compra Gamer, listados de ML). Después agregá los links desde la tabla.</p>
+        <button class="justify-self-start rounded bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500">Crear</button>
+      </form>
+    </section>
+
+    <!-- Alertas recientes -->
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h2 class="mb-3 font-semibold">Alertas recientes</h2>
+      <ul class="space-y-2 text-xs">
+        {% for a in alerts %}
+          <li class="rounded border border-slate-100 px-2 py-1.5 dark:border-slate-800">
+            <span class="text-slate-400" data-ts="{{ a.created_at }}"></span>
+            {% if a.sent %}<span class="text-emerald-600">· enviada</span>{% else %}<span class="text-slate-400">· sólo registrada</span>{% endif %}
+            <div class="mt-0.5">{{ a.message|striptags|truncate(180) }}</div>
+          </li>
+        {% else %}
+          <li class="text-slate-400">Todavía no hubo alertas.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script>
+const fmt = new Intl.DateTimeFormat('es-AR', {dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires'});
+function paintDates(){ document.querySelectorAll('[data-ts]').forEach(el => { const v = el.dataset.ts; if (v) el.textContent = fmt.format(new Date(v)); }); }
+paintDates();
+
+async function api(method, url, body){
+  const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok && r.status !== 409) { alert(data.detail || ('Error ' + r.status)); throw new Error(r.status); }
+  return {status: r.status, data};
+}
+
+const btn = document.getElementById('scan-btn'), spin = document.getElementById('scan-spin');
+const statusEl = document.getElementById('scan-status');
+const bar = document.getElementById('progress'), barWrap = document.getElementById('progress-wrap');
+let polling = null, wasRunning = false;
+
+const discBtn = document.getElementById('disc-btn');
+function renderState(st){
+  btn.disabled = st.running; discBtn.disabled = st.running; spin.classList.toggle('hidden', !st.running);
+  barWrap.classList.toggle('hidden', !st.running);
+  if (st.running){
+    const pct = st.total ? Math.round(st.done / st.total * 100) : 3;
+    bar.style.width = pct + '%';
+    const verb = st.job === 'discover' ? 'Descubriendo' : 'Escaneando';
+    statusEl.textContent = `${verb} ${st.done}/${st.total || '?'}${st.current ? ' · ' + st.current.replace('Descubriendo · ', '') : ''}`;
+  } else if (st.error){
+    statusEl.textContent = 'Error: ' + st.error;
+  } else {
+    statusEl.textContent = '';
+  }
+}
+
+async function poll(){
+  const {data} = await api('GET', '/api/status');
+  renderState(data.state);
+  if (data.state.running){ wasRunning = true; }
+  else { clearInterval(polling); polling = null; if (wasRunning) location.reload(); }
+}
+
+async function startScan(){
+  const {status, data} = await api('POST', '/api/scan');
+  if (status === 409) statusEl.textContent = 'Ya hay un escaneo en curso…';
+  wasRunning = true;
+  if (!polling) polling = setInterval(poll, 1500);
+  poll();
+}
+
+async function startDiscover(){
+  const {status} = await api('POST', '/api/discover');
+  if (status === 409) statusEl.textContent = 'Ya hay un escaneo en curso…';
+  wasRunning = true;
+  if (!polling) polling = setInterval(poll, 1500);
+  poll();
+}
+async function trackModel(key){
+  const {data} = await api('POST', '/api/discover/track', {key});
+  alert(`Agregado a seguimiento: ${data.target.name}\nRango inicial: bajo ≤ ${ars(data.target.target_price)} · alto > ${ars(data.target.price_high)}. Ajustalo en la tabla.`);
+  location.reload();
+}
+const shown = new Set(['cumple', 'oled_oferta', 'a_confirmar']);
+function toggleStatus(st){
+  shown.has(st) ? shown.delete(st) : shown.add(st);
+  document.querySelectorAll('.disc-row').forEach(r => r.hidden = !shown.has(r.dataset.st));
+  document.querySelectorAll('.disc-filter').forEach(b => b.classList.toggle('opacity-40', !shown.has(b.dataset.st)));
+}
+
+async function saveRange(e, id){
+  e.preventDefault();
+  const lo = Number(e.target.lo.value), hi = Number(e.target.hi.value);
+  if (hi <= lo){ alert('El precio "alto" tiene que ser mayor que el "bajo".'); return; }
+  await api('POST', '/api/targets', {target_id: id, target_price: lo, price_high: hi});
+  location.reload();
+}
+
+// ---------- gráficos de historial (SVG sin librerías)
+const ars = v => '$' + Math.round(v).toLocaleString('es-AR');
+const fmtDay = new Intl.DateTimeFormat('es-AR', {day: '2-digit', month: '2-digit', timeZone: 'America/Argentina/Buenos_Aires'});
+function drawChart(el, series, lo, hi, big){
+  const W = el.clientWidth || 140, H = el.clientHeight || 38;
+  if (!series.length){ el.innerHTML = `<span class="text-xs text-slate-400">${big ? 'Todavía no hay escaneos con precio.' : '—'}</span>`; return; }
+  const padL = big ? 62 : 2, padR = big ? 8 : 2, padT = 4, padB = big ? 16 : 2;
+  const prices = series.map(p => p.price);
+  let yMin = Math.min(...prices, lo), yMax = Math.max(...prices, hi);
+  const m = (yMax - yMin) * 0.08 || yMax * 0.05; yMin -= m; yMax += m;
+  const t0 = Date.parse(series[0].ts), t1 = Date.parse(series[series.length - 1].ts);
+  const x = t => series.length < 2 ? (padL + W - padR) / 2 : padL + (Date.parse(t) - t0) / (t1 - t0 || 1) * (W - padL - padR);
+  const y = v => padT + (yMax - v) / (yMax - yMin) * (H - padT - padB);
+  const yLo = y(lo), yHi = y(hi);
+  let svg = `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  // Zonas: alto (arriba de hi) en rojo, bajo (debajo de lo) en verde, normal sin color
+  svg += `<rect x="${padL}" y="${padT}" width="${W-padL-padR}" height="${Math.max(0, yHi-padT)}" fill="#f43f5e" opacity=".10"/>`;
+  svg += `<rect x="${padL}" y="${yLo}" width="${W-padL-padR}" height="${Math.max(0, H-padB-yLo)}" fill="#10b981" opacity=".14"/>`;
+  svg += `<line x1="${padL}" x2="${W-padR}" y1="${yLo}" y2="${yLo}" stroke="#10b981" stroke-dasharray="3 3"/>`;
+  svg += `<line x1="${padL}" x2="${W-padR}" y1="${yHi}" y2="${yHi}" stroke="#f43f5e" stroke-dasharray="3 3" opacity=".7"/>`;
+  const pts = series.map(p => `${x(p.ts).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ');
+  svg += `<polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="${big ? 2 : 1.5}" stroke-linejoin="round"/>`;
+  const last = series[series.length - 1];
+  if (big){
+    series.forEach(p => {
+      svg += `<circle cx="${x(p.ts)}" cy="${y(p.price)}" r="3" fill="#6366f1"><title>${fmt.format(new Date(p.ts))}\n${ars(p.price)} · ${p.where}</title></circle>`;
+    });
+    svg += `<text x="${padL-4}" y="${yLo+3}" text-anchor="end" style="fill:#059669">${ars(lo)}</text>`;
+    svg += `<text x="${padL-4}" y="${yHi+3}" text-anchor="end" style="fill:#e11d48">${ars(hi)}</text>`;
+    svg += `<text x="${padL}" y="${H-3}">${fmtDay.format(new Date(series[0].ts))}</text>`;
+    svg += `<text x="${W-padR}" y="${H-3}" text-anchor="end">${fmtDay.format(new Date(last.ts))}</text>`;
+  } else {
+    svg += `<circle cx="${x(last.ts)}" cy="${y(last.price)}" r="2.5" fill="#6366f1"/>`;
+  }
+  el.innerHTML = svg + '</svg>';
+  el.title = big ? '' : `${series.length} escaneos · último ${ars(last.price)}`;
+}
+function drawAll(){
+  document.querySelectorAll('tr[data-series]').forEach(tr => {
+    const series = JSON.parse(tr.dataset.series), lo = +tr.dataset.lo, hi = +tr.dataset.hi;
+    const spark = tr.querySelector('.spark'); if (spark) drawChart(spark, series, lo, hi, false);
+    const big = tr.querySelector('.chart-big');
+    if (big && big.offsetParent) drawChart(big, series, lo, hi, true);
+  });
+}
+drawAll();
+document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', drawAll));
+window.addEventListener('resize', drawAll);
+async function addUrl(e, id){
+  e.preventDefault();
+  await api('POST', '/api/targets', {target_id: id, store: e.target.store.value, url: e.target.url.value.trim()});
+  location.reload();
+}
+async function toggleUrl(id, url, active){ await api('POST', `/api/targets/${id}/urls`, {url, active}); location.reload(); }
+async function deleteUrl(id, url){
+  if (!confirm('¿Quitar este link? (el historial queda en la base)')) return;
+  await api('POST', `/api/targets/${id}/urls`, {url, delete: true}); location.reload();
+}
+async function addTarget(e){
+  e.preventDefault();
+  const f = e.target;
+  await api('POST', '/api/targets', {
+    name: f.elements['name'].value.trim(), target_price: Number(f.price.value),
+    keywords: f.keywords.value.split(',').map(s => s.trim()).filter(Boolean)
+  });
+  location.reload();
+}
+
+// Si el server ya estaba escaneando (scheduler o CLI web), mostramos el progreso
+{% if state.running %}wasRunning = true; polling = setInterval(poll, 1500); poll();{% endif %}
+</script>
+</body>
+</html>

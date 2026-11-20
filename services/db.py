@@ -1,0 +1,300 @@
+"""Persistencia SQLite: snapshots de precio/stock, corridas de escaneo y alertas."""
+from __future__ import annotations
+
+import json
+import sqlite3
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterator
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS snapshots (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_id   TEXT NOT NULL,
+    store       TEXT NOT NULL,
+    url         TEXT NOT NULL,
+    title       TEXT,
+    seller      TEXT,
+    product_url TEXT,
+    price_cash  REAL,
+    price_list  REAL,
+    in_stock    INTEGER,            -- 1 / 0 / NULL (desconocido)
+    error       TEXT,
+    scanned_at  TEXT NOT NULL,       -- ISO-8601 UTC
+    run_id      INTEGER              -- scan_runs.id (agrupa los snapshots de un mismo escaneo)
+);
+CREATE INDEX IF NOT EXISTS ix_snap_target_url ON snapshots(target_id, url, id);
+
+CREATE TABLE IF NOT EXISTS scan_runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    trigger     TEXT NOT NULL,       -- cli / web / scheduler
+    started_at  TEXT NOT NULL,
+    finished_at TEXT,
+    n_ok        INTEGER DEFAULT 0,
+    n_error     INTEGER DEFAULT 0,
+    n_alerts    INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS discovery_runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    trigger     TEXT NOT NULL,
+    started_at  TEXT NOT NULL,
+    finished_at TEXT,
+    n_offers    INTEGER DEFAULT 0,
+    n_models    INTEGER DEFAULT 0,
+    errors      TEXT,                -- JSON
+    results     TEXT                 -- JSON: modelos evaluados de esa corrida
+);
+
+CREATE TABLE IF NOT EXISTS discovered_models (
+    model_key   TEXT PRIMARY KEY,
+    name        TEXT,
+    status      TEXT,
+    first_seen  TEXT NOT NULL,
+    first_run   INTEGER,
+    last_seen   TEXT NOT NULL,
+    last_price  REAL,
+    min_price   REAL
+);
+
+CREATE TABLE IF NOT EXISTS discovery_prices (
+    run_id      INTEGER NOT NULL,
+    model_key   TEXT NOT NULL,
+    price       REAL NOT NULL,
+    store       TEXT,
+    seller      TEXT,
+    scanned_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_disc_prices ON discovery_prices(model_key, run_id);
+
+CREATE TABLE IF NOT EXISTS alerts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_id   TEXT NOT NULL,
+    kind        TEXT NOT NULL,       -- price_drop / target_reached / back_in_stock
+    message     TEXT NOT NULL,
+    sent        INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);
+"""
+
+
+def utcnow() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+class Database:
+    def __init__(self, path: Path | str):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as con:
+            con.executescript(SCHEMA)
+            self._migrate(con)
+
+    @staticmethod
+    def _migrate(con: sqlite3.Connection) -> None:
+        cols = {r["name"] for r in con.execute("PRAGMA table_info(snapshots)")}
+        if "run_id" not in cols:
+            con.execute("ALTER TABLE snapshots ADD COLUMN run_id INTEGER")
+            # Bases viejas: asignamos cada snapshot al escaneo dentro de cuyo intervalo cayó
+            con.execute("""UPDATE snapshots SET run_id = (
+                               SELECT r.id FROM scan_runs r
+                               WHERE snapshots.scanned_at >= r.started_at
+                                 AND snapshots.scanned_at <= COALESCE(r.finished_at, '9999')
+                               ORDER BY r.id DESC LIMIT 1)""")
+        con.execute("CREATE INDEX IF NOT EXISTS ix_snap_target_run ON snapshots(target_id, run_id)")
+
+    @contextmanager
+    def connect(self) -> Iterator[sqlite3.Connection]:
+        # journal_mode por defecto (DELETE): un único archivo .db, ideal para commitearlo en Git.
+        con = sqlite3.connect(self.path, timeout=30)
+        con.row_factory = sqlite3.Row
+        try:
+            yield con
+            con.commit()
+        finally:
+            con.close()
+
+    # ---------------------------------------------------------------- escritura
+    def insert_snapshot(self, target_id: str, r: dict, run_id: int | None = None) -> int:
+        in_stock = r.get("in_stock")
+        with self.connect() as con:
+            cur = con.execute(
+                """INSERT INTO snapshots (target_id, store, url, title, seller, product_url,
+                       price_cash, price_list, in_stock, error, scanned_at, run_id)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    target_id, r["store"], r["url"], r.get("title"), r.get("seller"),
+                    r.get("product_url"), r.get("price_cash"), r.get("price_list"),
+                    None if in_stock is None else int(bool(in_stock)),
+                    r.get("error"), r.get("scanned_at") or utcnow(), run_id,
+                ),
+            )
+            return int(cur.lastrowid)
+
+    def start_run(self, trigger: str) -> int:
+        with self.connect() as con:
+            cur = con.execute(
+                "INSERT INTO scan_runs (trigger, started_at) VALUES (?, ?)", (trigger, utcnow())
+            )
+            return int(cur.lastrowid)
+
+    def finish_run(self, run_id: int, n_ok: int, n_error: int, n_alerts: int) -> None:
+        with self.connect() as con:
+            con.execute(
+                "UPDATE scan_runs SET finished_at=?, n_ok=?, n_error=?, n_alerts=? WHERE id=?",
+                (utcnow(), n_ok, n_error, n_alerts, run_id),
+            )
+
+    def insert_alert(self, target_id: str, kind: str, message: str, sent: bool) -> None:
+        with self.connect() as con:
+            con.execute(
+                "INSERT INTO alerts (target_id, kind, message, sent, created_at) VALUES (?,?,?,?,?)",
+                (target_id, kind, message, int(sent), utcnow()),
+            )
+
+    # ---------------------------------------------------------------- descubrimiento
+    def start_discovery(self, trigger: str) -> int:
+        with self.connect() as con:
+            return int(con.execute("INSERT INTO discovery_runs (trigger, started_at) VALUES (?, ?)",
+                                   (trigger, utcnow())).lastrowid)
+
+    def finish_discovery(self, run_id: int, n_offers: int, results: list[dict],
+                         errors: list[str]) -> None:
+        with self.connect() as con:
+            con.execute(
+                """UPDATE discovery_runs SET finished_at=?, n_offers=?, n_models=?, errors=?,
+                   results=? WHERE id=?""",
+                (utcnow(), n_offers, len(results), json.dumps(errors, ensure_ascii=False),
+                 json.dumps(results, ensure_ascii=False), run_id))
+
+    def has_discovered_models(self) -> bool:
+        with self.connect() as con:
+            return con.execute("SELECT 1 FROM discovered_models LIMIT 1").fetchone() is not None
+
+    def upsert_discovered(self, run_id: int, results: list) -> set[str]:
+        """Guarda modelos y precio de esta corrida. Devuelve las claves vistas por primera vez."""
+        now = utcnow()
+        new: set[str] = set()
+        with self.connect() as con:
+            for r in results:
+                price, best = r.best["price"], r.best
+                row = con.execute("SELECT min_price FROM discovered_models WHERE model_key=?",
+                                  (r.key,)).fetchone()
+                if row is None:
+                    new.add(r.key)
+                    con.execute(
+                        """INSERT INTO discovered_models (model_key, name, status, first_seen,
+                           first_run, last_seen, last_price, min_price) VALUES (?,?,?,?,?,?,?,?)""",
+                        (r.key, r.name, r.status, now, run_id, now, price, price))
+                else:
+                    con.execute(
+                        """UPDATE discovered_models SET name=?, status=?, last_seen=?, last_price=?,
+                           min_price=MIN(COALESCE(min_price, ?), ?) WHERE model_key=?""",
+                        (r.name, r.status, now, price, price, price, r.key))
+                con.execute(
+                    """INSERT INTO discovery_prices (run_id, model_key, price, store, seller,
+                       scanned_at) VALUES (?,?,?,?,?,?)""",
+                    (run_id, r.key, price, best["store"], best.get("seller"), now))
+        return new
+
+    def last_discovery(self) -> dict | None:
+        with self.connect() as con:
+            row = con.execute("""SELECT * FROM discovery_runs WHERE finished_at IS NOT NULL
+                                 ORDER BY id DESC LIMIT 1""").fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["results"] = json.loads(d["results"] or "[]")
+            d["errors"] = json.loads(d["errors"] or "[]")
+            meta = {r["model_key"]: dict(r) for r in con.execute("SELECT * FROM discovered_models")}
+            series: dict[str, list] = {}
+            for r in con.execute("""SELECT model_key, price, scanned_at FROM discovery_prices
+                                    ORDER BY run_id"""):
+                series.setdefault(r["model_key"], []).append(
+                    {"ts": r["scanned_at"], "price": r["price"], "where": ""})
+        for m in d["results"]:
+            info = meta.get(m["key"], {})
+            m["first_seen"] = info.get("first_seen")
+            m["min_price"] = info.get("min_price")
+            m["series"] = series.get(m["key"], [])
+        return d
+
+    # ---------------------------------------------------------------- lectura
+    def last_snapshot(self, target_id: str, url: str, *, valid_price: bool = False,
+                      known_stock: bool = False) -> dict | None:
+        """Último snapshot sin error para (target, url).
+
+        valid_price: exige price_cash no nulo. known_stock: exige in_stock no nulo.
+        """
+        cond = ["target_id=?", "url=?", "error IS NULL"]
+        if valid_price:
+            cond.append("price_cash IS NOT NULL")
+        if known_stock:
+            cond.append("in_stock IS NOT NULL")
+        sql = "SELECT * FROM snapshots WHERE " + " AND ".join(cond) + " ORDER BY id DESC LIMIT 1"
+        with self.connect() as con:
+            row = con.execute(sql, (target_id, url)).fetchone()
+        return dict(row) if row else None
+
+    def latest_per_url(self) -> list[dict]:
+        """Último snapshot (con o sin error) de cada (target, url)."""
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT s.* FROM snapshots s
+                   JOIN (SELECT target_id, url, MAX(id) AS mid FROM snapshots
+                         GROUP BY target_id, url) m ON s.id = m.mid"""
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def historical_min(self) -> dict[str, dict]:
+        """Precio cash mínimo histórico por target (sólo registros válidos y no marcados sin stock)."""
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT target_id, store, seller, price_cash, scanned_at FROM (
+                       SELECT *, ROW_NUMBER() OVER (PARTITION BY target_id
+                                                    ORDER BY price_cash ASC, id ASC) AS rn
+                       FROM snapshots
+                       WHERE error IS NULL AND price_cash IS NOT NULL
+                         AND (in_stock IS NULL OR in_stock = 1))
+                   WHERE rn = 1"""
+            ).fetchall()
+        return {r["target_id"]: dict(r) for r in rows}
+
+    def history(self, target_id: str, limit: int = 500) -> list[dict]:
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT store, seller, url, price_cash, price_list, in_stock, error, scanned_at
+                   FROM snapshots WHERE target_id=? ORDER BY id DESC LIMIT ?""",
+                (target_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def best_series(self, target_id: str, days: int = 365) -> list[dict]:
+        """Mejor precio transferencia (con stock) de cada escaneo: la curva de historial.
+
+        store/seller son los de la tienda que tenía ese precio en ese escaneo.
+        """
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT run_id, price_cash AS price, store, seller, scanned_at AS ts FROM (
+                       SELECT *, ROW_NUMBER() OVER (PARTITION BY run_id
+                                                    ORDER BY price_cash ASC, id ASC) AS rn
+                       FROM snapshots
+                       WHERE target_id=? AND run_id IS NOT NULL AND error IS NULL
+                         AND price_cash IS NOT NULL AND (in_stock IS NULL OR in_stock = 1)
+                         AND scanned_at >= datetime('now', ?))
+                   WHERE rn = 1 ORDER BY run_id""",
+                (target_id, f"-{int(days)} days"),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def last_run(self) -> dict | None:
+        with self.connect() as con:
+            row = con.execute("SELECT * FROM scan_runs ORDER BY id DESC LIMIT 1").fetchone()
+        return dict(row) if row else None
+
+    def recent_alerts(self, limit: int = 20) -> list[dict]:
+        with self.connect() as con:
+            rows = con.execute("SELECT * FROM alerts ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]

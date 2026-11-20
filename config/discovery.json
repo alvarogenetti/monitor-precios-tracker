@@ -1,0 +1,29 @@
+{
+  "requirements": {
+    "size_in": 27,
+    "resolution": "2560x1440",
+    "min_hz": 120,
+    "panels": ["IPS"],
+    "flat": true,
+    "anti_glare": true,
+    "vesa": ["75x75", "100x100"],
+    "max_weight_kg": 8,
+    "min_hdmi_ports": 1,
+    "ideal_brightness_nits": 300,
+    "psu_voltage": "220V"
+  },
+  "oled_max_price": 650000,
+  "max_price": 1500000,
+  "exclude_words": ["usado", "reacondicionado", "refurbished", "open box"],
+  "sources": [
+    {"store": "compragamer", "url": "https://compragamer.com/productos?agrup=6"},
+    {"store": "hardgamers", "url": "https://www.hardgamers.com.ar/search?text=monitor%2027%20qhd"},
+    {"store": "hardgamers", "url": "https://www.hardgamers.com.ar/search?text=monitor%2027%202k"},
+    {"store": "hardgamers", "url": "https://www.hardgamers.com.ar/search?text=monitor%2027%201440"},
+    {"store": "hardgamers", "url": "https://www.hardgamers.com.ar/search?text=monitor%2027%20wqhd"},
+    {"store": "hardgamers", "url": "https://www.hardgamers.com.ar/search?text=monitor%2027%20ips%20180hz"},
+    {"store": "fravega", "url": "https://www.fravega.com/l/?keyword=monitor%2027%20qhd"},
+    {"store": "fravega", "url": "https://www.fravega.com/l/?keyword=monitor%2027%202k"}
+  ],
+  "ignore_models": []
+}
