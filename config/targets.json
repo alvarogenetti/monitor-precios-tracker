@@ -25,6 +25,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/asrock-pg27qft2a",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=PG27QFT2A",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=PG27QFT2A",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -53,6 +64,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/asrock-pg27qft1b",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=PG27QFT1B",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=PG27QFT1B",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -88,6 +110,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/gigabyte-gs27qa",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=GS27QA",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=GS27QA",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -127,6 +160,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/msi-mag-275qf",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=MAG%20275QF",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=MAG%20275QF",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -152,16 +196,20 @@
           "active": true
         },
         {
-          "store": "fravega",
-          "url": "https://www.fravega.com/l/?keyword=27GS75Q",
-          "active": true,
-          "ci": false,
-          "note": "Bloquea las IPs de GitHub Actions (403): se escanea sólo desde tu PC"
-        },
-        {
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/lg-27gs75q-b",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=27GS75Q",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=27GS75Q",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -177,13 +225,6 @@
       "active": true,
       "urls": [
         {
-          "store": "fravega",
-          "url": "https://www.fravega.com/l/?keyword=EW270Q",
-          "active": true,
-          "ci": false,
-          "note": "Bloquea las IPs de GitHub Actions (403): se escanea sólo desde tu PC"
-        },
-        {
           "store": "compragamer",
           "url": "https://compragamer.com/productos?criterio=EW270Q",
           "active": true
@@ -197,6 +238,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/benq-ew270q",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=EW270Q",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=EW270Q",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -225,6 +277,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/samsung-odyssey-g5-s27fg500el",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=FG500EL",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=FG500EL",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     },
@@ -253,6 +316,17 @@
           "store": "mercadolibre",
           "url": "https://listado.mercadolibre.com.ar/ktc-m27t6s",
           "note": "API oficial de ML: busca el modelo en el catálogo y toma la publicación nueva más barata"
+        },
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=M27T6S",
+          "ci": false,
+          "note": "API de Frávega; bloquea las IPs de GitHub Actions: se escanea desde tu PC"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=M27T6S",
+          "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
       ]
     }

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from app.main import STATUS_LABELS, BANDS, build_dashboard, db, templates
+from services.events import active_event
 from settings import settings, setup_logging
 
 
@@ -22,7 +23,7 @@ def build(out_dir: Path) -> Path:
         request=_Req(), static=True,
         rows=build_dashboard(), state={"running": False}, last_run=db.last_run(),
         alerts=db.recent_alerts(10), telegram=settings.telegram_enabled,
-        scheduler=True, interval=180, bands=BANDS,
+        scheduler=True, interval=180, bands=BANDS, event=active_event(),
         discovery=db.last_discovery(), status_labels=STATUS_LABELS,
     )
     out_dir.mkdir(parents=True, exist_ok=True)

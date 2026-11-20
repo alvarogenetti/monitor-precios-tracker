@@ -59,7 +59,34 @@
       "store": "fravega",
       "url": "https://www.fravega.com/l/?keyword=monitor%2027%202k",
       "ci": false
+    },
+    {
+      "store": "oncity",
+      "url": "https://www.oncity.com/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "pardo",
+      "url": "https://www.pardo.com.ar/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "carrefour",
+      "url": "https://www.carrefour.com.ar/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "cetrogar",
+      "url": "https://www.cetrogar.com.ar/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "coppel",
+      "url": "https://www.coppel.com.ar/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "naldo",
+      "url": "https://www.naldo.com.ar/?q=monitor%2027%20qhd"
     }
   ],
-  "ignore_models": []
+  "ignore_models": [],
+  "import_sellers": [
+    "Glic"
+  ]
 }

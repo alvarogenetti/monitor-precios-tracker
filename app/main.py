@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from services.db import Database
 from services.discovery import STATUS_LABELS
+from services.events import active_event
 from services.targets import BANDS, Target, TargetUrl, load_targets, save_targets, slugify
 from services.tracker import STATE, fmt_ars, start_scan_thread
 from settings import settings, setup_logging
@@ -99,6 +100,7 @@ def index(request: Request):
         "scheduler": settings.scheduler_enabled,
         "interval": settings.scan_interval_minutes,
         "bands": BANDS,
+        "event": active_event(),
         "discovery": db.last_discovery(),
         "status_labels": STATUS_LABELS,
     })

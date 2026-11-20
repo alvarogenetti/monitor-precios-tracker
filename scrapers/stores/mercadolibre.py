@@ -133,11 +133,19 @@ def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
     p, o = best
     intl = (o.get("international_delivery_mode") or "none") != "none"
     seller = client.nickname(o.get("seller_id"))
+    promo = []
+    if o.get("original_price") and o["original_price"] > o["price"]:
+        promo.append(f"-{(o['original_price'] - o['price']) / o['original_price'] * 100:.0f}% sobre lista")
+    if o.get("deal_ids"):
+        promo.append("oferta de Mercado Libre")
+    if (o.get("shipping") or {}).get("free_shipping"):
+        promo.append("envío gratis")
     return ScrapeResult(store="mercadolibre", url=url, title=p.get("name"), price_cash=o["price"],
                         price_list=o.get("original_price"), in_stock=True,
                         seller=(seller or "") + (" (internacional)" if intl else "") or None,
                         product_url=item_url(o.get("item_id", ""))
-                        or f"https://www.mercadolibre.com.ar/p/{p['id']}")
+                        or f"https://www.mercadolibre.com.ar/p/{p['id']}",
+                        promo=" · ".join(promo) or None)
 
 
 class MercadoLibreScraper(GenericScraper):

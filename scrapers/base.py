@@ -80,6 +80,7 @@ class ScrapeResult:
     seller: str | None = None
     product_url: str | None = None
     error: str | None = None
+    promo: str | None = None        # "-28% sobre lista · 3 cuotas sin interés", deals de ML, etc.
     scanned_at: str = field(default_factory=utcnow)
 
     @property
@@ -96,7 +97,8 @@ class ScrapeResult:
         cash = f"${self.price_cash:,.0f}".replace(",", ".") if self.price_cash else "-"
         lst = f" / lista ${self.price_list:,.0f}".replace(",", ".") if self.price_list else ""
         who = f" @ {self.seller}" if self.seller else ""
-        return f"{cash}{lst} ({stock}){who}"
+        promo = f"  [{self.promo}]" if self.promo else ""
+        return f"{cash}{lst} ({stock}){who}{promo}"
 
 
 class ScrapeError(Exception):
@@ -168,6 +170,8 @@ class BrowserSession:
 
 # ------------------------------------------------------------------ scraper base
 class BaseScraper:
+    uses_browser = True   # False en adaptadores que llaman APIs JSON (sin pausa entre requests)
+
     store: str = "generic"
     domains: tuple[str, ...] = ()
 

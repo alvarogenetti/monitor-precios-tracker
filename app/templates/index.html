@@ -26,6 +26,7 @@
         Precios transferencia/especial en ARS ·
         Telegram: {% if telegram %}<span class="text-emerald-600">activo</span>{% else %}<span class="text-amber-600">sin configurar</span>{% endif %} ·
         Scheduler: {% if scheduler %}cada {{ interval }} min{% else %}apagado{% endif %}
+        {% if event %} · <span class="font-semibold text-rose-600">🔥 {{ event }}: escaneo cada hora</span>{% endif %}
         {% if last_run %} · Último escaneo: <span data-ts="{{ last_run.finished_at or last_run.started_at }}"></span>
           ({{ last_run.n_ok }} ok, {{ last_run.n_error }} errores){% endif %}
       </p>
@@ -91,6 +92,7 @@
                       {% if s.price_list %}<span class="tabular text-slate-400">lista {{ s.price_list|ars }}</span>{% endif %}
                       {% if s.in_stock == 0 %}<span class="text-rose-600">sin stock</span>{% endif %}
                       {% if s.seller %}<span class="text-slate-500">@ {{ s.seller }}</span>{% endif %}
+                      {% if s.promo %}<span class="rounded bg-amber-100 px-1.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">🏷️ {{ s.promo }}</span>{% endif %}
                     {% endif %}
                     {% if s %}<span class="text-slate-400" data-ts="{{ s.scanned_at }}"></span>{% endif %}
                     <a class="text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ (s.product_url if s and s.product_url) or o.url }}">abrir ↗</a>
@@ -150,6 +152,7 @@
                 </div>
               {% endif %}
               {% if r.best.price_list %}<div class="text-xs font-normal text-slate-400">lista {{ r.best.price_list|ars }}</div>{% endif %}
+              {% if r.best.promo %}<div class="text-xs font-normal text-amber-600">🏷️ {{ r.best.promo }}</div>{% endif %}
             {% else %}<span class="text-slate-400">—</span>{% endif %}
           </td>
           <td class="px-4 py-3 align-top">

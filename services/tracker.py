@@ -45,10 +45,14 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult) -> list[Ale
     if price is not None and price > target.high * settings.alert_max_over_high:
         return []
 
-    name = html.escape(target.name)
+    from services.events import active_event
+
+    ev = active_event()
+    name = html.escape(target.name) + (f" · 🔥 {html.escape(ev)}" if ev else "")
     where = html.escape(res.store + (f" ({res.seller})" if res.seller else ""))
     link = html.escape(res.product_url or res.url, quote=True)
-    footer = f'\n🏪 {where}\n🔗 <a href="{link}">Ver producto</a>'
+    promo = f"\n🏷️ {html.escape(res.promo)}" if res.promo else ""
+    footer = f'{promo}\n🏪 {where}\n🔗 <a href="{link}">Ver producto</a>'
 
     # 1) Volvió el stock
     if res.in_stock is True and prev_known and prev_known["in_stock"] == 0:
@@ -125,7 +129,8 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
     async with BrowserSession(settings.headless, settings.block_stylesheets,
                               settings.page_timeout_ms) as session:
         for i, (target, turl) in enumerate(jobs):
-            if i:
+            cls = get_scraper_class(turl.store, turl.url)
+            if i and cls.uses_browser:
                 await asyncio.sleep(random.uniform(settings.delay_min, settings.delay_max))
             label = f"{target.name} @ {turl.store}"
             if on_progress:

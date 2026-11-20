@@ -92,6 +92,21 @@ def test_fravega_card_prices():
 
 def test_fravega_registered():
     from scrapers.stores import get_scraper_class
-    from scrapers.stores.fravega import FravegaScraper
+    from scrapers.stores.vtex import VtexScraper as FravegaScraper
     assert get_scraper_class("venex", "https://www.fravega.com/l/?keyword=x") is FravegaScraper
     assert get_scraper_class(None, "https://www.fravega.com/p/algo-123/") is FravegaScraper
+
+
+def test_vtex_offers_and_promo():
+    from scrapers.stores.vtex import best_match, offers_from, promo_text
+    products = [{"productName": "Monitor LG 27GS75Q B 27 QHD 180Hz IPS", "link": "https://www.fravega.com/x/p",
+                 "items": [{"sellers": [
+                     {"sellerName": "Glic", "commertialOffer": {"Price": 594557.0, "ListPrice": 825773.0,
+                      "AvailableQuantity": 100, "Teasers": [{"Name": "3 cuotas sin interés"}]}},
+                     {"sellerName": "Frávega", "commertialOffer": {"Price": 500000.0, "ListPrice": 500000.0,
+                      "AvailableQuantity": 0}}]}]},
+                {"productName": "Soporte monitor", "items": [{"sellers": [{"commertialOffer": {
+                    "Price": 10000.0, "AvailableQuantity": 5}}]}]}]
+    o = best_match(offers_from(products, "fravega"), ["27GS75Q"], [])
+    assert (o["price"], o["seller"]) == (594557.0, "Frávega · Glic")      # el sin stock no cuenta
+    assert promo_text(o) == "-28% sobre lista · 3 cuotas sin interés"

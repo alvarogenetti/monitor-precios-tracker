@@ -1,0 +1,10 @@
+{
+  "_info": "Durante un evento el escaneo corre cada hora (en vez de cada 3 h) y las alertas lo mencionan. Las fechas futuras son aproximadas: confirmalas en hotsale.com.ar / cybermonday.com.ar cuando se anuncien.",
+  "events": [
+    {"name": "Black Friday", "from": "2026-11-26", "to": "2026-11-30"},
+    {"name": "Navidad / fin de año", "from": "2026-12-18", "to": "2026-12-26"},
+    {"name": "Hot Sale (aprox.)", "from": "2027-05-10", "to": "2027-05-12"},
+    {"name": "Cyber Monday (aprox.)", "from": "2027-11-01", "to": "2027-11-03"},
+    {"name": "Black Friday (aprox.)", "from": "2027-11-25", "to": "2027-11-29"}
+  ]
+}

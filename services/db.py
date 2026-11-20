@@ -68,6 +68,12 @@ CREATE TABLE IF NOT EXISTS discovery_prices (
 );
 CREATE INDEX IF NOT EXISTS ix_disc_prices ON discovery_prices(model_key, run_id);
 
+CREATE TABLE IF NOT EXISTS spec_cache (
+    model_key   TEXT PRIMARY KEY,
+    data        TEXT NOT NULL,       -- JSON ({} = buscado y no encontrado)
+    fetched_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     target_id   TEXT NOT NULL,
@@ -94,6 +100,8 @@ class Database:
     @staticmethod
     def _migrate(con: sqlite3.Connection) -> None:
         cols = {r["name"] for r in con.execute("PRAGMA table_info(snapshots)")}
+        if "promo" not in cols:
+            con.execute("ALTER TABLE snapshots ADD COLUMN promo TEXT")
         if "run_id" not in cols:
             con.execute("ALTER TABLE snapshots ADD COLUMN run_id INTEGER")
             # Bases viejas: asignamos cada snapshot al escaneo dentro de cuyo intervalo cayó
@@ -121,13 +129,13 @@ class Database:
         with self.connect() as con:
             cur = con.execute(
                 """INSERT INTO snapshots (target_id, store, url, title, seller, product_url,
-                       price_cash, price_list, in_stock, error, scanned_at, run_id)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       price_cash, price_list, in_stock, error, scanned_at, run_id, promo)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     target_id, r["store"], r["url"], r.get("title"), r.get("seller"),
                     r.get("product_url"), r.get("price_cash"), r.get("price_list"),
                     None if in_stock is None else int(bool(in_stock)),
-                    r.get("error"), r.get("scanned_at") or utcnow(), run_id,
+                    r.get("error"), r.get("scanned_at") or utcnow(), run_id, r.get("promo"),
                 ),
             )
             return int(cur.lastrowid)
@@ -193,11 +201,11 @@ class Database:
                     continue
                 con.execute(
                     """INSERT INTO snapshots (target_id, store, url, title, seller, product_url,
-                       price_cash, price_list, in_stock, error, scanned_at, run_id)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       price_cash, price_list, in_stock, error, scanned_at, run_id, promo)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (s["target_id"], s["store"], s["url"], s["title"], s["seller"], s["product_url"],
                      s["price_cash"], s["price_list"], s["in_stock"], s["error"], s["scanned_at"],
-                     run_map.get(s["run_id"])))
+                     run_map.get(s["run_id"]), s["promo"] if "promo" in s.keys() else None))
                 n += 1
             for a in con.execute("SELECT * FROM o.alerts ORDER BY id").fetchall():
                 if con.execute("SELECT 1 FROM alerts WHERE target_id=? AND kind=? AND created_at=?",
@@ -210,6 +218,19 @@ class Database:
             con.commit()
             con.execute("DETACH DATABASE o")
         return n
+
+    def spec_cache_get(self, keys: list[str], max_age_days: int = 30) -> dict[str, dict]:
+        with self.connect() as con:
+            rows = con.execute(
+                f"""SELECT model_key, data FROM spec_cache WHERE fetched_at >= datetime('now', ?)
+                    AND model_key IN ({','.join('?' * len(keys)) or "''"})""",
+                (f"-{int(max_age_days)} days", *keys)).fetchall()
+        return {r["model_key"]: json.loads(r["data"]) for r in rows}
+
+    def spec_cache_put(self, key: str, data: dict) -> None:
+        with self.connect() as con:
+            con.execute("INSERT OR REPLACE INTO spec_cache (model_key, data, fetched_at) VALUES (?,?,?)",
+                        (key, json.dumps(data, ensure_ascii=False), utcnow()))
 
     # ---------------------------------------------------------------- descubrimiento
     def start_discovery(self, trigger: str) -> int:
@@ -322,7 +343,7 @@ class Database:
     def history(self, target_id: str, limit: int = 500) -> list[dict]:
         with self.connect() as con:
             rows = con.execute(
-                """SELECT store, seller, url, price_cash, price_list, in_stock, error, scanned_at
+                """SELECT store, seller, url, price_cash, price_list, in_stock, error, promo, scanned_at
                    FROM snapshots WHERE target_id=? ORDER BY id DESC LIMIT ?""",
                 (target_id, limit),
             ).fetchall()

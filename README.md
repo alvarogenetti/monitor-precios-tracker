@@ -116,6 +116,8 @@ Cada escaneo guarda un snapshot por link en `data/prices.db`, con o sin error. E
 | `compragamer` | Compra Gamer es una SPA en Angular. Playwright carga el sitio e **intercepta el catálogo JSON** que descarga la propia SPA, de donde salen `precioEspecial` (transferencia) y `precioLista`. Acepta fichas (`/producto/..._<id>`) o búsquedas (`/productos?criterio=...`). Si el producto no figura en el catálogo, se registra **sin stock**. |
 | `hardgamers` | Con una búsqueda trae las ofertas de decenas de tiendas y se queda con la **más barata** que matchee las keywords. En `seller` guarda la tienda (Maximus, Mexx, Full H4rd, etc.). |
 | `fravega` | Búsquedas (`/l/?keyword=EW270Q`): el más barato que matchee las keywords, con el vendedor del marketplace en `seller`. Las fichas (`/p/...`) usan el genérico. Frávega no indexa en HardGamers y suele tener LG, Samsung y BenQ. |
+| `fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo` | Tiendas de electrónica sobre **VTEX**: se consulta el buscador JSON público de su storefront (`/api/catalog_system/pub/products/search`), sin navegador. Trae precio, precio de lista, vendedor del marketplace y **promos** (teasers de VTEX). Frávega bloquea las IPs de GitHub: se escanea desde tu PC. |
+| `electro` | Busca el modelo en **todas** las tiendas VTEX de electrónica a la vez (menos Frávega) y se queda con la más barata. |
 | `mercadolibre` | Fichas (`articulo.mercadolibre.com.ar/...`, `/p/MLA...`) y listados (`listado.mercadolibre.com.ar/...`). Mirá la limitación más abajo. |
 | `generic` | Cualquier ficha de producto. Busca el precio en JSON-LD, después en meta OpenGraph/itemprop y después en selectores comunes (WooCommerce, Tiendanube, VTEX, Magento, PrestaShop). Del bloque principal toma el **mínimo como precio transferencia** y el **máximo como precio de lista/cuotas**. Ignora valores de cuota, precios sin impuestos y productos relacionados. Se probó con Maximus, Mexx, TryHardware y Slot One. |
 
@@ -170,7 +172,7 @@ los requisitos obligatorios de `config/discovery.json`:
 | Requisito | De dónde sale |
 |---|---|
 | 27" plano, QHD 2560×1440, ≥ 120 Hz, IPS (no VA), no curvo, no usado | Título de la publicación |
-| Mate antirreflejo, VESA 75/100, peso sin base < 8 kg, al menos un HDMI | `config/specs.json` (fichas verificadas) |
+| Mate antirreflejo, VESA 75/100, peso sin base < 8 kg, al menos un HDMI | `config/specs.json` (fichas verificadas a mano) y, si falta algo, los **atributos del catálogo de Mercado Libre** (IS_ANTI_GLARE, WITH_VESA_MOUNTING, WEIGHT_WITHOUT_STAND, IS_CURVED, BRIGHTNESS...), cacheados 30 días |
 | Brillo ≥ 300 nits, flicker-free, Hz por HDMI, fuente 100-240 V, ficha USA | Advertencias (no descartan) |
 | USB-C con PD ≥ 65 W | Insignia (opcional valorado) |
 
@@ -250,6 +252,16 @@ así que no importa desde qué carpeta se lance.
 
 Con `SCHEDULER_ENABLED=true` en `.env`, `python -m app.main` escanea cada
 `SCAN_INTERVAL_MINUTES` (180 por defecto) mientras el servidor esté levantado.
+
+### Eventos, promos y cupones
+
+- `config/events.json` lista Hot Sale, Cyber Monday, Black Friday, etc. Durante un evento el
+  escaneo corre **cada hora** (fuera de eventos, cada 3 h) y las alertas lo mencionan (🔥).
+  Las fechas futuras son aproximadas: actualizalas cuando se anuncien.
+- Cada precio guarda su **promo** si la tienda la informa: % de descuento sobre lista, teasers de
+  VTEX (cuotas, descuentos), ofertas y envío gratis de ML. Se ve en el dashboard (🏷️) y en las alertas.
+- Los **cupones/códigos** que no se reflejan en el precio publicado (los que se cargan en el
+  checkout o se anuncian en redes) no se pueden leer automáticamente.
 
 ### Alertas y resumen
 

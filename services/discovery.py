@@ -31,6 +31,7 @@ from scrapers.stores.compragamer import CATALOG_URL_RE, item_in_stock, product_u
 from scrapers.stores.fravega import CARDS_JS as FRAVEGA_CARDS_JS
 from scrapers.stores.fravega import SELLER_RE, card_prices
 from scrapers.stores.hardgamers import CARDS_JS as HG_CARDS_JS
+from scrapers.stores.vtex import VTEX_STORES
 from services.price_parser import is_plausible, parse_ars
 
 log = logging.getLogger(__name__)
@@ -238,7 +239,7 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
 
     size = facts.size
     if size is None:
-        missing.append("tamaño")
+        fails.append("tamaño no informado")
     elif abs(size - req.get("size_in", 27)) > 0.3:
         fails.append(f'{size:g}" (no es 27")')
     check('27"', None if size is None else abs(size - req.get("size_in", 27)) <= 0.3)
@@ -289,13 +290,16 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     vesa = (s.get("vesa") or "").replace(" ", "").lower()
     if vesa in ("none", "no"):
         fails.append("sin VESA")
+    elif vesa.startswith("sí") or vesa.startswith("si"):
+        warns.append("VESA sin medida informada (casi siempre 75 o 100)")
     elif vesa:
         if vesa not in [v.lower() for v in req.get("vesa", ["75x75", "100x100"])]:
             fails.append(f"VESA {s['vesa']}")
     else:
         missing.append("VESA")
 
-    check("VESA", None if not vesa else vesa in [v.lower() for v in req.get("vesa", [])])
+    check("VESA", None if not vesa else (vesa.startswith(("sí", "si"))
+                                         or vesa in [v.lower() for v in req.get("vesa", [])]))
     w = s.get("weight_no_stand_kg")
     if w is None:
         missing.append("peso")
@@ -318,6 +322,9 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         warns.append("ficha USA (usar cable/adaptador)")
     if facts.outlet:
         warns.append("outlet")
+    importers = [i.lower() for i in cfg.get("import_sellers", [])]
+    if best.seller and any(i in best.seller.lower() for i in importers):
+        warns.append("vendedor de importados: verificar garantía local y 220 V")
 
     pd = s.get("usb_c_pd_w") or 0
     if pd >= 65:
@@ -348,7 +355,8 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     )
 
 
-def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog) -> list[ModelResult]:
+def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
+            extra_specs: dict[str, dict] | None = None) -> list[ModelResult]:
     exclude = [e.lower() for e in cfg.get("exclude_words", [])]
     max_price = cfg.get("max_price") or float("inf")
     ignore = {norm(k) for k in cfg.get("ignore_models", [])}
@@ -373,7 +381,11 @@ def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog) -> list[ModelR
         groups.setdefault(key, []).append(o)
         searches.setdefault(key, search)
         specs[key] = specs.get(key) or spec
-    results = [evaluate(g, k, searches[k], specs[k], cfg) for k, g in groups.items()]
+    from services.spec_enrich import merge
+
+    extra_specs = extra_specs or {}
+    results = [evaluate(g, k, searches[k], merge(specs[k], extra_specs.get(k)), cfg)
+               for k, g in groups.items()]
     results.sort(key=lambda r: (STATUS_ORDER[r.status], r.best["price"]))
     return results
 
@@ -443,6 +455,22 @@ async def _collect_cards(session: BrowserSession, url: str, store: str) -> list[
     return out
 
 
+def _collect_vtex(store: str, url: str) -> list[Offer]:
+    """Tiendas VTEX (Frávega, On City, Pardo, Carrefour...): API JSON del buscador."""
+    import httpx
+
+    from scrapers.stores.vtex import UA, VtexScraper, api_search, offers_from, promo_text
+
+    query = VtexScraper._query_from_url(url)
+    with httpx.Client(timeout=20, headers={"User-Agent": UA}, follow_redirects=True) as c:
+        offers = offers_from(api_search(c, VTEX_STORES[store][1], query), store)
+    out = []
+    for o in offers:
+        title = o["title"] + (f" [{promo_text(o)}]" if promo_text(o) else "")
+        out.append(Offer(store, title, o["price"], o["url"], o["seller"], o["list"], True))
+    return out
+
+
 async def collect(session: BrowserSession, sources: list[dict],
                   on_progress: Callable[[int, int, str], None] | None = None) -> tuple[list[Offer], list[str]]:
     offers: list[Offer] = []
@@ -457,6 +485,8 @@ async def collect(session: BrowserSession, sources: list[dict],
         try:
             if src["store"] == "compragamer":
                 got = await _collect_compragamer(session, src["url"])
+            elif src["store"] in VTEX_STORES:
+                got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])
             else:
                 got = await _collect_cards(session, src["url"], src["store"])
             log.info("Descubrimiento %s: %d ofertas (%s)", src["store"], len(got), src["url"])
@@ -484,6 +514,25 @@ def new_model_alert(r: ModelResult) -> str:
             f'🔗 <a href="{html.escape(b["url"], quote=True)}">Ver producto</a>')
 
 
+def new_models_alert(models: list[ModelResult], limit: int = 8) -> str:
+    if len(models) == 1:
+        return new_model_alert(models[0])
+    from services.tracker import fmt_ars
+
+    models = sorted(models, key=lambda r: (STATUS_ORDER[r.status], r.best["price"]))
+    lines = [f"🆕 <b>{len(models)} monitores nuevos que cumplen o podrían cumplir tus requisitos</b>"]
+    for r in models[:limit]:
+        b = r.best
+        mark = {"cumple": "✅", "oled_oferta": "🟣", "a_confirmar": "❔"}[r.status]
+        where = html.escape(b.get("seller") or b["store"])
+        lines.append(f'{mark} <a href="{html.escape(b["url"], quote=True)}">{html.escape(r.name[:70])}</a>'
+                     f" — <b>{fmt_ars(b['price'])}</b> ({where})")
+    if len(models) > limit:
+        lines.append(f"…y {len(models) - limit} más en el dashboard (sección Descubrir).")
+    lines.append("✅ cumple todo · ❔ falta confirmar algo (mate, VESA, peso…)")
+    return "\n".join(lines)
+
+
 async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
                         on_progress: Callable[[int, int, str], None] | None = None) -> dict:
     from scrapers.base import matches_keywords
@@ -500,6 +549,14 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
                               settings.page_timeout_ms) as session:
         offers, errors = await collect(session, cfg.get("sources", []), on_progress)
     results = analyze(offers, cfg, catalog)
+    # Lo que el título no dice (mate, VESA, peso...) se completa con el catálogo de ML
+    pending = [(r.key, r.search, r.brand) for r in results if r.status == "a_confirmar"]
+    if pending:
+        from services.spec_enrich import enrich
+
+        extra = enrich(db, pending)
+        if extra:
+            results = analyze(offers, cfg, catalog, extra)
 
     targets = load_targets(settings.targets_path)
     for r in results:
@@ -511,11 +568,14 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
     alerts = 0
     for r in results:
         r.is_new = r.key in new_keys and not baseline
-        if r.is_new and r.status in ("cumple", "a_confirmar", "oled_oferta") and not r.tracked:
-            text = new_model_alert(r)
-            sent = await send_telegram(text) if send_alerts else False
-            db.insert_alert(f"discover:{r.key}", "new_model", text, sent)
-            alerts += 1
+    new_ok = [r for r in results if r.is_new and not r.tracked
+              and r.status in ("cumple", "a_confirmar", "oled_oferta")]
+    if new_ok:
+        # Un solo mensaje (si se suman tiendas nuevas pueden aparecer decenas de golpe)
+        text = new_models_alert(new_ok)
+        sent = await send_telegram(text) if send_alerts else False
+        db.insert_alert("discover", "new_model", text, sent)
+        alerts = len(new_ok)
 
     payload = [asdict(r) for r in results]
     counts = Counter(r.status for r in results)
