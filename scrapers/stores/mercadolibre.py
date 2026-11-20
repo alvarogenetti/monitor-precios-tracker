@@ -33,6 +33,10 @@ from services.price_parser import is_plausible, parse_ars
 if TYPE_CHECKING:
     from services.targets import Target
 
+import logging
+
+log_ml = logging.getLogger("scraper.mercadolibre.api")
+
 LISTING_JS = """
 () => Array.from(document.querySelectorAll('li.ui-search-layout__item, div.poly-card')).map(it => {
   const q = s => it.querySelector(s);
@@ -54,9 +58,79 @@ LISTING_JS = """
 OOS_PDP_SELECTORS = ".ui-pdp-stock-information, .ui-pdp-message, .ui-pdp-container__row--paused, .andes-message"
 
 
+_CLIENT = None
+
+
+def meli_client():
+    """Cliente de la API oficial (uno por proceso), o None si no hay credenciales."""
+    global _CLIENT
+    from settings import settings
+
+    if not settings.meli_enabled:
+        return None
+    if _CLIENT is None:
+        from services.meli_api import MeliClient
+
+        _CLIENT = MeliClient(settings.meli_client_id, settings.meli_client_secret,
+                             settings.meli_token_path, settings.meli_redirect_uri)
+    return _CLIENT
+
+
+def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
+    """Precio vía API oficial. Para búsquedas usa el catálogo: /products/search + /products/{id}/items."""
+    from services.meli_api import best_offer, classify_url
+
+    kind, ident = classify_url(url)
+    exclude = target.exclude if target.exclude is not None else DEFAULT_EXCLUDE
+    if kind == "item":
+        it = client.item(ident)
+        sellable = it.get("status") == "active" and (it.get("available_quantity") or 0) > 0
+        return ScrapeResult(store="mercadolibre", url=url, title=it.get("title"),
+                            price_cash=it.get("price"), price_list=it.get("original_price"),
+                            in_stock=sellable, product_url=it.get("permalink") or url,
+                            seller=str(it.get("seller_id") or "") or None)
+
+    if kind == "product":
+        products = [{"id": ident, "name": None}]
+    else:
+        q = " ".join(k.split("|")[0] for k in target.keywords) or ident or target.name
+        products = [p for p in client.search_products(q)
+                    if matches_keywords(p.get("name", ""), target.keywords or q.split(), exclude)]
+    best = None
+    for p in products[:5]:
+        try:
+            items = client.product_items(p["id"])
+        except Exception as e:  # noqa: BLE001 — producto sin vendedores activos, etc.
+            log_ml.debug("ML %s sin items: %s", p["id"], e)
+            continue
+        o = best_offer(items)
+        if o and (best is None or o["price"] < best[1]["price"]):
+            best = (p, o)
+    if not best:
+        return ScrapeResult(store="mercadolibre", url=url, in_stock=False,
+                            title=f"(sin publicaciones activas para {target.name})")
+    p, o = best
+    name = p.get("name") or client.product(p["id"]).get("name")
+    return ScrapeResult(store="mercadolibre", url=url, title=name, price_cash=o["price"],
+                        price_list=o.get("original_price"), in_stock=True,
+                        seller=str(o.get("seller_id") or "") or None,
+                        product_url=f"https://www.mercadolibre.com.ar/p/{p['id']}")
+
+
 class MercadoLibreScraper(GenericScraper):
     store = "mercadolibre"
     domains = ("mercadolibre.com.ar", "mercadolibre.com", "mlstatic.com")
+
+    async def scrape(self, url: str, target: "Target") -> ScrapeResult:
+        client = meli_client()
+        if client is None:
+            return await super().scrape(url, target)  # sin credenciales: web (suele bloquear)
+        import asyncio
+
+        try:
+            return await asyncio.to_thread(api_scrape, client, url, target)
+        except Exception as e:  # noqa: BLE001
+            return ScrapeResult(store=self.store, url=url, error=f"API ML: {e}"[:300])
 
     async def extract(self, page: Page, url: str, target: "Target") -> ScrapeResult:
         await self.goto(page, url, idle_ms=5000)

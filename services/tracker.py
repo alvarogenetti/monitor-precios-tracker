@@ -99,7 +99,7 @@ STATE = ScanState()
 
 # ------------------------------------------------------------------ escaneo
 async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
-                   send_alerts: bool = True,
+                   send_alerts: bool = True, only_local: bool = False,
                    on_progress: Callable[[int, int, str], None] | None = None) -> dict:
     db = Database(settings.db_path)
     targets = [t for t in load_targets(settings.targets_path) if t.active]
@@ -107,6 +107,8 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
         targets = [t for t in targets if t.id in target_ids]
     in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
     jobs = [(t, u) for t in targets for u in t.urls if u.active and (u.ci or not in_ci)]
+    if only_local:  # escaneo-local.ps1: sólo lo que GitHub Actions no puede leer
+        jobs = [(t, u) for t, u in jobs if not u.ci]
     run_id = db.start_run(trigger)
     log.info("Escaneo #%d (%s): %d URLs en %d productos", run_id, trigger, len(jobs), len(targets))
 

@@ -136,6 +136,29 @@ python scan.py --url "https://www.hardgamers.com.ar/search?text=EW270Q" --keywor
   "Sin stock", "Agotado", "Pausado" o "Sin disponibilidad" contra botones de compra.
   "Sin stock en el local" no se cuenta como agotado.
 
+## 3b. Mercado Libre (API oficial)
+
+La web de ML manda los navegadores automatizados a una verificación anti-bot y, desde 2025, la API
+pública responde 403 sin token. Este proyecto **no evade** esos controles: usa la **API oficial**
+con una aplicación tuya (gratis).
+
+1. Entrá a https://developers.mercadolibre.com.ar/devcenter con tu cuenta de ML y creá una
+   aplicación. Datos mínimos: nombre, descripción, y **Redirect URI**
+   `https://github.com/alvarogenetti/monitor-precios-tracker`. Permisos: sólo lectura.
+2. Copiá el **App ID** y la **Secret Key** a `.env` como `ML_CLIENT_ID` y `ML_CLIENT_SECRET`
+   (y a los *secrets* del repo en GitHub con los mismos nombres).
+3. Probá: `python scan.py --meli-check`. Si dice que falta token, corré una vez
+   `python scan.py --meli-login`: abre el login de ML, autorizás, pegás la URL a la que te
+   redirige y el refresh token queda **cifrado** en `data/meli_token.enc` (la clave sale de tu
+   Secret Key, que nunca se sube). ML rota ese token en cada uso; Actions commitea el nuevo.
+4. Activá los links de `mercadolibre` en `config/targets.json` (`"active": true`).
+
+Qué consulta: para búsquedas (`listado.mercadolibre.com.ar/...`) busca en el **catálogo**
+(`/products/search`) los productos que matchean las keywords y toma la publicación **nueva más
+barata** entre todos los vendedores (`/products/{id}/items`). También acepta fichas de catálogo
+(`/p/MLA...`) y publicaciones (`MLA-123...`). Sin credenciales, el adaptador vuelve al modo web
+(que normalmente queda "bloqueado").
+
 ## 4. Descubrir modelos que cumplan los requisitos
 
 El botón **🔎 Descubrir** del dashboard (o `python scan.py --discover`) no sigue productos puntuales:
@@ -185,13 +208,22 @@ el historial (`discovery_prices`). En GitHub Actions corre una vez por día (12 
 GitHub. Esos links tienen `"ci": false` en `config/targets.json` (y las fuentes de Frávega en
 `config/discovery.json`): Actions los saltea y se revisan cuando escaneás desde tu PC.
 
+**Escaneo local programado.** `escaneo-local.ps1` escanea sólo esos links desde tu PC (IP
+hogareña), y sube la base a GitHub para que quede en el mismo historial. Para que corra solo cada
+3 horas (a y media, para no chocar con Actions):
+
+```powershell
+schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Proyectos\monitor-precios-tracker\escaneo-local.ps1"
+```
+
+Si tenés cambios sin commitear en el código, el script no hace nada (lo deja anotado en
+`data/escaneo-local.log`).
+
 **Historial en tu PC.** La base "oficial" es la que commitea el bot en GitHub. Para ver el
 historial actualizado en el dashboard local:
 
 ```powershell
-git checkout -- data/prices.db   # descarta tu copia local (si escaneaste desde la PC)
-git pull
-python -m app.main
+.\iniciar.ps1      # baja la base de GitHub, abre el navegador y levanta el dashboard
 ```
 > Mercado Libre suele bloquear las IPs de datacenter con más fuerza que una conexión hogareña.
 

@@ -36,6 +36,12 @@ def _path(name: str, default: str) -> Path:
 class Settings:
     telegram_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    # Mercado Libre (API oficial): app propia en developers.mercadolibre.com.ar
+    meli_client_id: str = os.getenv("ML_CLIENT_ID", "").strip()
+    meli_client_secret: str = os.getenv("ML_CLIENT_SECRET", "").strip()
+    meli_redirect_uri: str = os.getenv(
+        "ML_REDIRECT_URI", "https://github.com/alvarogenetti/monitor-precios-tracker").strip()
+    meli_token_path: Path = _path("ML_TOKEN_PATH", "data/meli_token.enc")
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(_float("PORT", 8000))
     scheduler_enabled: bool = _bool("SCHEDULER_ENABLED", False)
@@ -50,6 +56,10 @@ class Settings:
     targets_path: Path = _path("TARGETS_PATH", "config/targets.json")
     discovery_path: Path = _path("DISCOVERY_PATH", "config/discovery.json")
     specs_path: Path = _path("SPECS_PATH", "config/specs.json")
+
+    @property
+    def meli_enabled(self) -> bool:
+        return bool(self.meli_client_id and self.meli_client_secret)
 
     @property
     def telegram_enabled(self) -> bool:
