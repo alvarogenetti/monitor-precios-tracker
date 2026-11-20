@@ -16,6 +16,7 @@ import asyncio
 import html
 import json
 import logging
+import os
 import random
 import re
 import unicodedata
@@ -446,6 +447,8 @@ async def collect(session: BrowserSession, sources: list[dict],
                   on_progress: Callable[[int, int, str], None] | None = None) -> tuple[list[Offer], list[str]]:
     offers: list[Offer] = []
     errors: list[str] = []
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        sources = [s for s in sources if s.get("ci", True)]
     for i, src in enumerate(sources):
         if on_progress:
             on_progress(i, len(sources), f"Descubriendo · {src['store']}")

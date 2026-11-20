@@ -180,6 +180,19 @@ el historial (`discovery_prices`). En GitHub Actions corre una vez por día (12 
 4. Para correrlo a mano: pestaña *Actions → price-watch → Run workflow*.
 
 > El cron de GitHub usa UTC y puede atrasarse varios minutos en horas pico.
+
+**Tiendas que bloquean GitHub.** Frávega y Venex responden 403 a las IPs de los servidores de
+GitHub. Esos links tienen `"ci": false` en `config/targets.json` (y las fuentes de Frávega en
+`config/discovery.json`): Actions los saltea y se revisan cuando escaneás desde tu PC.
+
+**Historial en tu PC.** La base "oficial" es la que commitea el bot en GitHub. Para ver el
+historial actualizado en el dashboard local:
+
+```powershell
+git checkout -- data/prices.db   # descarta tu copia local (si escaneaste desde la PC)
+git pull
+python -m app.main
+```
 > Mercado Libre suele bloquear las IPs de datacenter con más fuerza que una conexión hogareña.
 
 ### Opción B: Programador de tareas de Windows

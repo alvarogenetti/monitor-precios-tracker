@@ -76,7 +76,9 @@
         {
           "store": "venex",
           "url": "https://www.venex.com.ar/monitores/27-a-32-pulgadas/monitor-27-gigabyte-gs27qa-qhd-va-1ms-edge-180hz.html",
-          "active": true
+          "active": true,
+          "ci": false,
+          "note": "Bloquea las IPs de GitHub Actions (403): se escanea sólo desde tu PC"
         },
         {
           "store": "mercadolibre",
@@ -150,7 +152,9 @@
         {
           "store": "fravega",
           "url": "https://www.fravega.com/l/?keyword=27GS75Q",
-          "active": true
+          "active": true,
+          "ci": false,
+          "note": "Bloquea las IPs de GitHub Actions (403): se escanea sólo desde tu PC"
         },
         {
           "store": "mercadolibre",
@@ -174,7 +178,9 @@
         {
           "store": "fravega",
           "url": "https://www.fravega.com/l/?keyword=EW270Q",
-          "active": true
+          "active": true,
+          "ci": false,
+          "note": "Bloquea las IPs de GitHub Actions (403): se escanea sólo desde tu PC"
         },
         {
           "store": "compragamer",

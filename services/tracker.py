@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import os
 import random
 import sys
 import threading
@@ -104,7 +105,8 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
     targets = [t for t in load_targets(settings.targets_path) if t.active]
     if target_ids:
         targets = [t for t in targets if t.id in target_ids]
-    jobs = [(t, u) for t in targets for u in t.urls if u.active]
+    in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
+    jobs = [(t, u) for t in targets for u in t.urls if u.active and (u.ci or not in_ci)]
     run_id = db.start_run(trigger)
     log.info("Escaneo #%d (%s): %d URLs en %d productos", run_id, trigger, len(jobs), len(targets))
 

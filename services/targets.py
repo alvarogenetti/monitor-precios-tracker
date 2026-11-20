@@ -15,6 +15,8 @@ class TargetUrl(BaseModel):
     store: str = "generic"
     url: str
     active: bool = True
+    # False = no se escanea en GitHub Actions (tiendas que bloquean IPs de datacenter con 403)
+    ci: bool = True
     note: str | None = None
 
     @field_validator("url")
