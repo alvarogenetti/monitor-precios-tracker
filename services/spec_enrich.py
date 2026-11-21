@@ -86,11 +86,13 @@ def merge(curated: dict | None, auto: dict | None) -> dict | None:
     if not auto:
         return curated
     if not curated:
-        return {**auto, "confidence": "ML"}
+        return {**auto, "confidence": "ML",
+                "_ml_fields": [k for k in auto if k not in ("source", "sources")]}
     out = dict(curated)
     filled = [k for k, v in auto.items() if out.get(k) is None and k not in ("source", "sources")]
     for k in filled:
         out[k] = auto[k]
+    out["_ml_fields"] = filled
     if filled:
         out["notes"] = (out.get("notes") or "") + f" Completado con el catálogo de ML: {', '.join(filled)}."
     return out

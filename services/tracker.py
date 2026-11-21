@@ -32,20 +32,41 @@ class Alert:
     text: str       # HTML para Telegram
 
 
-def evaluate_alerts(db: Database, target: Target, res: ScrapeResult) -> list[Alert]:
-    """Compara el resultado nuevo contra el historial (antes de insertarlo)."""
+def market_ref(db: Database, target: Target) -> tuple[float | None, str]:
+    """Precio de referencia de mercado del target (mediana 30 días o el sembrado)."""
+    from services.market import reference
+
+    return reference(db.best_series(target.id, days=31), seed=target.market_price)
+
+
+_RANK = {None: 0, "buena": 1, "excepcional": 2}
+
+
+def evaluate_alerts(db: Database, target: Target, res: ScrapeResult,
+                    ref: tuple[float | None, str] | None = None,
+                    notify_drops: bool | None = None) -> list[Alert]:
+    """Compara el resultado nuevo contra el historial (antes de insertarlo).
+
+    Por defecto avisa sólo OFERTAS REALES (>= 15 % / >= 30 % debajo del precio de mercado), el
+    precio objetivo manual y la vuelta de stock de algo en oferta. Con notify_drops (o
+    ALERT_PRICE_DROPS=true) también avisa cada baja >= 1 %.
+    """
+    from services.events import active_event
+    from services.market import LEVELS, claimed_discount, inflated, level, real_discount
+
     if not res.ok:
         return []
+    notify_drops = settings.alert_price_drops if notify_drops is None else notify_drops
+    ref_price, ref_src = ref if ref is not None else market_ref(db, target)
     alerts: list[Alert] = []
     prev_valid = db.last_snapshot(target.id, res.url, valid_price=True)
     prev_known = db.last_snapshot(target.id, res.url, known_stock=True)
     price = res.price_cash
     sellable = res.in_stock is not False and price is not None
-    # Precio absurdo (muy por encima del rango "alto"): no se alerta nada, ni stock ni precio
-    if price is not None and price > target.high * settings.alert_max_over_high:
+    # Precio absurdo (muy por encima del mercado o del rango "alto"): no se alerta nada
+    cap = max(target.high, ref_price or 0) * settings.alert_max_over_high
+    if price is not None and price > cap:
         return []
-
-    from services.events import active_event
 
     ev = active_event()
     name = html.escape(target.name) + (f" · 🔥 {html.escape(ev)}" if ev else "")
@@ -54,25 +75,41 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult) -> list[Ale
     promo = f"\n🏷️ {html.escape(res.promo)}" if res.promo else ""
     footer = f'{promo}\n🏪 {where}\n🔗 <a href="{link}">Ver producto</a>'
 
-    # 1) Volvió el stock
-    if res.in_stock is True and prev_known and prev_known["in_stock"] == 0:
+    prev_price = prev_valid["price_cash"] if prev_valid else None
+    lvl = level(real_discount(price, ref_price)) if sellable else None
+    prev_sellable = bool(prev_valid) and prev_valid.get("in_stock") != 0
+    prev_lvl = level(real_discount(prev_price, ref_price)) if prev_sellable else None
+
+    # 1) Oferta real: cuando aparece, sube de nivel, o baja 5 % más dentro del mismo nivel
+    if lvl and (_RANK[lvl] > _RANK[prev_lvl] or (prev_price and price <= prev_price * 0.95)):
+        real = real_discount(price, ref_price)
+        claimed = claimed_discount(price, res.price_list)
+        fake = ""
+        if claimed:
+            fake = (f"\n⚠️ La tienda anuncia -{claimed * 100:.0f}%: inflado"
+                    if inflated(price, res.price_list, ref_price)
+                    else f"\nLa tienda anuncia -{claimed * 100:.0f}%")
+        alerts.append(Alert(
+            "real_offer",
+            f"{LEVELS[lvl]}: <b>{real * 100:.0f}% debajo del mercado</b>\n{name}\n"
+            f"<b>{fmt_ars(price)}</b> (mercado {fmt_ars(ref_price)}: {html.escape(ref_src)}){fake}{footer}"))
+
+    # 2) Volvió el stock (sólo si está en precio de oferta, salvo modo "todo")
+    if res.in_stock is True and prev_known and prev_known["in_stock"] == 0 and (lvl or notify_drops):
         alerts.append(Alert("back_in_stock",
                             f"📦 <b>¡Volvió el stock!</b> {name}\nPrecio: <b>{fmt_ars(price)}</b>{footer}"))
 
     if sellable:
-        prev_price = prev_valid["price_cash"] if prev_valid else None
         dropped = (prev_price is not None and price < prev_price
                    and (prev_price - price) / prev_price * 100 >= settings.alert_min_drop_pct)
-        # 2) Bajó el precio respecto al último registro válido
-        if dropped:
+        # 3) Cada baja de precio (sólo en modo "todo")
+        if dropped and notify_drops:
             pct = (prev_price - price) / prev_price * 100
             alerts.append(Alert(
                 "price_drop",
                 f"📉 <b>Bajó de precio</b> {name}\n{fmt_ars(prev_price)} → <b>{fmt_ars(price)}</b> "
-                f"(-{pct:.1f}%)\nRango: <b>{BANDS[target.band(price)]}</b> · "
-                f"objetivo {fmt_ars(target.target_price)}{footer}"))
-        # 3) Precio <= objetivo. Para no spamear cada 3 h, sólo cuando recién cruza el objetivo,
-        #    cuando además bajó, o cuando no había registro previo.
+                f"(-{pct:.1f}%)\nRango: <b>{BANDS[target.band(price, ref_price)]}</b>{footer}"))
+        # 4) Precio <= objetivo manual: sólo cuando recién lo cruza (o baja más)
         if price <= target.target_price and (
             prev_price is None or prev_price > target.target_price or dropped
         ):
@@ -121,6 +158,7 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
     log.info("Escaneo #%d (%s): %d URLs en %d productos", run_id, trigger, len(jobs), len(targets))
 
     results: list[dict] = []
+    refs: dict[str, tuple[float | None, str]] = {}
     n_ok = n_err = n_alerts = 0
     if not jobs:
         db.finish_run(run_id, 0, 0, 0)
@@ -143,7 +181,9 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
                 res = ScrapeResult(store=turl.store, url=turl.url, error=f"inesperado: {e}")
             res.store = turl.store  # etiqueta configurada (p.ej. "maximus" usando el genérico)
 
-            alerts = evaluate_alerts(db, target, res)
+            if target.id not in refs:
+                refs[target.id] = market_ref(db, target)
+            alerts = evaluate_alerts(db, target, res, refs[target.id])
             db.insert_snapshot(target.id, res.to_dict(), run_id)
             for a in alerts:
                 sent = await send_telegram(a.text) if send_alerts else False

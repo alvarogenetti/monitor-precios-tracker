@@ -45,6 +45,8 @@ class Settings:
     # Alertas: baja mínima (%) para avisar, y tope de cordura respecto del rango "alto"
     alert_min_drop_pct: float = _float("ALERT_MIN_DROP_PCT", 1.0)
     alert_max_over_high: float = _float("ALERT_MAX_OVER_HIGH", 1.5)
+    # false = sólo ofertas reales (>= 15 % vs mercado); true = también cada baja >= ALERT_MIN_DROP_PCT
+    alert_price_drops: bool = os.getenv("ALERT_PRICE_DROPS", "false").strip().lower() in ("1", "true", "yes", "si")
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(_float("PORT", 8000))
     scheduler_enabled: bool = _bool("SCHEDULER_ENABLED", False)

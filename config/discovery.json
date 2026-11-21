@@ -88,5 +88,31 @@
   "ignore_models": [],
   "import_sellers": [
     "Glic"
-  ]
+  ],
+  "generic_brands": [
+    "Arkham",
+    "Valkyrie",
+    "Raptor",
+    "X-Micro",
+    "XMicro",
+    "Teros",
+    "Level Up",
+    "E-View",
+    "Solarmax",
+    "CUNPU",
+    "Viewedge",
+    "FYHXele",
+    "Gawfolk",
+    "Z Edge",
+    "GTek",
+    "Pisichen",
+    "DEPGI",
+    "CRUA",
+    "Sansui",
+    "PcBox",
+    "Noga",
+    "Hikvision",
+    "CX"
+  ],
+  "usb_c_bonus": "USB-C con carga >= 65 W: deseable (vale hasta ~$100.000 más), no obligatorio"
 }

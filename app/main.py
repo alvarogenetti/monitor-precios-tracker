@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from services.db import Database
 from services.discovery import STATUS_LABELS
 from services.events import active_event
+from services.market import describe, inflated, level, real_discount, reference
 from services.targets import BANDS, Target, TargetUrl, load_targets, save_targets, slugify
 from services.tracker import STATE, fmt_ars, start_scan_thread
 from settings import settings, setup_logging
@@ -67,9 +68,16 @@ def build_dashboard() -> list[dict]:
         last = max((o["snap"]["scanned_at"] for o in offers if o["snap"]), default=None)
         diff = ((best["price_cash"] - t.target_price) / t.target_price * 100) if best else None
         series = db.best_series(t.id)
+        ref, ref_src = reference(series, seed=t.market_price)
+        for o in offers:
+            s = o["snap"]
+            o["market"] = describe(s["price_cash"], s["price_list"], ref) if s and s["price_cash"] else None
+        real = real_discount(best["price_cash"], ref) if best else None
         rows.append({"target": t, "offers": offers, "best": best, "hist": hist.get(t.id),
                      "stock": stock, "last": last, "diff": diff,
-                     "band": t.band(best["price_cash"]) if best else None,
+                     "band": t.band(best["price_cash"], ref) if best else None,
+                     "ref": ref, "ref_src": ref_src, "real": real, "level": level(real),
+                     "inflated": bool(best and inflated(best["price_cash"], best["price_list"], ref)),
                      "high": t.high,
                      "series": [{"ts": p["ts"], "price": p["price"],
                                  "where": p["store"] + (f" · {p['seller']}" if p["seller"] else "")}

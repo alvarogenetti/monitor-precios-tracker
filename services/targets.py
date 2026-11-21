@@ -50,6 +50,9 @@ class Target(BaseModel):
     target_price: float = Field(gt=0)
     # Por encima de este valor el precio se considera "Alto". Entre ambos es "Normal".
     price_high: float | None = Field(default=None, gt=0)
+    # Precio de mercado inicial (relevamiento). Se usa como referencia hasta tener ~2 días de historia;
+    # después manda la mediana real de los últimos 30 días.
+    market_price: float | None = Field(default=None, gt=0)
     # Nota libre (de dónde salen los rangos, specs a confirmar, etc.)
     notes: str | None = None
     # Palabras que DEBEN aparecer en el título (para páginas de búsqueda / listados).
@@ -69,12 +72,19 @@ class Target(BaseModel):
     def high(self) -> float:
         return self.price_high or round(self.target_price * DEFAULT_HIGH_FACTOR, -3)
 
-    def band(self, price: float | None) -> str | None:
-        """Clasifica un precio: 'bajo' (<= objetivo, comprar), 'normal' o 'alto' (> price_high)."""
+    def band(self, price: float | None, ref: float | None = None) -> str | None:
+        """'bajo' (comprá), 'normal' o 'alto'.
+
+        Con precio de referencia de mercado: bajo = descuento real >= 15 % (o <= objetivo manual),
+        alto = más de 10 % arriba del mercado. Sin referencia: rangos manuales (objetivo / alto)."""
         if price is None:
             return None
         if price <= self.target_price:
             return "bajo"
+        if ref:
+            if price <= ref * 0.85:
+                return "bajo"
+            return "alto" if price > ref * 1.10 else "normal"
         return "alto" if price > self.high else "normal"
 
 

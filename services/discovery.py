@@ -205,6 +205,10 @@ class ModelResult:
     checks: dict[str, str] = field(default_factory=dict)   # requisito -> ok / fail / ?
     is_new: bool = False
     tracked: str | None = None
+    ref: float | None = None           # precio de mercado (mediana)
+    real: float | None = None          # descuento real vs mercado (0.2 = 20 % abajo)
+    level: str | None = None           # buena / excepcional
+    generic: bool = False              # marca sin reseñas
 
 
 def _majority(values: list) -> Any:
@@ -277,19 +281,34 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         fails.append(f"panel {panel}")
 
     check("IPS", None if not panel and not is_oled else ("IPS" in (panel or "") and not is_oled))
-    if facts.curved or s.get("flat") is False:
+    # Datos que vienen del catálogo de ML (a veces cargados mal por los vendedores): si
+    # descalifican, no descartan: quedan "a verificar".
+    ml = set(s.get("_ml_fields") or [])
+
+    def fail_or_verify(field: str, reason: str) -> bool:
+        if field in ml:
+            warns.append(f"{reason} según ML (dato dudoso, verificar)")
+            missing.append(reason)
+            return False
+        fails.append(reason)
+        return True
+
+    flat_bad = facts.curved or s.get("flat") is False
+    if facts.curved:
         fails.append("curvo")
-    check("plano", False if (facts.curved or s.get("flat") is False) else (True if s.get("flat") else None))
+    elif s.get("flat") is False:
+        flat_bad = fail_or_verify("flat", "curvo")
+    check("plano", False if flat_bad else (True if s.get("flat") else None))
 
     if s.get("anti_glare") is False:
-        fails.append("pantalla brillante (no mate)")
+        fail_or_verify("anti_glare", "pantalla brillante (no mate)")
     elif s.get("anti_glare") is None and req.get("anti_glare", True) and not is_oled:
         missing.append("acabado mate")
 
-    check("mate", s.get("anti_glare"))
+    check("mate", None if (s.get("anti_glare") is False and "anti_glare" in ml) else s.get("anti_glare"))
     vesa = (s.get("vesa") or "").replace(" ", "").lower()
     if vesa in ("none", "no"):
-        fails.append("sin VESA")
+        fail_or_verify("vesa", "sin VESA")
     elif vesa.startswith("sí") or vesa.startswith("si"):
         warns.append("VESA sin medida informada (casi siempre 75 o 100)")
     elif vesa:
@@ -304,7 +323,8 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     if w is None:
         missing.append("peso")
     elif w >= req.get("max_weight_kg", 8):
-        fails.append(f"pesa {w:g} kg")
+        if not fail_or_verify("weight_no_stand_kg", f"pesa {w:g} kg"):
+            w = None   # peso dudoso de ML: queda como "?"
 
     check("<8 kg", None if w is None else w < req.get("max_weight_kg", 8))
     if s.get("hdmi_ports") == 0:
@@ -514,6 +534,55 @@ def new_model_alert(r: ModelResult) -> str:
             f'🔗 <a href="{html.escape(b["url"], quote=True)}">Ver producto</a>')
 
 
+def _apply_market(db, results: list[ModelResult], targets, cfg: dict) -> None:
+    """Calcula referencia de mercado y descuento real de cada modelo descubierto."""
+    from services.market import level, real_discount, reference
+    from services.tracker import market_ref
+
+    generic = [g.lower() for g in cfg.get("generic_brands", [])]
+    by_id = {t.id: t for t in targets}
+    for r in results:
+        if r.tracked and r.tracked in by_id:          # el seguimiento tiene más historia: manda
+            ref, _ = market_ref(db, by_id[r.tracked])
+        else:                                           # descubrimiento: 1 punto por día
+            ref, _ = reference(db.discovery_series(r.key), min_points=4, min_span_days=3)
+        r.ref = ref
+        r.real = real_discount(r.best["price"], ref)
+        r.generic = any(g in (r.name + " " + (r.brand or "")).lower() for g in generic)
+        lvl = level(r.real)
+        if lvl == "buena" and r.generic:                # sin reseñas: sólo ofertas excepcionales
+            lvl = None
+        r.level = lvl
+
+
+async def _real_offers(db, results: list[ModelResult], targets, cfg: dict, send_alerts: bool) -> int:
+    """Un solo mensaje con las ofertas reales (>= 15 % / >= 30 %) en modelos que cumplen."""
+    from services.notifier import send_telegram
+    from services.tracker import fmt_ars
+
+    _apply_market(db, results, targets, cfg)
+    hits = [r for r in results if r.level and r.status in ("cumple", "oled_oferta", "a_confirmar")
+            and not db.offer_already_alerted(r.key, r.level, r.best["price"])]
+    if not hits:
+        return 0
+    hits.sort(key=lambda r: (-(r.real or 0)))
+    lines = [f"💰 <b>{len(hits)} oferta{'s' if len(hits) > 1 else ''} real{'es' if len(hits) > 1 else ''} "
+             f"en monitores que cumplen tus requisitos</b>"]
+    for r in hits[:10]:
+        b = r.best
+        tag = "🔥" if r.level == "excepcional" else "💰"
+        extra = " · confirmar " + ", ".join(r.missing) if r.status == "a_confirmar" else ""
+        lines.append(f'{tag} <a href="{html.escape(b["url"], quote=True)}">{html.escape(r.name[:70])}</a>: '
+                     f"<b>{fmt_ars(b['price'])}</b> ({r.real * 100:.0f}% debajo de {fmt_ars(r.ref)})"
+                     f" — {html.escape(b.get('seller') or b['store'])}{html.escape(extra)}")
+    text = "\n".join(lines)
+    sent = await send_telegram(text) if send_alerts else False
+    db.insert_alert("discover", "real_offer", text, sent)
+    for r in hits:
+        db.record_offer_alert(r.key, r.level, r.best["price"])
+    return len(hits)
+
+
 def new_models_alert(models: list[ModelResult], limit: int = 8) -> str:
     if len(models) == 1:
         return new_model_alert(models[0])
@@ -565,6 +634,7 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
 
     baseline = not db.has_discovered_models()
     new_keys = db.upsert_discovered(run_id, results)
+    offers_alert = await _real_offers(db, results, targets, cfg, send_alerts)
     alerts = 0
     for r in results:
         r.is_new = r.key in new_keys and not baseline
@@ -581,7 +651,8 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
     counts = Counter(r.status for r in results)
     db.finish_discovery(run_id, len(offers), payload, errors)
     summary = {"run_id": run_id, "offers": len(offers), "models": len(results),
-               "counts": dict(counts), "alerts": alerts, "errors": errors, "baseline": baseline}
+               "counts": dict(counts), "alerts": alerts + offers_alert, "errors": errors,
+               "baseline": baseline, "real_offers": offers_alert}
     log.info("Descubrimiento #%d: %d ofertas, %d modelos %s, %d alertas", run_id, len(offers),
              len(results), dict(counts), alerts)
     return {**summary, "results": payload}

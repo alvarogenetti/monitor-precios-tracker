@@ -7,6 +7,8 @@ tiendas argentinas, guarda historial y avisa por **Telegram** cuando:
 - el precio llega o queda **por debajo del objetivo** (`target_price`), o
 - un producto **sin stock vuelve a estar disponible**.
 
+Qué se busca y por qué (uso, requisitos, criterio de compra): ver **[PERFIL.md](PERFIL.md)**.
+
 Hay dos modos de ejecución:
 
 | Modo | Comando | Uso |
@@ -86,6 +88,22 @@ Si no lo configurás, todo funciona igual: las alertas quedan en la consola y en
 
 También podés agregar productos y links, pausarlos y cambiar el precio objetivo desde el dashboard.
 Eso llama a `POST /api/targets` y reescribe el JSON.
+
+### Ofertas REALES (descuento contra el mercado)
+
+El objetivo no es "comprar a precio normal" sino detectar **descuentos reales** y no caer en
+"50 % OFF" con el precio inflado antes:
+
+- **Precio de mercado** de cada monitor = mediana del mejor precio (entre todas las tiendas) de
+  cada escaneo de los últimos 30 días, sin contar las últimas 24 h. Hasta tener ~2 días de
+  historia se usa `market_price` del target (relevamiento inicial).
+- **Descuento real** = cuánto está el precio actual por debajo de ese mercado.
+  **≥ 15 %: buena oferta 💰 · ≥ 30 %: oferta excepcional 🔥.**
+- El "precio de lista" de la tienda sólo se usa para avisar si el descuento anunciado está
+  **inflado** (anuncia, p. ej., -50 % pero contra el mercado es menos de la mitad).
+- Lo mismo corre en el **descubrimiento** para cualquier modelo que cumpla los requisitos (con su
+  propio historial diario). Marcas sin reseñas: sólo ofertas ≥ 30 %. Una misma oferta no se
+  repite durante 7 días salvo que mejore.
 
 ### Rangos de precio: Bajo / Normal / Alto
 
@@ -265,7 +283,9 @@ Con `SCHEDULER_ENABLED=true` en `.env`, `python -m app.main` escanea cada
 
 ### Alertas y resumen
 
-- Avisa bajas de precio de **1 % o más** (`ALERT_MIN_DROP_PCT`), llegada al objetivo y vuelta del stock.
+- Por defecto avisa sólo **ofertas reales** (≥ 15 % / ≥ 30 % vs mercado), el precio objetivo
+  manual y la vuelta de stock de algo en oferta. Con `ALERT_PRICE_DROPS=true` también avisa cada
+  baja de 1 % o más (`ALERT_MIN_DROP_PCT`).
 - No avisa nada de ofertas absurdas: más de 1,5 veces el límite "alto" (`ALERT_MAX_OVER_HIGH`).
 - Todos los días a las 9 (AR) llega un **resumen** con el mejor precio de cada monitor y su rango
   (`python scan.py --summary`).

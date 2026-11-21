@@ -37,7 +37,8 @@
           "url": "https://electro.vtex/?q=PG27QFT2A",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 343000
     },
     {
       "id": "asrock-pg27qft1b",
@@ -76,7 +77,8 @@
           "url": "https://electro.vtex/?q=PG27QFT1B",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 323000
     },
     {
       "id": "gigabyte-gs27qa",
@@ -122,7 +124,8 @@
           "url": "https://electro.vtex/?q=GS27QA",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 345000
     },
     {
       "id": "msi-mag-274qf-x24",
@@ -172,7 +175,8 @@
           "url": "https://electro.vtex/?q=MAG%20275QF",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 372000
     },
     {
       "id": "lg-27gs75q-b",
@@ -211,7 +215,8 @@
           "url": "https://electro.vtex/?q=27GS75Q",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 529000
     },
     {
       "id": "benq-ew270q",
@@ -250,7 +255,8 @@
           "url": "https://electro.vtex/?q=EW270Q",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 679000
     },
     {
       "id": "samsung-odyssey-g5-s27fg500el",
@@ -289,7 +295,8 @@
           "url": "https://electro.vtex/?q=FG500EL",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 430000
     },
     {
       "id": "ktc-m27t6s",
@@ -328,7 +335,8 @@
           "url": "https://electro.vtex/?q=M27T6S",
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo y Jumbo (la más barata)"
         }
-      ]
+      ],
+      "market_price": 497000
     }
   ]
 }

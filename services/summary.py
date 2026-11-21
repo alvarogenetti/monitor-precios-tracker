@@ -13,7 +13,7 @@ def build_summary() -> str:
     from app.main import build_dashboard, db
 
     rows = [r for r in build_dashboard() if r["target"].active]
-    rows.sort(key=lambda r: (r["best"] is None, r["diff"] if r["diff"] is not None else 0))
+    rows.sort(key=lambda r: (r["best"] is None, -(r.get("real") or -1)))
     lines = ["📊 <b>Resumen diario de precios</b>"]
     for r in rows:
         t, b = r["target"], r["best"]
@@ -22,12 +22,14 @@ def build_summary() -> str:
             lines.append(f"⚪ {name}: sin stock")
             continue
         where = html.escape(b["store"] + (f" · {b['seller']}" if b.get("seller") else ""))
-        lines.append(f"{EMOJI[r['band']]} {name}: <b>{fmt_ars(b['price_cash'])}</b> "
-                     f"({r['diff']:+.0f}% vs objetivo) — {where}")
+        vs = (f"{round(-r['real'] * 100):+d}% vs mercado" if r.get("real") is not None
+              else f"{round(r['diff']):+d}% vs objetivo")
+        mark = {"excepcional": " 🔥", "buena": " 💰"}.get(r.get("level"), "")
+        lines.append(f"{EMOJI[r['band']]} {name}: <b>{fmt_ars(b['price_cash'])}</b> ({vs}){mark} — {where}")
     disc = db.last_discovery()
     if disc:
         n = sum(1 for m in disc["results"] if m["status"] == "cumple")
         lines.append(f"\n🔎 Descubrimiento: {n} modelos cumplen todos tus requisitos")
-    lines.append("🟢 bajo (comprá) · 🔵 normal · 🔴 alto")
+    lines.append("🟢 oferta real ≥15 % · 🔵 precio normal · 🔴 caro (+10 % sobre el mercado)")
     lines.append(f'<a href="{PAGES_URL}">Ver dashboard</a>')
     return "\n".join(lines)

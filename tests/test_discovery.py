@@ -112,3 +112,30 @@ def test_brand_hz_fallback_only_without_code_and_compatible_panel():
     assert key('Monitor Samsung Odyssey G5 27  Qhd Oled 180hz Black') != "S27FG500EL"
     assert key('MONITOR 27 GIGABYTE GS27FA GAMING IPS 180HZ HDMI') == "GS27FA"
     assert key('MONITOR GAMER GIGABYTE 27" 180HZ QHD 1440P 1MS CURVO VA') != "GS27QA"
+
+
+def test_discovery_real_offers_with_history(tmp_path):
+    import asyncio
+    from datetime import datetime, timedelta, timezone
+    from services.discovery import _real_offers
+
+    db = Database(tmp_path / "d.db")
+    now = datetime.now(timezone.utc)
+    with db.connect() as c:                       # 5 días de historia a ~$320k
+        for d in range(1, 6):
+            c.execute("INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at)"
+                      " VALUES (?,?,?,?,?,?)", (d, "PG27QFT1B", 320000 + d * 1000, "cg", None,
+                                                (now - timedelta(days=d)).isoformat()))
+            c.execute("INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at)"
+                      " VALUES (?,?,?,?,?,?)", (d, "ARK27210QI8", 290000, "hg", None,
+                                                (now - timedelta(days=d)).isoformat()))
+    res = analyze(offers(("compragamer", 'Monitor AsRock PG27QFT1B 27" QHD IPS 180Hz', 260000, None),
+                         ("hardgamers", 'MONITOR ARKHAM 27" 210HZ QHD IPS ARK27210QI8', 240000, "X")),
+                  CFG, SPECS)
+    cfg = {**CFG, "generic_brands": ["Arkham"]}
+    n = asyncio.run(_real_offers(db, res, [], cfg, send_alerts=False))
+    by = {r.key: r for r in res}
+    assert by["PG27QFT1B"].level == "buena" and round(by["PG27QFT1B"].real, 2) == 0.20
+    assert by["ARK27210QI8"].generic and by["ARK27210QI8"].level is None   # -17 % en genérica: no alcanza
+    assert n == 1
+    assert asyncio.run(_real_offers(db, res, [], cfg, send_alerts=False)) == 0   # no repite la misma oferta

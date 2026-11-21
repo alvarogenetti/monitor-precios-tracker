@@ -92,6 +92,7 @@
                       {% if s.price_list %}<span class="tabular text-slate-400">lista {{ s.price_list|ars }}</span>{% endif %}
                       {% if s.in_stock == 0 %}<span class="text-rose-600">sin stock</span>{% endif %}
                       {% if s.seller %}<span class="text-slate-500">@ {{ s.seller }}</span>{% endif %}
+                      {% if o.market %}<span class="text-slate-500" title="Contra el precio de mercado (mediana de 30 días)">{{ o.market }}</span>{% endif %}
                       {% if s.promo %}<span class="rounded bg-amber-100 px-1.5 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">🏷️ {{ s.promo }}</span>{% endif %}
                     {% endif %}
                     {% if s %}<span class="text-slate-400" data-ts="{{ s.scanned_at }}"></span>{% endif %}
@@ -146,6 +147,13 @@
                            'normal': 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300',
                            'alto': 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'} %}
               <div><span class="rounded-full px-2 py-0.5 text-xs font-medium {{ bc[r.band] }}">{{ bands[r.band] }}</span></div>
+              {% if r.real is not none %}
+                <div class="text-xs font-normal {% if r.level %}text-emerald-600 font-semibold{% elif r.real < 0 %}text-rose-500{% else %}text-slate-500{% endif %}"
+                     title="Mercado: {{ r.ref|ars }} ({{ r.ref_src }})">
+                  {% if r.level == 'excepcional' %}🔥 {% elif r.level == 'buena' %}💰 {% endif %}{{ '%+.0f'|format(-r.real * 100) }}% vs mercado
+                </div>
+              {% endif %}
+              {% if r.inflated %}<div class="text-xs font-normal text-amber-600">⚠ descuento de lista inflado</div>{% endif %}
               {% if r.diff is not none %}
                 <div class="text-xs font-normal {% if r.diff <= 0 %}text-emerald-600{% else %}text-slate-400{% endif %}">
                   {{ '%+.1f'|format(r.diff) }}% vs objetivo
@@ -251,6 +259,8 @@
             <td class="px-4 py-2 text-right tabular">
               <a class="font-semibold text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.best.price|ars }}</a>
               <div class="text-xs text-slate-500">{{ m.best.store }}{% if m.best.seller %} · {{ m.best.seller }}{% endif %}</div>
+              {% if m.real is not none %}<div class="text-xs {% if m.level %}font-semibold text-emerald-600{% else %}text-slate-500{% endif %}" title="Mercado: {{ m.ref|ars }}">{% if m.level == 'excepcional' %}🔥 {% elif m.level == 'buena' %}💰 {% endif %}{{ '%+.0f'|format(-m.real * 100) }}% vs mercado</div>{% endif %}
+              {% if m.generic %}<div class="text-[11px] text-slate-400">marca sin reseñas</div>{% endif %}
               <div class="text-xs text-slate-400">{{ m.n_stores }} tienda{{ 's' if m.n_stores != 1 }}{% if m.min_price and m.min_price < m.best.price %} · mín {{ m.min_price|ars }}{% endif %}</div>
             </td>
             <td class="px-4 py-2">

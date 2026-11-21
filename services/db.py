@@ -74,6 +74,13 @@ CREATE TABLE IF NOT EXISTS spec_cache (
     fetched_at  TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS offer_alerts (
+    model_key   TEXT NOT NULL,
+    level       TEXT NOT NULL,
+    price       REAL NOT NULL,
+    created_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     target_id   TEXT NOT NULL,
@@ -276,6 +283,27 @@ class Database:
                        scanned_at) VALUES (?,?,?,?,?,?)""",
                     (run_id, r.key, price, best["store"], best.get("seller"), now))
         return new
+
+    def discovery_series(self, model_key: str) -> list[dict]:
+        with self.connect() as con:
+            rows = con.execute("""SELECT price, scanned_at AS ts FROM discovery_prices
+                                  WHERE model_key=? ORDER BY run_id""", (model_key,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def offer_already_alerted(self, model_key: str, level: str, price: float, days: int = 7) -> bool:
+        """True si en los últimos `days` ya se avisó este modelo con igual o mejor nivel y un precio
+        no más de 5 % más caro (evita repetir la misma oferta todos los días)."""
+        rank = {"buena": 1, "excepcional": 2}
+        with self.connect() as con:
+            rows = con.execute("""SELECT level, price FROM offer_alerts WHERE model_key=?
+                                  AND created_at >= datetime('now', ?)""",
+                               (model_key, f"-{int(days)} days")).fetchall()
+        return any(rank[r["level"]] >= rank[level] and price >= r["price"] * 0.95 for r in rows)
+
+    def record_offer_alert(self, model_key: str, level: str, price: float) -> None:
+        with self.connect() as con:
+            con.execute("INSERT INTO offer_alerts (model_key, level, price, created_at) VALUES (?,?,?,?)",
+                        (model_key, level, price, utcnow()))
 
     def last_discovery(self) -> dict | None:
         with self.connect() as con:
