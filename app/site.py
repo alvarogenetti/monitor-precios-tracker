@@ -18,14 +18,10 @@ class _Req:
 
 
 def build(out_dir: Path) -> Path:
+    from app.main import build_context
+
     tpl = templates.get_template("index.html")
-    html = tpl.render(
-        request=_Req(), static=True,
-        rows=build_dashboard(), state={"running": False}, last_run=db.last_run(),
-        alerts=db.recent_alerts(10), telegram=settings.telegram_enabled,
-        scheduler=True, interval=180, bands=BANDS, event=active_event(),
-        discovery=db.last_discovery(), status_labels=STATUS_LABELS,
-    )
+    html = tpl.render(request=_Req(), **build_context(static=True))
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "index.html").write_text(html, encoding="utf-8")
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")

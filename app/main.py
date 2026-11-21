@@ -96,22 +96,69 @@ def series_stats(prices: list[float]) -> dict | None:
     return {"n": n, "min": srt[0], "max": srt[-1], "median": median}
 
 
+def build_context(static: bool = False) -> dict:
+    """Todo lo que necesita el dashboard (se usa igual en la web local y en GitHub Pages)."""
+    from scrapers.base import matches_keywords
+    from services.discovery import SpecCatalog, evaluate_target, load_json, usb_c_label
+
+    cfg = load_json(settings.discovery_path, {})
+    catalog = SpecCatalog(load_json(settings.specs_path, []))
+    rows = build_dashboard()
+    targets = [r["target"] for r in rows]
+    for r in rows:
+        snaps = [o["snap"] for o in r["offers"] if o["active"] and o["snap"]]
+        ev = evaluate_target(r["target"], snaps, cfg, catalog)
+        if ev:
+            ml_specs_k = db.spec_cache_get([ev["key"]], 3650).get(ev["key"])
+            if ml_specs_k:
+                ev = evaluate_target(r["target"], snaps, cfg, catalog, {ev["key"]: ml_specs_k})
+        r["eval"] = ev or {}
+        r["usb_c"] = (ev or {}).get("usb_c")
+
+    disc = db.last_discovery()
+    models = []
+    if disc:
+        generic = [g.lower() for g in cfg.get("generic_brands", [])]
+        for m in disc["results"]:
+            # ¿Lo seguís? (se recalcula en vivo: puede haberse agregado después del descubrimiento)
+            m["tracked"] = next((t.id for t in targets if t.keywords and any(
+                matches_keywords(o["title"], t.keywords, []) for o in m["offers"])), None)
+            m["usb_c"] = usb_c_label(m.get("spec"), m.get("badges") or [])
+            m["generic"] = m.get("generic") or any(g in (m["name"] + " " + (m.get("brand") or "")).lower()
+                                                   for g in generic)
+            models.append(m)
+
+    def best_ok(items, price):
+        ok = [x for x in items if x[1] is not None]
+        return min(ok, key=lambda x: x[1]) if ok else None
+
+    cheapest = best_ok([(m["name"], m["best"]["price"], m) for m in models if m["status"] == "cumple" and not m["generic"]]
+                       + [(r["target"].name, r["best"]["price_cash"] if r["best"] else None, r)
+                          for r in rows if r["eval"].get("status") == "cumple"], None)
+    offers_now = [r for r in rows if r["level"]] + [m for m in models if m.get("level")]
+    from services.events import load as load_events
+
+    upcoming = None
+    from datetime import date
+    for e in sorted(load_events(), key=lambda e: e["from"]):
+        if date.fromisoformat(e["to"]) >= date.today():
+            upcoming = e
+            break
+    return {
+        "static": static, "rows": rows, "models": models, "discovery": disc,
+        "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
+        "telegram": settings.telegram_enabled, "scheduler": settings.scheduler_enabled or static,
+        "interval": settings.scan_interval_minutes if not static else 180, "bands": BANDS,
+        "event": active_event(), "upcoming": upcoming, "status_labels": STATUS_LABELS,
+        "kpi": {"offers": len(offers_now), "cheapest": cheapest,
+                "tracked": len(rows), "cumple": sum(1 for m in models if m["status"] == "cumple")},
+    }
+
+
 # ------------------------------------------------------------------ páginas
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse(request, "index.html", {
-        "rows": build_dashboard(),
-        "state": STATE.as_dict(),
-        "last_run": db.last_run(),
-        "alerts": db.recent_alerts(10),
-        "telegram": settings.telegram_enabled,
-        "scheduler": settings.scheduler_enabled,
-        "interval": settings.scan_interval_minutes,
-        "bands": BANDS,
-        "event": active_event(),
-        "discovery": db.last_discovery(),
-        "status_labels": STATUS_LABELS,
-    })
+    return templates.TemplateResponse(request, "index.html", build_context())
 
 
 # ------------------------------------------------------------------ API

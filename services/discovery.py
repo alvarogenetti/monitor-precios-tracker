@@ -375,6 +375,34 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     )
 
 
+def usb_c_label(spec: dict | None, badges: list[str]) -> str | None:
+    pd = (spec or {}).get("usb_c_pd_w") or 0
+    if pd >= 65:
+        return f"USB-C {pd} W"
+    return next((b for b in badges if b.startswith("USB-C")), None)
+
+
+def evaluate_target(target, snaps: list[dict], cfg: dict, catalog: SpecCatalog,
+                    ml_specs: dict[str, dict] | None = None) -> dict | None:
+    """Evalúa un monitor seguido contra los requisitos (mismas reglas que el descubrimiento),
+    usando los títulos que devolvieron sus tiendas."""
+    from services.spec_enrich import merge
+
+    offers = [Offer(s["store"], s["title"], s["price_cash"], s.get("product_url") or s["url"], s.get("seller"))
+              for s in snaps if s and s.get("price_cash") and s.get("title") and not s["title"].startswith("(")]
+    if not offers:
+        offers = [Offer("config", target.name + " 27\" QHD IPS", 1, "")]
+    key, search, spec = model_key(offers[0].title, title_facts(offers[0].title), catalog)
+    spec = spec or catalog.match(target.name)
+    if spec:
+        key = norm(spec["model_key"])
+    spec = merge(spec, (ml_specs or {}).get(key))
+    r = evaluate(offers, key, search, spec, cfg)
+    return {"status": r.status, "missing": r.missing, "fails": r.fails, "warnings": r.warnings,
+            "badges": r.badges, "checks": r.checks, "usb_c": usb_c_label(spec, r.badges),
+            "spec_notes": (spec or {}).get("notes"), "key": key}
+
+
 def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
             extra_specs: dict[str, dict] | None = None) -> list[ModelResult]:
     exclude = [e.lower() for e in cfg.get("exclude_words", [])]
