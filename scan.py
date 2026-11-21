@@ -60,7 +60,10 @@ def main() -> int:
     if args.discover:
         from services.discovery import STATUS_LABELS, run_discovery
 
-        summary = asyncio.run(run_discovery("cli", send_alerts=not args.no_alerts))
+        import os
+
+        trig = "ci" if os.environ.get("GITHUB_ACTIONS") == "true" else "cli"
+        summary = asyncio.run(run_discovery(trig, send_alerts=not args.no_alerts))
         if args.json:
             print(json.dumps(summary, ensure_ascii=False, indent=2))
             return 0
@@ -77,7 +80,10 @@ def main() -> int:
               f" · alertas: {summary['alerts']}{' (primera corrida: línea base)' if summary['baseline'] else ''}")
         return 1 if summary["errors"] and not summary["offers"] else 0
 
-    summary = asyncio.run(run_scan("cli", args.target, send_alerts=not args.no_alerts,
+    import os
+
+    trigger = "ci" if os.environ.get("GITHUB_ACTIONS") == "true" else "cli"
+    summary = asyncio.run(run_scan(trigger, args.target, send_alerts=not args.no_alerts,
                                    only_local=args.only_local))
     if args.json:
         print(json.dumps(summary, ensure_ascii=False, indent=2))

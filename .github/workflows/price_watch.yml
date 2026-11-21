@@ -2,7 +2,7 @@ name: price-watch
 
 on:
   schedule:
-    - cron: "0 * * * *"     # cada hora; services/events decide: cada 3 h, o cada hora en eventos
+    - cron: "7,37 * * * *"  # cada 30 min (GitHub pierde corridas); services/events decide si escanea
   workflow_dispatch: {}      # botón "Run workflow" para correrlo a mano
 
 permissions:
@@ -29,10 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: ¿Toca escanear? (cada 3 h, o cada hora durante Hot Sale / Cyber Monday / Black Friday)
+      - name: ¿Toca escanear? (pasaron 2h45 desde el último, o 45 min durante eventos)
         id: gate
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python3 -m services.events should-run; then
+          # Base de la rama data (sin dependencias) para ver cuándo fue el último escaneo de GitHub
+          git fetch --quiet --depth=1 origin data && git cat-file blob FETCH_HEAD:prices.db > /tmp/prices.db || true
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python3 -m services.events should-run /tmp/prices.db; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -65,15 +67,15 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: python scan.py --once
 
-      # Una vez por día (corrida de las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen diario
+      # Una vez por día (primera corrida desde las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen
       - name: Descubrir modelos nuevos y resumen diario
         if: always() && steps.gate.outputs.run == 'true'
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%H)" = "12" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python -m services.daily due; then
             python scan.py --discover
             python scan.py --summary
           else
-            echo "Sólo en la corrida de las 12 UTC"
+            echo "Ya se hizo hoy (o todavía no son las 12 UTC)"
           fi
 
       - name: Publicar la base en la rama data
