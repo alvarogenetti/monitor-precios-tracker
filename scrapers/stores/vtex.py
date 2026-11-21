@@ -38,9 +38,10 @@ VTEX_STORES = {
     "coppel": ("Coppel", "www.coppel.com.ar"),
     "naldo": ("Naldo", "www.naldo.com.ar"),
     "jumbo": ("Jumbo", "www.jumbo.com.ar"),
+    "samsung": ("Samsung Shop", "shop.samsung.com/ar"),
 }
 # "electro" agrupa estas (Frávega va aparte porque bloquea las IPs de GitHub Actions)
-ELECTRO_STORES = ["oncity", "cetrogar", "carrefour", "pardo", "coppel", "naldo", "jumbo"]
+ELECTRO_STORES = ["oncity", "cetrogar", "carrefour", "pardo", "coppel", "naldo", "jumbo", "samsung"]
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/131.0 Safari/537.36")
 
@@ -88,7 +89,7 @@ def offers_from(products: list[dict], store: str) -> list[dict]:
                     "store": store, "label": label, "title": p.get("productName") or "",
                     "brand": p.get("brand"), "price": float(price), "list": lst, "promo": promo,
                     "seller": label if not seller or seller.lower() in label.lower() or
-                              host.split(".")[1] in seller.lower() else f"{label} · {seller}",
+                              host.split("/")[0].split(".")[1] in seller.lower() else f"{label} · {seller}",
                     "url": link, "description": p.get("description") or "",
                 })
     return out
@@ -111,7 +112,7 @@ def promo_text(o: dict) -> str | None:
 class VtexScraper(BaseScraper):
     """No usa el navegador: llama a la API JSON del storefront."""
     store = "vtex"
-    domains = tuple(h for _, h in VTEX_STORES.values()) + ("electro.vtex",)
+    domains = tuple(h.split("/")[0] for _, h in VTEX_STORES.values()) + ("electro.vtex",)
     uses_browser = False
 
     def __init__(self, session, retries: int = 3, store: str | None = None):
@@ -158,7 +159,8 @@ class VtexScraper(BaseScraper):
         host = urlparse(url).netloc.lower()
         if host == "electro.vtex":
             return "electro"
-        return next((k for k, (_, h) in VTEX_STORES.items() if host.endswith(h.replace("www.", ""))), "electro")
+        return next((k for k, (_, h) in VTEX_STORES.items()
+                     if host.endswith(h.split("/")[0].replace("www.", ""))), "electro")
 
     @staticmethod
     def _query_from_url(url: str) -> str:

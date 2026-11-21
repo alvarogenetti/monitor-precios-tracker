@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from scrapers.base import BaseScraper
 from scrapers.stores.compragamer import CompraGamerScraper
+from scrapers.stores.catalogs import CatalogScraper
 from scrapers.stores.vtex import VTEX_STORES, VtexScraper
 from scrapers.stores.generic import GenericScraper
 from scrapers.stores.hardgamers import HardGamersScraper
@@ -15,6 +16,8 @@ SCRAPERS: dict[str, type[BaseScraper]] = {
     "compragamer": CompraGamerScraper,
     "hardgamers": HardGamersScraper,
     "electro": VtexScraper,
+    "dell": CatalogScraper,
+    "megatone": CatalogScraper,
     **{k: VtexScraper for k in VTEX_STORES},   # fravega, oncity, cetrogar, carrefour, pardo...
     "generic": GenericScraper,
 }

@@ -135,7 +135,8 @@ Cada escaneo guarda un snapshot por link en `data/prices.db`, con o sin error. E
 | `hardgamers` | Con una búsqueda trae las ofertas de decenas de tiendas y se queda con la **más barata** que matchee las keywords. En `seller` guarda la tienda (Maximus, Mexx, Full H4rd, etc.). |
 | `fravega` | Búsquedas (`/l/?keyword=EW270Q`): el más barato que matchee las keywords, con el vendedor del marketplace en `seller`. Las fichas (`/p/...`) usan el genérico. Frávega no indexa en HardGamers y suele tener LG, Samsung y BenQ. |
 | `fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo` | Tiendas de electrónica sobre **VTEX**: se consulta el buscador JSON público de su storefront (`/api/catalog_system/pub/products/search`), sin navegador. Trae precio, precio de lista, vendedor del marketplace y **promos** (teasers de VTEX). Frávega bloquea las IPs de GitHub: se escanea desde tu PC. |
-| `electro` | Busca el modelo en **todas** las tiendas VTEX de electrónica a la vez (menos Frávega) y se queda con la más barata. |
+| `dell`, `megatone` | Leen la categoría de monitores del HTML (Dell: atributo `data-product-detail`; Megatone: JSON-LD con los primeros 20 de cada categoría). Sin navegador. Se usan en el descubrimiento. |
+| `electro` | Busca el modelo en **todas** las tiendas VTEX de electrónica y Samsung Shop a la vez (menos Frávega) y se queda con la más barata. |
 | `mercadolibre` | Fichas (`articulo.mercadolibre.com.ar/...`, `/p/MLA...`) y listados (`listado.mercadolibre.com.ar/...`). Mirá la limitación más abajo. |
 | `generic` | Cualquier ficha de producto. Busca el precio en JSON-LD, después en meta OpenGraph/itemprop y después en selectores comunes (WooCommerce, Tiendanube, VTEX, Magento, PrestaShop). Del bloque principal toma el **mínimo como precio transferencia** y el **máximo como precio de lista/cuotas**. Ignora valores de cuota, precios sin impuestos y productos relacionados. Se probó con Maximus, Mexx, TryHardware y Slot One. |
 
@@ -346,3 +347,11 @@ tests/                   pytest (parser, DB, heurísticas, alertas)
   adaptador genérico y el fallback por JSON-LD reducen el riesgo, pero conviene revisar los
   errores del dashboard cada tanto.
 - Usalo con frecuencias razonables (cada 3 horas está bien) y respetá los términos de cada sitio.
+
+### Tiendas evaluadas que no se pueden usar (nov-2026)
+
+- **Musimundo**: el sitio está en mantenimiento y redirige a On City (que ya está).
+- **Garbarino / Compumundo**: el dominio no resuelve / responde 403.
+- **ASUS Store**: pide captcha (no se evade).
+- **LG Argentina**: no vende online (sólo "dónde comprar").
+- **Lenovo / HP**: sólo con navegador y casi sin monitores QHD en stock; no se sumaron.

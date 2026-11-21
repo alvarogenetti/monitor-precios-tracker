@@ -83,6 +83,18 @@
     {
       "store": "naldo",
       "url": "https://www.naldo.com.ar/?q=monitor%2027%20qhd"
+    },
+    {
+      "store": "samsung",
+      "url": "https://shop.samsung.com/ar/?q=monitor%2027"
+    },
+    {
+      "store": "dell",
+      "url": "https://www.dell.com/es-ar/shop/computer-monitors/ar/computer-monitors"
+    },
+    {
+      "store": "megatone",
+      "url": "https://www.megatone.net/listado/tecnologia/informatica/monitores/"
     }
   ],
   "ignore_models": [],

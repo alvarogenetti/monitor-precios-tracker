@@ -475,6 +475,13 @@ async def _collect_cards(session: BrowserSession, url: str, store: str) -> list[
     return out
 
 
+def _collect_catalog(store: str) -> list[Offer]:
+    """Dell y Megatone: categoría de monitores leída del HTML."""
+    from scrapers.stores.catalogs import fetch
+
+    return [Offer(store, i["title"], i["price"], i["url"], i["seller"], i["list"], True) for i in fetch(store)]
+
+
 def _collect_vtex(store: str, url: str) -> list[Offer]:
     """Tiendas VTEX (Frávega, On City, Pardo, Carrefour...): API JSON del buscador."""
     import httpx
@@ -505,6 +512,8 @@ async def collect(session: BrowserSession, sources: list[dict],
         try:
             if src["store"] == "compragamer":
                 got = await _collect_compragamer(session, src["url"])
+            elif src["store"] in ("dell", "megatone"):
+                got = await asyncio.to_thread(_collect_catalog, src["store"])
             elif src["store"] in VTEX_STORES:
                 got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])
             else:

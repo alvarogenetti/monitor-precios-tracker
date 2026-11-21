@@ -110,3 +110,22 @@ def test_vtex_offers_and_promo():
     o = best_match(offers_from(products, "fravega"), ["27GS75Q"], [])
     assert (o["price"], o["seller"]) == (594557.0, "Frávega · Glic")      # el sin stock no cuenta
     assert promo_text(o) == "-28% sobre lista · 3 cuotas sin interés"
+
+
+def test_dell_and_megatone_parsers():
+    from scrapers.stores.catalogs import parse_dell, parse_megatone
+    dell = ('<div data-product-detail=\'[{"Key":"x","Value":{"productId":"s2725dsm","title":"Monitor QHD Dell S 27 - S2725DSM",'
+            '"dellPrice":"$ 497.805,62","marketPrice":null,"pdUrl":"/es-ar/shop/s2725dsm"}}]\'></div>')
+    d = parse_dell(dell)[0]
+    assert (d["price"], d["url"]) == (497805.62, "https://www.dell.com/es-ar/shop/s2725dsm")
+    mega = ('<script type="application/ld+json">{"@type":"ItemList","itemListElement":[{"item":{"name":"Monitor Gamer 27\\" Hawkeye 200Hz Qhd...",'
+            '"offers":{"price":"636479","availability":"https://schema.org/InStock","url":"https://www.megatone.net/p/1?psc=1"}}}]}</script>')
+    m = parse_megatone(mega)[0]
+    assert (m["price"], m["url"]) == (636479, "https://www.megatone.net/p/1")
+
+
+def test_samsung_vtex_store_from_url():
+    from scrapers.stores import get_scraper_class
+    from scrapers.stores.vtex import VtexScraper
+    assert get_scraper_class(None, "https://shop.samsung.com/ar/monitor/p") is VtexScraper
+    assert VtexScraper._store_from_url("https://shop.samsung.com/ar/x") == "samsung"
