@@ -1,618 +1,640 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monitor de precios</title>
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
-  <style>
-    [hidden] { display: none !important; }
-    .tabular { font-variant-numeric: tabular-nums; }
-    details > summary { list-style: none; cursor: pointer; }
-    details > summary::-webkit-details-marker { display: none; }
-    .chart text { font-size: 10px; fill: currentColor; }
-    .tab[aria-selected="true"] { border-color: rgb(99 102 241); color: rgb(79 70 229); }
-    .chip[aria-pressed="true"] { background: rgb(79 70 229); color: white; border-color: rgb(79 70 229); }
-    @media (prefers-color-scheme: dark) {
-      .tab[aria-selected="true"] { color: rgb(165 180 252); }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitores · precios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // Tema: elegido a mano > sistema. Se aplica antes de pintar para no parpadear.
+  try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --raised: #ffffff;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --line: #e1e0d9; --line-strong: #c3c2b7; --ring: rgba(11,11,11,.10);
+    --accent: #2a78d6; --good: #006300; --bad: #d03b3b; --warn: #a86b00;
+    --good-bg: rgba(12,163,12,.10); --bad-bg: rgba(208,59,59,.08); --warn-bg: rgba(250,178,25,.14);
+    --hover: rgba(11,11,11,.035);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --raised: #20201f;
+      --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --line: #2c2c2a; --line-strong: #383835; --ring: rgba(255,255,255,.10);
+      --accent: #3987e5; --good: #0ca30c; --bad: #e66767; --warn: #fab219;
+      --good-bg: rgba(12,163,12,.14); --bad-bg: rgba(230,103,103,.12); --warn-bg: rgba(250,178,25,.12);
+      --hover: rgba(255,255,255,.04);
     }
-  </style>
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #20201f;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --line: #2c2c2a; --line-strong: #383835; --ring: rgba(255,255,255,.10);
+    --accent: #3987e5; --good: #0ca30c; --bad: #e66767; --warn: #fab219;
+    --good-bg: rgba(12,163,12,.14); --bad-bg: rgba(230,103,103,.12); --warn-bg: rgba(250,178,25,.12);
+    --hover: rgba(255,255,255,.04);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .muted { color: var(--muted); } .ink2 { color: var(--ink-2); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* encabezado */
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+  .top h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+  .top p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .actions { display: flex; align-items: center; gap: 8px; }
+  .btn { border: 1px solid var(--line-strong); background: var(--raised); border-radius: 8px;
+         padding: 7px 12px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--page); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); padding: 7px 8px; }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+  #status { font-size: 12px; color: var(--muted); }
+  .progress { height: 2px; background: var(--line); margin-top: 14px; border-radius: 2px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+  .banner { margin-top: 16px; padding: 10px 14px; border-radius: 10px; font-size: 13px;
+            background: var(--bad-bg); color: var(--ink); border: 1px solid var(--ring); }
+
+  /* resumen */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 22px;
+           background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; }
+  .stat { padding: 14px 16px; border-left: 1px solid var(--line); min-width: 0; }
+  .stat:first-child { border-left: 0; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 22px; font-weight: 600; margin-top: 2px; letter-spacing: -.02em; }
+  .stat .s { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* pestañas */
+  .tabs { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 26px; border-bottom: 1px solid var(--line); }
+  .tab { background: none; border: 0; padding: 0 0 10px; font-size: 14px; font-weight: 500; color: var(--muted);
+         cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
+  .tab .c { color: var(--muted); font-weight: 400; margin-left: 4px; }
+
+  /* barra de herramientas */
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 6px; }
+  .search { flex: 1 1 220px; min-width: 0; padding: 7px 11px; border: 1px solid var(--line-strong);
+            border-radius: 8px; background: var(--raised); font-size: 13px; }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; background: var(--raised); padding: 6px 10px; font-size: 12px; cursor: pointer; color: var(--ink-2); }
+  .seg button + button { border-left: 1px solid var(--line-strong); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--page); }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+  .sort { padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--raised); font-size: 12px; }
+
+  /* lista tipo watchlist */
+  .group { margin-top: 18px; }
+  .group h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .group h2 .n { font-weight: 400; margin-left: 4px; }
+  .list { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; overflow: hidden; }
+  .row { border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row > summary { list-style: none; cursor: pointer; display: grid; align-items: center; gap: 16px;
+                   grid-template-columns: minmax(0, 1fr) 120px 128px 84px; padding: 12px 16px; }
+  .row > summary::-webkit-details-marker { display: none; }
+  .row > summary:hover { background: var(--hover); }
+  .row[open] > summary { background: var(--hover); }
+  .name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { font-size: 12px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub .warn { color: var(--warn); } .sub .bad { color: var(--bad); }
+  .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 0 6px; border-radius: 4px;
+         border: 1px solid var(--line-strong); color: var(--ink-2); margin-left: 6px; vertical-align: 1px; }
+  .tag.offer { border-color: transparent; background: var(--good-bg); color: var(--good); }
+  .spark { height: 32px; color: var(--ink-2); }
+  .price { text-align: right; font-size: 16px; font-weight: 600; }
+  .price .where { display: block; font-size: 11px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .delta { justify-self: end; font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: 6px; min-width: 64px; text-align: center; }
+  .delta.down { color: var(--good); background: var(--good-bg); }
+  .delta.up { color: var(--bad); background: var(--bad-bg); }
+  .delta.flat { color: var(--muted); background: var(--hover); }
+
+  /* detalle */
+  .detail { padding: 4px 16px 18px; display: grid; gap: 16px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 12px; color: var(--ink-2); }
+  .facts b { color: var(--ink); font-weight: 600; }
+  .chart { position: relative; height: 180px; color: var(--muted); }
+  .chart svg text { font-size: 10px; fill: var(--muted); }
+  .tip { position: absolute; pointer-events: none; background: var(--raised); border: 1px solid var(--ring);
+         border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); white-space: nowrap; }
+  table.stores { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.stores th { text-align: left; font-size: 11px; font-weight: 500; color: var(--muted); padding: 0 8px 6px 0; }
+  table.stores td { border-top: 1px solid var(--line); padding: 7px 8px 7px 0; vertical-align: top; }
+  table.stores td.r, table.stores th.r { text-align: right; }
+  .strike { text-decoration: line-through; color: var(--muted); font-size: 11px; }
+  .reqs { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+  .reqs .ok::before { content: "✓ "; color: var(--good); } .reqs .no::before { content: "✗ "; color: var(--bad); }
+  .reqs .no { color: var(--bad); } .reqs .unk::before { content: "? "; color: var(--warn); }
+  .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12px;
+             padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); }
+  .confirm .q { display: inline-flex; align-items: center; gap: 6px; }
+  .link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 12px; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .link.danger { color: var(--bad); }
+  .row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 12px; }
+  .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .inline-form input, .inline-form select { padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--raised); font-size: 12px; }
+  .inline-form input[type=number] { width: 110px; text-align: right; }
+  .note { font-size: 12px; color: var(--muted); }
+
+  .callout { margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ring); background: var(--surface); font-size: 13px; }
+  .callout h3 { margin: 0 0 6px; font-size: 13px; }
+  .callout ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .callout li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .panel { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; font-size: 13px; }
+  .panel h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+  .panel ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; color: var(--ink-2); }
+  .panel p { margin: 0; color: var(--ink-2); }
+  .alert { padding: 12px 16px; border-top: 1px solid var(--line); font-size: 13px; }
+  .alert:first-child { border-top: 0; }
+  .alert .meta { font-size: 12px; color: var(--muted); }
+  .alert .msg { white-space: pre-line; margin-top: 3px; color: var(--ink-2); }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 20px 14px 48px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(3) { border-left: 0; }
+    .stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+    .row > summary { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+    .row > summary .spark { display: none; }
+    .name { white-space: normal; line-height: 1.3; }
+    .sub { white-space: normal; }
+    .row > summary .delta { grid-column: 2; }
+    .cols { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
-{% macro ars(v) %}{{ v|ars }}{% endmacro %}
-{% set ST = {'cumple': ('✅', 'Cumple todo', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'),
-             'oled_oferta': ('🟣', 'OLED en oferta', 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200'),
-             'a_confirmar': ('❔', 'A confirmar', 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'),
-             'descartado': ('⛔', 'No cumple', 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300')} %}
 
-{# ---------- piezas reutilizables ---------- #}
-{% macro status_pill(st) %}{% set s = ST.get(st, ST['a_confirmar']) %}<span class="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium {{ s[2] }}">{{ s[0] }} {{ s[1] }}</span>{% endmacro %}
-{% macro usbc_pill(label) %}{% if label %}<span class="whitespace-nowrap rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-900/50 dark:text-sky-200">⚡ {{ label }}</span>{% endif %}{% endmacro %}
-{% macro offer_line(real, lvl, ref) %}
-  {% if real is not none %}
-    <div class="text-xs {% if lvl %}font-semibold text-emerald-600 dark:text-emerald-400{% elif real < -0.10 %}text-rose-500{% else %}text-slate-500{% endif %}" title="Precio de mercado: {{ ref|ars }}">
-      {% if lvl == 'excepcional' %}🔥 {% elif lvl == 'buena' %}💰 {% endif %}{{ '%+.0f'|format(-real * 100) }}% vs mercado
-    </div>
-  {% else %}<div class="text-xs text-slate-400" title="Hace falta unos días de historia">sin precio de mercado aún</div>{% endif %}
-{% endmacro %}
-{% macro checks_list(checks) %}
-  <div class="flex flex-wrap gap-1 text-[11px]">
-    {% for k, v in (checks or {}).items() %}
-      <span class="rounded px-1.5 py-0.5 {% if v == 'ok' %}bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300{% elif v == 'fail' %}bg-rose-50 text-rose-700 line-through dark:bg-rose-950 dark:text-rose-300{% else %}bg-slate-100 text-slate-500 dark:bg-slate-800{% endif %}"
-            title="{{ {'ok': 'cumple', 'fail': 'no cumple', '?': 'sin dato: confirmar'}[v] }}">{{ '✓' if v == 'ok' else ('✗' if v == 'fail' else '?') }} {{ k }}</span>
-    {% endfor %}
-  </div>
-{% endmacro %}
+{# ======================= macros ======================= #}
+{% macro delta(real) -%}
+  {%- if real is none -%}<span class="delta flat num" title="Todavía no hay historia suficiente para el precio de mercado">—</span>
+  {%- else -%}{%- set v = -real * 100 -%}
+    <span class="delta num {{ 'down' if v <= -1 else ('up' if v >= 1 else 'flat') }}" title="Contra el precio de mercado (mediana de 30 días)">{{ '▼ ' if v <= -1 else ('▲ ' if v >= 1 else '') }}{{ ('%.1f'|format(v|abs))|replace('.', ',') if v|abs >= 0.05 else '0' }} %</span>
+  {%- endif -%}
+{%- endmacro %}
 
-{% macro confirm_box(key, missing, manual, can_discard) %}
-  {% if not static %}
-    {% set todo = missing|select('in', confirm_fields)|list %}
-    {% if todo or manual or can_discard %}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] dark:bg-slate-800/60">
+{% macro reqs(checks) -%}
+  <div class="reqs">{% for k, v in (checks or {}).items() %}<span class="{{ {'ok': 'ok', 'fail': 'no', '?': 'unk'}[v] }}">{{ k }}</span>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro confirm_box(key, missing, manual, can_discard) -%}
+  {%- if not static -%}
+    {%- set todo = missing|select('in', confirm_fields)|list -%}
+    {%- if todo or manual or can_discard -%}
+    <div class="confirm">
       {% for f in todo %}
-        <span class="whitespace-nowrap">¿{{ {'acabado mate': 'Pantalla mate', 'VESA': 'Tiene VESA 75/100', 'panel': 'Panel IPS', 'Hz': '≥ 120 Hz'}[f] }}?
-          <button class="rounded bg-emerald-600 px-1.5 text-white hover:bg-emerald-500" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'si')">Sí</button>
-          <button class="rounded bg-rose-600 px-1.5 text-white hover:bg-rose-500" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'no')">No</button>
-        </span>
+        <span class="q">{{ {'acabado mate': '¿Pantalla mate?', 'VESA': '¿Tiene VESA 75/100?', 'panel': '¿Panel IPS?', 'Hz': '¿120 Hz o más?'}[f] }}
+          <button class="btn sm" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'si')">Sí</button>
+          <button class="btn sm" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'no')">No</button></span>
       {% endfor %}
-      {% if manual %}<span class="text-slate-500">✋ confirmado a mano: {{ manual|join(', ') }}</span>{% endif %}
-      <span class="ml-auto flex gap-2">
-        {% if manual %}<button class="text-slate-500 underline" onclick="confirmData({{ key|tojson|forceescape }}, null, 'clear')">deshacer</button>{% endif %}
-        {% if can_discard %}<button class="text-rose-500 underline" onclick="discardModel({{ key|tojson|forceescape }})">descartar</button>{% endif %}
-      </span>
+      {% if manual %}<span class="muted">Confirmado a mano: {{ manual|join(', ') }} · <button class="link" onclick="confirmData({{ key|tojson|forceescape }}, null, 'clear')">deshacer</button></span>{% endif %}
+      {% if can_discard %}<button class="link danger" style="margin-left:auto" onclick="discardModel({{ key|tojson|forceescape }})">Descartar modelo</button>{% endif %}
     </div>
-    {% endif %}
-  {% elif manual %}<div class="text-[11px] text-slate-500">✋ confirmado a mano: {{ manual|join(', ') }}</div>{% endif %}
-{% endmacro %}
+    {%- endif -%}
+  {%- elif manual -%}<div class="note">Confirmado a mano: {{ manual|join(', ') }}</div>{%- endif -%}
+{%- endmacro %}
 
-<body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
-<main class="mx-auto max-w-6xl space-y-5 px-4 py-6">
+{% macro hz(badges) %}{% for b in badges or [] if 'Hz' in b %}{{ b }}{% endfor %}{% endmacro %}
 
-  {# ================= ENCABEZADO ================= #}
-  <header class="flex flex-wrap items-start justify-between gap-4">
+<body>
+<div class="wrap">
+
+  <header class="top">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Monitor de precios</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        27" QHD IPS mate para programar ·
-        {% if last_run %}último escaneo <span data-ts="{{ last_run.finished_at or last_run.started_at }}"></span>{% endif %}
-        {% if static %}· <a class="underline" href="https://github.com/alvarogenetti/monitor-precios-tracker">versión pública de sólo lectura</a>{% endif %}
-      </p>
+      <h1>Monitores 27" QHD</h1>
+      <p>{% if last_run %}Actualizado <span data-ts="{{ last_run.finished_at or last_run.started_at }}"></span>{% endif %}{% if static %} · solo lectura{% endif %}</p>
     </div>
-    {% if not static %}
-    <div class="flex flex-wrap items-center gap-2">
-      <div id="scan-status" class="text-sm text-slate-500"></div>
-      <button id="scan-btn" onclick="startScan()" title="Escanea ahora los monitores seguidos"
-              class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-500 disabled:cursor-wait disabled:opacity-50">
-        <svg id="scan-spin" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"/></svg>
-        Escanear seguidos
-      </button>
-      <button id="disc-btn" onclick="startDiscover()" title="Recorre todas las tiendas buscando monitores que cumplan"
-              class="inline-flex items-center gap-2 rounded-lg border border-indigo-400 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-50 dark:text-indigo-300 dark:hover:bg-indigo-950">
-        🔎 Descubrir
-      </button>
+    <div class="actions">
+      <span id="status"></span>
+      <button class="btn ghost" id="theme" title="Cambiar tema claro/oscuro" onclick="toggleTheme()">Tema</button>
+      {% if not static %}
+        <button class="btn" id="disc-btn" onclick="startDiscover()" title="Recorre todas las tiendas buscando modelos que cumplan">Descubrir</button>
+        <button class="btn primary" id="scan-btn" onclick="startScan()" title="Escanea ahora los monitores seguidos">Escanear</button>
+      {% endif %}
     </div>
-    {% endif %}
   </header>
-  <div id="progress-wrap" class="hidden h-1.5 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-800">
-    <div id="progress" class="h-full bg-indigo-500 transition-all" style="width:0%"></div>
-  </div>
+  <div class="progress" id="progress-wrap" hidden><div id="progress"></div></div>
 
-  {% if event %}
-    <div class="rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
-      🔥 <b>{{ event }}</b> en curso: se escanea cada hora y las ofertas reales se avisan al momento.
-    </div>
-  {% endif %}
+  {% if event %}<div class="banner"><b>{{ event }}</b> en curso: se escanea cada hora.</div>{% endif %}
 
-  {# ================= INDICADORES ================= #}
-  <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
-    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Ofertas reales ahora</div>
-      <div class="mt-1 text-2xl font-semibold {% if kpi.offers %}text-emerald-600{% endif %}">{{ kpi.offers }}</div>
-      <div class="text-xs text-slate-400">≥ 15 % debajo del mercado</div>
-    </div>
-    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Más barato que cumple todo</div>
-      {% if kpi.cheapest %}
-        <div class="mt-1 text-2xl font-semibold tabular">{{ kpi.cheapest[1]|ars }}</div>
-        <div class="truncate text-xs text-slate-400" title="{{ kpi.cheapest[0] }}">{{ kpi.cheapest[0] }}</div>
-      {% else %}<div class="mt-1 text-2xl text-slate-400">—</div>{% endif %}
-    </div>
-    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Seguidos / descubiertos{% if kpi.recs %} · <span class="text-amber-600">💡 {{ kpi.recs }} sugerido{{ 's' if kpi.recs > 1 }}</span>{% endif %}</div>
-      <div class="mt-1 text-2xl font-semibold">{{ kpi.tracked }} <span class="text-base font-normal text-slate-400">/ {{ kpi.cumple }} cumplen</span></div>
-      <div class="text-xs text-slate-400">{{ models|length }} modelos evaluados</div>
-    </div>
-    <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Próximo evento</div>
-      {% if upcoming %}
-        <div class="mt-1 text-lg font-semibold">{{ upcoming.name }}</div>
-        <div class="text-xs text-slate-400">{{ upcoming['from'] }} → {{ upcoming['to'] }}</div>
-      {% else %}<div class="mt-1 text-lg text-slate-400">—</div>{% endif %}
-    </div>
+  <section class="stats">
+    <div class="stat"><div class="k">Ofertas reales</div><div class="v num" style="{% if kpi.offers %}color:var(--good){% endif %}">{{ kpi.offers }}</div><div class="s">15 % o más bajo el mercado</div></div>
+    <div class="stat"><div class="k">Más barato que cumple</div>
+      {% if kpi.cheapest %}<div class="v num">{{ kpi.cheapest[1]|ars }}</div><div class="s" title="{{ kpi.cheapest[0] }}">{{ kpi.cheapest[0] }}</div>{% else %}<div class="v muted">—</div>{% endif %}</div>
+    <div class="stat"><div class="k">Seguidos</div><div class="v num">{{ kpi.tracked }}</div><div class="s">{{ kpi.cumple }} modelos cumplen en el mercado{% if kpi.recs %} · {{ kpi.recs }} sugerido{{ 's' if kpi.recs > 1 }}{% endif %}</div></div>
+    <div class="stat"><div class="k">Próximo evento</div>
+      {% if upcoming %}<div class="v" style="font-size:18px">{{ upcoming.name }}</div><div class="s num">{{ upcoming['from'][8:10] }}/{{ upcoming['from'][5:7] }} – {{ upcoming['to'][8:10] }}/{{ upcoming['to'][5:7] }}</div>{% else %}<div class="v muted">—</div>{% endif %}</div>
   </section>
 
-  {# ================= PESTAÑAS ================= #}
-  <nav class="flex gap-1 overflow-x-auto border-b border-slate-200 text-sm dark:border-slate-800" role="tablist">
-    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="seguidos" role="tab">📌 Seguidos <span class="text-slate-400">({{ rows|length }})</span></button>
-    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="descubrimiento" role="tab">🔎 Descubrimiento <span class="text-slate-400">({{ models|selectattr('status', 'ne', 'descartado')|list|length }})</span></button>
-    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="alertas" role="tab">🔔 Alertas</button>
-    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="ayuda" role="tab">ℹ️ Info</button>
+  <nav class="tabs" role="tablist">
+    <button class="tab" data-tab="seguidos" role="tab">Seguidos<span class="c">{{ rows|length }}</span></button>
+    <button class="tab" data-tab="descubrimiento" role="tab">Descubrimiento<span class="c">{{ models|selectattr('status', 'ne', 'descartado')|list|length }}</span></button>
+    <button class="tab" data-tab="alertas" role="tab">Alertas</button>
+    <button class="tab" data-tab="info" role="tab">Info</button>
   </nav>
 
-  {# ---------- barra de filtros (misma para las dos listas) ---------- #}
-  {% macro filters(scope, with_known) %}
-  <div class="flex flex-wrap items-center gap-2 text-xs" data-filters="{{ scope }}">
-    <input type="search" placeholder="Buscar modelo, marca, tienda…" data-f="q"
-           class="min-w-[180px] flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900">
-    <button class="chip rounded-full border border-slate-300 px-2.5 py-1 dark:border-slate-700" data-f="offer" aria-pressed="false">💰 Oferta real</button>
-    <button class="chip rounded-full border border-slate-300 px-2.5 py-1 dark:border-slate-700" data-f="usbc" aria-pressed="false">⚡ Con USB-C</button>
-    {% if with_known %}<button class="chip rounded-full border border-slate-300 px-2.5 py-1 dark:border-slate-700" data-f="known" aria-pressed="true">🏷️ Marcas conocidas</button>{% endif %}
-    <button class="chip rounded-full border border-slate-300 px-2.5 py-1 dark:border-slate-700" data-f="nocumple" aria-pressed="false">⛔ Ver los que no cumplen</button>
-    <select data-f="sort" class="rounded-lg border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900">
-      <option value="price">Ordenar: precio</option>
-      <option value="real">Ordenar: descuento real</option>
-      <option value="name">Ordenar: nombre</option>
+  {% macro toolbar(scope, with_known) %}
+  <div class="tools" data-filters="{{ scope }}">
+    <input class="search" type="search" placeholder="Buscar modelo o tienda" data-f="q">
+    <div class="seg" role="group">
+      <button data-f="view" data-v="all" aria-pressed="true">Todos</button>
+      <button data-f="view" data-v="offer" aria-pressed="false">Ofertas</button>
+      <button data-f="view" data-v="usbc" aria-pressed="false">USB-C</button>
+    </div>
+    {% if with_known %}<label class="check"><input type="checkbox" data-f="known" checked> Solo marcas conocidas</label>{% endif %}
+    <label class="check"><input type="checkbox" data-f="nocumple"> Mostrar descartados</label>
+    <select class="sort" data-f="sort">
+      <option value="price">Precio</option>
+      <option value="real">Descuento</option>
+      <option value="name">Nombre</option>
     </select>
   </div>
   {% endmacro %}
 
-  {# ================= SEGUIDOS ================= #}
-  <section data-panel="seguidos" class="space-y-4">
-    <p class="text-sm text-slate-500">Se escanean cada ~3 h en cada tienda (cada hora en eventos). Tocá un monitor para ver tiendas, historial y rango.</p>
-    {{ filters('seguidos', false) }}
-    {% for sec in [('offer', '💰 Ofertas reales ahora'), ('usbc', '✅ Cumple todo + ⚡ USB-C'), ('cumple', '✅ Cumple todo lo básico'), ('a_confirmar', '❔ A confirmar algún dato'), ('descartado', '⛔ No cumple')] %}
-      <div data-section="{{ sec[0] }}" class="space-y-2">
-        <h2 class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{{ sec[1] }} <span class="sec-count font-normal text-slate-400"></span></h2>
-        <div class="sec-list space-y-2"></div>
-      </div>
+  {% set SECTIONS = [('offer', 'Ofertas reales'), ('usbc', 'Cumplen todo · con USB-C'), ('cumple', 'Cumplen todo'), ('oled_oferta', 'OLED en oferta'), ('a_confirmar', 'Falta confirmar algún dato'), ('descartado', 'No cumplen')] %}
+  {% macro sections() %}
+    {% for key, title in SECTIONS %}
+      <div class="group" data-section="{{ key }}"><h2>{{ title }}<span class="n"></span></h2><div class="list sec-list"></div></div>
     {% endfor %}
-    <div class="hidden" id="pool-seguidos">
-    {% for r in rows %}
-      {% set t = r.target %}{% set ev = r.eval %}
-      {% set st = ev.status or 'a_confirmar' %}
-      <article class="item rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 {% if not t.active %}opacity-50{% endif %}"
-               data-status="{{ st }}" data-usbc="{{ 1 if r.usb_c else 0 }}" data-offer="{{ 1 if r.level else 0 }}" data-known="1"
+  {% endmacro %}
+
+  {# ======================= SEGUIDOS ======================= #}
+  <section data-panel="seguidos">
+    {{ toolbar('seguidos', false) }}
+    {{ sections() }}
+    <div id="pool-seguidos" hidden>
+    {% for r in rows %}{% set t = r.target %}{% set ev = r.eval %}{% set st = ev.status or 'a_confirmar' %}
+      <details class="row item" data-status="{{ st }}" data-usbc="{{ 1 if r.usb_c else 0 }}" data-offer="{{ 1 if r.level else 0 }}" data-known="1"
                data-price="{{ r.best.price_cash if r.best else 99999999 }}" data-real="{{ r.real if r.real is not none else -9 }}"
-               data-name="{{ t.name|lower }} {{ (r.best.store ~ ' ' ~ (r.best.seller or '')) if r.best else '' }}"
-               data-series='{{ r.series|tojson }}' data-lo="{{ t.target_price }}" data-hi="{{ r.high }}">
-        <details>
-          <summary class="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_auto_auto] md:items-center">
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="font-medium">{{ t.name }}</span>
-                {{ status_pill(st) }} {{ usbc_pill(r.usb_c) }}
-                {% for b in ev.badges or [] if 'Hz' in b %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{{ b }}</span>{% endfor %}
-              </div>
-              {% if ev.missing %}<div class="mt-0.5 text-xs text-amber-600">Confirmar: {{ ev.missing|join(', ') }}</div>{% endif %}
-              {% if ev.manual %}<div class="mt-0.5 text-[11px] text-slate-500">✋ confirmado a mano: {{ ev.manual|join(', ') }}</div>{% endif %}
-              {% if ev.warnings %}<div class="mt-0.5 text-xs text-slate-500">⚠ {{ ev.warnings|join(' · ') }}</div>{% endif %}
+               data-name="{{ t.name|lower }} {{ (r.best.store ~ ' ' ~ (r.best.seller or '')|lower) if r.best else '' }}"
+               data-series='{{ r.series|tojson }}' data-ref="{{ r.ref or '' }}" data-lo="{{ t.target_price }}">
+        <summary>
+          <div style="min-width:0">
+            <div class="name">{{ t.name }}{% if r.usb_c and 'USB-C' not in t.name %}<span class="tag">{{ r.usb_c }}</span>{% endif %}{% if r.level %}<span class="tag offer">{{ 'Oferta excepcional' if r.level == 'excepcional' else 'Oferta' }}</span>{% endif %}</div>
+            <div class="sub">{{ hz(ev.badges) }}{% if ev.missing %} · <span class="warn">falta confirmar {{ ev.missing|join(', ') }}</span>{% endif %}{% if st == 'descartado' and ev.fails %} · <span class="bad">{{ ev.fails|join(', ') }}</span>{% endif %}{% if r.inflated %} · <span class="warn">descuento de lista inflado</span>{% endif %}</div>
+          </div>
+          <div class="spark"></div>
+          <div class="price num">{% if r.best %}{{ r.best.price_cash|ars }}<span class="where">{{ r.best.seller or r.best.store }}</span>{% else %}<span class="muted" style="font-size:13px;font-weight:400">Sin stock</span>{% endif %}</div>
+          {{ delta(r.real if r.best else none) }}
+        </summary>
+        <div class="detail">
+          <div class="facts">
+            {% if r.best %}<a class="link" target="_blank" rel="noopener" href="{{ r.best.product_url or r.best.url }}">Ver la mejor oferta</a>{% endif %}
+            <span>Mercado <b class="num">{{ r.ref|ars if r.ref else '—' }}</b></span>
+            {% if r.hist %}<span>Mínimo histórico <b class="num">{{ r.hist.price_cash|ars }}</b></span>{% endif %}
+            {% if r.stats %}<span>Máximo <b class="num">{{ r.stats.max|ars }}</b></span>{% endif %}
+            <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
+          </div>
+          <div class="chart"></div>
+          {{ reqs(ev.checks) }}
+          {{ confirm_box(ev.key, ev.missing or [], ev.manual or [], false) }}
+          <table class="stores">
+            <thead><tr><th>Tienda</th><th class="r">Precio</th><th>Detalle</th><th class="r">Actualizado</th>{% if not static %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+            {% for o in r.offers %}{% set s = o.snap %}
+              <tr style="{% if not o.active %}opacity:.45{% endif %}">
+                <td><a href="{{ (s.product_url if s and s.product_url) or o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.store|capitalize }}</a>{% if s and s.seller %}<div class="note">{{ s.seller }}</div>{% endif %}</td>
+                <td class="r num">
+                  {% if not s %}<span class="muted">—</span>
+                  {% elif s.error %}<span style="color:var(--bad)" title="{{ s.error }}">error</span>
+                  {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
+                  {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="strike">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
+                </td>
+                <td class="note">{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}</td>
+                <td class="r note">{% if s %}<span data-ts="{{ s.scanned_at }}"></span>{% endif %}</td>
+                {% if not static %}<td class="r" style="white-space:nowrap">
+                  <button class="link" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
+                  <button class="link danger" style="margin-left:8px" onclick="deleteUrl('{{ t.id }}', {{ o.url|tojson|forceescape }})">quitar</button></td>{% endif %}
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% if not static %}
+          <div class="row-actions">
+            <form class="inline-form" onsubmit="saveRange(event, '{{ t.id }}')">Avisame si baja de
+              <input name="lo" type="number" min="1" step="1000" value="{{ t.target_price|int }}"> · caro desde
+              <input name="hi" type="number" min="1" step="1000" value="{{ r.high|int }}">
+              <button class="btn sm">Guardar</button></form>
+            <form class="inline-form" style="flex:1" onsubmit="addUrl(event, '{{ t.id }}')">
+              <select name="store">{% for s in ['generic','compragamer','hardgamers','mercadolibre','fravega','electro','oncity','pardo','carrefour','samsung','maximus','mexx','venex','dell','megatone'] %}<option value="{{ s }}">{{ 'otra tienda' if s == 'generic' else s }}</option>{% endfor %}</select>
+              <input name="url" type="url" required placeholder="Agregar link" style="flex:1;min-width:160px">
+              <button class="btn sm">Agregar</button>
+              {% if r.stats %}<a class="link" style="margin-left:6px" href="/api/history/{{ t.id }}.csv">CSV</a>{% endif %}
+            </form>
+          </div>
+          {% endif %}
+          {% if t.notes or ev.spec_notes %}<div class="note">{{ t.notes or '' }} {{ ev.spec_notes or '' }}</div>{% endif %}
+        </div>
+      </details>
+    {% endfor %}
+    </div>
+  </section>
+
+  {# ======================= DESCUBRIMIENTO ======================= #}
+  <section data-panel="descubrimiento" hidden>
+    <p class="note" style="margin:14px 0 0">Todos los 27" QHD de las tiendas, una vez por día. Si alguno baja 15 % o más, avisa aunque no lo sigas. Seguir lo escanea cada 3 h en cada tienda.{% if discovery %} Último: <span data-ts="{{ discovery.finished_at }}"></span>.{% endif %}</p>
+    {% if recs %}
+      <div class="callout"><h3>Conviene empezar a seguir</h3><ul>
+        {% for m in recs %}<li><a class="link" style="font-size:13px" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.name }}</a>
+          <b class="num">{{ m.best.price|ars }}</b><span class="note">{{ m.why|join(' · ') }}</span>
+          {% if not static %}<button class="btn sm" style="margin-left:auto" onclick="trackModel({{ m.key|tojson|forceescape }})">Seguir</button>{% endif %}</li>{% endfor %}
+      </ul></div>
+    {% endif %}
+    {% if not models %}<p class="note">Todavía no hay datos.</p>{% else %}
+      {{ toolbar('descubrimiento', true) }}
+      {{ sections() }}
+      <div id="pool-descubrimiento" hidden>
+      {% for m in models %}
+        <details class="row item" data-status="{{ m.status }}" data-usbc="{{ 1 if m.usb_c else 0 }}" data-offer="{{ 1 if m.level else 0 }}" data-known="{{ 0 if m.generic else 1 }}"
+                 data-price="{{ m.best.price }}" data-real="{{ m.real if m.real is not none else -9 }}"
+                 data-name="{{ m.name|lower }} {{ m.search|lower }} {{ (m.best.seller or m.best.store)|lower }}"
+                 data-series='{{ (m.series or [])|tojson }}' data-ref="{{ m.ref or '' }}" data-lo="0">
+          <summary>
+            <div style="min-width:0">
+              <div class="name">{{ m.name }}{% if m.usb_c %}<span class="tag">{{ m.usb_c }}</span>{% endif %}{% if m.level %}<span class="tag offer">Oferta</span>{% endif %}{% if m.tracked %}<span class="tag">Seguido</span>{% elif m.recommended %}<span class="tag offer">Sugerido</span>{% endif %}</div>
+              <div class="sub">{{ hz(m.badges) }}{% if m.generic %} · marca sin reseñas{% endif %}{% if m.missing %} · <span class="warn">falta confirmar {{ m.missing|join(', ') }}</span>{% endif %}{% if m.status == 'descartado' and m.fails %} · <span class="bad">{{ m.fails|join(', ') }}</span>{% endif %}</div>
             </div>
-            <div class="spark hidden text-slate-500 md:block" style="width:130px;height:36px"></div>
-            <div class="text-left md:min-w-[11rem] md:text-right">
-              {% if r.best %}
-                <div class="text-lg font-semibold tabular {% if r.level %}text-emerald-600{% endif %}">{{ r.best.price_cash|ars }}</div>
-                {{ offer_line(r.real, r.level, r.ref) }}
-                {% if r.inflated %}<div class="text-[11px] text-amber-600">⚠ descuento de lista inflado</div>{% endif %}
-                <div class="text-xs text-slate-500">{{ r.best.store }}{% if r.best.seller %} · {{ r.best.seller }}{% endif %}</div>
-              {% else %}<div class="text-sm text-rose-500">Sin stock en ninguna tienda</div>{% endif %}
-            </div>
+            <div class="spark"></div>
+            <div class="price num">{{ m.best.price|ars }}<span class="where">{{ m.best.seller or m.best.store }}{% if m.n_stores > 1 %} · {{ m.n_stores }} tiendas{% endif %}</span></div>
+            {{ delta(m.real) }}
           </summary>
-
-          <div class="space-y-3 border-t border-slate-100 p-3 text-xs dark:border-slate-800">
-            <div class="flex flex-wrap items-center gap-3">
-              {% if r.best %}<a class="rounded bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500" target="_blank" rel="noopener" href="{{ r.best.product_url or r.best.url }}">Ver la mejor oferta ↗</a>{% endif %}
-              <span class="text-slate-500">Mercado: <b class="tabular">{{ r.ref|ars if r.ref else '—' }}</b> <span class="text-slate-400">({{ r.ref_src }})</span></span>
-              {% if r.hist %}<span class="text-slate-500">Mín. histórico: <b class="tabular">{{ r.hist.price_cash|ars }}</b> ({{ r.hist.store }})</span>{% endif %}
+          <div class="detail">
+            <div class="facts">
+              <a class="link" target="_blank" rel="noopener" href="{{ m.best.url }}">Ver la oferta</a>
+              <span>Mercado <b class="num">{{ m.ref|ars if m.ref else '—' }}</b></span>
+              {% if m.min_price %}<span>Mínimo visto <b class="num">{{ m.min_price|ars }}</b></span>{% endif %}
+              {% if not static and not m.tracked and m.status != 'descartado' %}<button class="btn sm" style="margin-left:auto" onclick="trackModel({{ m.key|tojson|forceescape }})">Seguir</button>{% endif %}
             </div>
-            {{ checks_list(ev.checks) }}
-            {{ confirm_box(ev.key, ev.missing or [], ev.manual or [], false) }}
-
-            <div class="overflow-x-auto">
-              <table class="w-full text-left">
-                <thead class="text-[11px] uppercase text-slate-400"><tr><th class="py-1 pr-3">Tienda</th><th class="pr-3 text-right">Precio</th><th class="pr-3">vs mercado / promo</th><th class="pr-3">Actualizado</th><th></th></tr></thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                {% for o in r.offers %}{% set s = o.snap %}
-                  <tr class="{% if not o.active %}opacity-40{% endif %}">
-                    <td class="py-1.5 pr-3 font-semibold uppercase">{{ o.store }}{% if s and s.seller %}<div class="text-[11px] font-normal normal-case text-slate-500">{{ s.seller }}</div>{% endif %}</td>
-                    <td class="pr-3 text-right tabular">
-                      {% if not s %}<span class="text-slate-400">sin escanear</span>
-                      {% elif s.error %}<span class="text-rose-600" title="{{ s.error }}">⚠ error</span>
-                      {% elif s.in_stock == 0 or not s.price_cash %}<span class="text-slate-400">no lo tiene</span>
-                      {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="text-[11px] text-slate-400 line-through">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
-                    </td>
-                    <td class="pr-3 text-slate-500">{{ o.market or '' }}{% if s and s.promo %} <span class="rounded bg-amber-100 px-1 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">🏷️ {{ s.promo }}</span>{% endif %}</td>
-                    <td class="pr-3 text-slate-400">{% if s %}<span data-ts="{{ s.scanned_at }}"></span>{% endif %}</td>
-                    <td class="whitespace-nowrap text-right">
-                      <a class="text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ (s.product_url if s and s.product_url) or o.url }}">abrir</a>
-                      {% if not static %}
-                        · <button class="text-slate-500 hover:text-slate-900 dark:hover:text-white" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
-                        · <button class="text-rose-500 hover:text-rose-700" onclick="deleteUrl('{{ t.id }}', {{ o.url|tojson|forceescape }})">quitar</button>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
-
-            <div class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-              <div class="mb-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <span class="font-semibold">Historial del mejor precio</span>
-                {% if r.stats %}<span class="tabular text-slate-500">mín {{ r.stats.min|ars }} · mediana {{ r.stats.median|ars }} · máx {{ r.stats.max|ars }} · {{ r.stats.n }} escaneos</span>{% endif %}
-                {% if not static %}<a class="ml-auto text-indigo-600 hover:underline" href="/api/history/{{ t.id }}.csv">descargar CSV</a>{% endif %}
-              </div>
-              <div class="chart-big text-slate-500" style="height:170px"></div>
-            </div>
-
-            <div class="flex flex-wrap items-end gap-4">
-              {% if not static %}
-              <form class="flex flex-wrap items-center gap-1" onsubmit="saveRange(event, '{{ t.id }}')">
-                <span class="text-slate-500">Avisame si baja de</span>
-                <input name="lo" type="number" min="1" step="1000" value="{{ t.target_price|int }}" class="w-28 rounded border border-emerald-300 bg-transparent px-1.5 py-1 text-right tabular dark:border-emerald-800">
-                <span class="text-slate-500">· caro desde</span>
-                <input name="hi" type="number" min="1" step="1000" value="{{ r.high|int }}" class="w-28 rounded border border-rose-300 bg-transparent px-1.5 py-1 text-right tabular dark:border-rose-800">
-                <button class="rounded bg-slate-800 px-2 py-1 text-white dark:bg-slate-700">Guardar</button>
-              </form>
-              <form class="flex min-w-[280px] flex-1 flex-wrap gap-1" onsubmit="addUrl(event, '{{ t.id }}')">
-                <select name="store" class="rounded border border-slate-300 bg-transparent px-1 py-1 dark:border-slate-700">
-                  {% for s in ['generic','compragamer','hardgamers','mercadolibre','fravega','electro','oncity','pardo','carrefour','samsung','maximus','mexx','venex','dell','megatone'] %}<option value="{{ s }}">{{ 'genérica (auto)' if s == 'generic' else s }}</option>{% endfor %}
-                </select>
-                <input name="url" type="url" required placeholder="Agregar link de otra tienda…" class="min-w-[180px] flex-1 rounded border border-slate-300 bg-transparent px-2 py-1 dark:border-slate-700">
-                <button class="rounded bg-slate-800 px-2 py-1 text-white dark:bg-slate-700">Agregar</button>
-              </form>
-              {% else %}
-                <span class="text-slate-500">Aviso si baja de <b>{{ t.target_price|ars }}</b> · caro desde <b>{{ r.high|ars }}</b></span>
-              {% endif %}
-            </div>
-            <div class="text-slate-400">keywords: {{ t.keywords|join(', ') }} · id: {{ t.id }}</div>
-            {% if t.notes %}<div class="text-slate-500">📝 {{ t.notes }}</div>{% endif %}
-            {% if ev.spec_notes %}<details class="text-slate-500"><summary class="text-indigo-600">Ficha técnica (notas)</summary><p class="mt-1">{{ ev.spec_notes }}</p></details>{% endif %}
+            {% if (m.series or [])|length > 1 %}<div class="chart"></div>{% endif %}
+            {{ reqs(m.checks) }}
+            {% if m.warnings %}<div class="note">{{ m.warnings|join(' · ') }}</div>{% endif %}
+            {{ confirm_box(m.key, m.missing or [], m.manual or [], not m.tracked and m.status != 'descartado') }}
+            {% if m.offers %}
+            <table class="stores"><thead><tr><th>Tienda</th><th class="r">Precio</th><th>Publicación</th></tr></thead><tbody>
+              {% for o in m.offers[:6] %}<tr><td>{{ o.seller or o.store }}</td><td class="r num"><a href="{{ o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.price|ars }}</a></td><td class="note">{{ o.title[:90] }}</td></tr>{% endfor %}
+            </tbody></table>
+            {% endif %}
+            {% if m.spec and m.spec.notes %}<div class="note">{{ m.spec.notes }}</div>{% endif %}
           </div>
         </details>
-      </article>
-    {% endfor %}
-    </div>
-  </section>
-
-  {# ================= DESCUBRIMIENTO ================= #}
-  <section data-panel="descubrimiento" class="space-y-4" hidden>
-    <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
-      Todos los 27" QHD que aparecen en ~60 tiendas, evaluados contra tus requisitos.
-      <b>Ya se siguen solos:</b> su mejor precio se guarda <b>una vez por día</b> y si aparece una oferta real (≥ 15 %) te llega por Telegram.
-      <b>"+ Seguir"</b> lo pasa a <i>Seguidos</i>: se escanea cada ~3 h en cada tienda, con historial e avisos al momento.
-      {% if discovery %}<div class="mt-1 text-xs text-indigo-700/80 dark:text-indigo-300/80">Último descubrimiento: <span data-ts="{{ discovery.finished_at }}"></span> · {{ discovery.n_offers }} ofertas leídas{% if discovery.errors %} · <span title="{{ discovery.errors|join(' | ') }}">{{ discovery.errors|length }} fuente(s) con error</span>{% endif %}</div>{% endif %}
-    </div>
-    {% if recs %}
-      <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
-        <div class="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">💡 Conviene empezar a seguir</div>
-        <ul class="space-y-1.5 text-sm">
-          {% for m in recs %}
-            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <a class="font-medium text-indigo-700 hover:underline dark:text-indigo-300" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.name }}</a>
-              <span class="tabular font-semibold">{{ m.best.price|ars }}</span>
-              <span class="text-xs text-amber-800 dark:text-amber-300">{{ m.why|join(' · ') }}</span>
-              {% if not static %}<button onclick="trackModel({{ m.key|tojson|forceescape }})" class="ml-auto rounded bg-slate-800 px-2 py-0.5 text-xs text-white dark:bg-slate-700">+ Seguir</button>{% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-    {% if not models %}
-      <p class="text-sm text-slate-400">Todavía no corrió ningún descubrimiento.</p>
-    {% else %}
-      {{ filters('descubrimiento', true) }}
-      {% for sec in [('offer', '💰 Ofertas reales ahora'), ('usbc', '✅ Cumple todo + ⚡ USB-C'), ('cumple', '✅ Cumple todo lo básico'), ('oled_oferta', '🟣 OLED en oferta'), ('a_confirmar', '❔ Podría cumplir (falta confirmar algún dato)'), ('descartado', '⛔ No cumple')] %}
-        <div data-section="{{ sec[0] }}" class="space-y-2">
-          <h2 class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">{{ sec[1] }} <span class="sec-count font-normal text-slate-400"></span></h2>
-          <div class="sec-list grid gap-2 md:grid-cols-2"></div>
-        </div>
-      {% endfor %}
-      <div class="hidden" id="pool-descubrimiento">
-      {% for m in models %}
-        <article class="item flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-                 data-status="{{ m.status }}" data-usbc="{{ 1 if m.usb_c else 0 }}" data-offer="{{ 1 if m.level else 0 }}" data-known="{{ 0 if m.generic else 1 }}"
-                 data-price="{{ m.best.price }}" data-real="{{ m.real if m.real is not none else -9 }}"
-                 data-name="{{ m.name|lower }} {{ m.search|lower }} {{ (m.best.seller or m.best.store)|lower }}">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="font-medium leading-snug">{{ m.name }}
-                {% if m.is_new %}<span class="ml-1 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold text-white">NUEVO</span>{% endif %}
-              </div>
-              <div class="mt-1 flex flex-wrap gap-1">
-                {{ status_pill(m.status) }} {{ usbc_pill(m.usb_c) }}
-                {% for b in m.badges if 'Hz' in b %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{{ b }}</span>{% endfor %}
-                {% if m.generic %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">marca sin reseñas</span>{% endif %}
-                {% if m.recommended %}<span class="rounded bg-amber-100 px-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">💡 sugerido</span>{% endif %}
-              </div>
-            </div>
-            <div class="shrink-0 text-right">
-              <a class="text-lg font-semibold tabular text-indigo-600 hover:underline" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.best.price|ars }}</a>
-              {{ offer_line(m.real, m.level, m.ref) }}
-              <div class="text-xs text-slate-500">{{ m.best.seller or m.best.store }}</div>
-              <div class="text-[11px] text-slate-400">{{ m.n_stores }} tienda{{ 's' if m.n_stores != 1 }}{% if m.min_price and m.min_price < m.best.price %} · mín {{ m.min_price|ars }}{% endif %}</div>
-            </div>
-          </div>
-          {{ checks_list(m.checks) }}
-          {% if m.fails %}<div class="text-xs text-rose-600">✗ {{ m.fails|join(' · ') }}</div>{% endif %}
-          {% if m.missing %}<div class="text-xs text-amber-600">Confirmar: {{ m.missing|join(', ') }}</div>{% endif %}
-          {% if m.warnings %}<div class="text-xs text-slate-500">⚠ {{ m.warnings|join(' · ') }}</div>{% endif %}
-          {{ confirm_box(m.key, m.missing or [], m.manual or [], not m.tracked and m.status != 'descartado') }}
-          <div class="mt-auto flex items-center justify-between gap-2 text-xs">
-            {% if m.spec and m.spec.notes %}<details class="text-slate-500"><summary class="text-indigo-600">Ficha</summary><p class="mt-1">{{ m.spec.notes }}</p></details>{% else %}<span></span>{% endif %}
-            {% if m.tracked %}<span class="font-medium text-emerald-600">📌 Seguido</span>
-            {% elif not static and m.status != 'descartado' %}<button onclick="trackModel({{ m.key|tojson|forceescape }})" class="rounded bg-slate-800 px-2.5 py-1 font-medium text-white hover:bg-slate-700 dark:bg-slate-700">+ Seguir</button>{% endif %}
-          </div>
-        </article>
       {% endfor %}
       </div>
     {% endif %}
   </section>
 
-  {# ================= ALERTAS ================= #}
-  <section data-panel="alertas" class="space-y-3" hidden>
-    <p class="text-sm text-slate-500">Telegram: {% if telegram %}<span class="text-emerald-600">activo</span>{% else %}<span class="text-amber-600">sin configurar en esta PC</span>{% endif %}. Sólo se avisan ofertas reales (≥ 15 % / ≥ 30 % vs mercado), tu precio de aviso, modelos nuevos que cumplen y el resumen diario de las 9.</p>
-    <ul class="space-y-2 text-sm">
+  {# ======================= ALERTAS ======================= #}
+  <section data-panel="alertas" hidden>
+    <p class="note" style="margin:14px 0">Por Telegram{% if not telegram %} (no configurado en esta PC){% endif %}: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y el resumen diario de las 9.</p>
+    <div class="list">
       {% for a in alerts %}
-        <li class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-          <div class="text-xs text-slate-400"><span data-ts="{{ a.created_at }}"></span> · {{ a.kind }} · {% if a.sent %}<span class="text-emerald-600">enviada</span>{% else %}sólo registrada{% endif %}</div>
-          <div class="mt-1 whitespace-pre-line">{{ a.message|striptags|truncate(400) }}</div>
-        </li>
-      {% else %}<li class="text-slate-400">Todavía no hubo alertas.</li>{% endfor %}
-    </ul>
+        <div class="alert"><div class="meta"><span data-ts="{{ a.created_at }}"></span> · {{ {'real_offer': 'Oferta real', 'new_model': 'Modelos nuevos', 'target_reached': 'Precio de aviso', 'back_in_stock': 'Volvió el stock', 'price_drop': 'Bajó de precio'}.get(a.kind, a.kind) }}{% if not a.sent %} · no enviada{% endif %}</div>
+          <div class="msg">{{ a.message|striptags|truncate(360) }}</div></div>
+      {% else %}<div class="alert muted">Todavía no hubo alertas.</div>{% endfor %}
+    </div>
   </section>
 
-  {# ================= AYUDA ================= #}
-  <section data-panel="ayuda" class="space-y-4 text-sm" hidden>
-    <div class="grid gap-3 md:grid-cols-3">
-      <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">✅ Obligatorio</h3>
-        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
-          <li>📐 <b>27"</b> plano</li>
-          <li>🖥️ <b>QHD 2560×1440</b> (~109 PPI, ideal al 100 %)</li>
-          <li>🔄 <b>≥ {{ req.min_hz or 120 }} Hz</b> (por HDMI 2.0 suelen ser 144 Hz: alcanza)</li>
-          <li>🎨 Panel <b>IPS</b> (Fast/Rapid/SS/Nano). VA no. OLED sólo bajo {{ oled_max|ars }}</li>
-          <li>🪞 Pantalla <b>mate</b> antirreflejo</li>
-          <li>🦾 <b>VESA 75×75 o 100×100</b> (brazo Ironstek){% if req.weight_required %} y &lt; {{ req.max_weight_kg }} kg{% endif %}</li>
-          <li>🔌 Al menos un <b>HDMI</b> · 220 V</li>
-        </ul>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">⭐ Deseable</h3>
-        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
-          <li>⚡ <b>USB-C con carga ≥ 65 W</b>: un solo cable para la notebook (vale hasta ~$100.000 más)</li>
-          <li>☀️ ≥ 300 nits, flicker-free, filtro de luz azul</li>
-          <li>🏷️ Marca conocida (las sin reseñas sólo con oferta ≥ 30 %)</li>
-          <li>⚖️ Peso: informativo (el brazo soporta hasta 8 kg)</li>
-        </ul>
-        <h3 class="mb-2 mt-4 font-semibold">🚫 No pagar extra por</h3>
-        <p class="text-slate-600 dark:text-slate-300">KVM, parlantes, base ergonómica (va al brazo), HDR400 de marketing, más de 180 Hz.</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">💰 Cuándo comprar</h3>
-        <p class="text-slate-600 dark:text-slate-300">Sin apuro: sólo con <b>descuento real</b> contra el precio de mercado (mediana de 30 días entre todas las tiendas). <b>≥ 15 %</b> buena oferta, <b>≥ 30 %</b> excepcional. El "precio de lista" tachado no cuenta: si está inflado, se marca.</p>
-        <h3 class="mb-2 mt-4 font-semibold">🧭 Cómo se usa</h3>
-        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
-          <li><b>Seguidos</b>: cada ~3 h en cada tienda. <b>Descubrimiento</b>: todos los modelos, 1 vez por día (también avisa ofertas).</li>
-          <li><b>+ Seguir</b> pasa un descubierto a Seguidos. <b>💡 Sugerido</b>: conviene seguirlo.</li>
-          <li><b>¿Pantalla mate? Sí / No</b>: confirmá vos un dato que falta (se guarda y se sube a GitHub). <b>Descartar</b> lo saca de la lista.</li>
-        </ul>
-      </div>
+  {# ======================= INFO ======================= #}
+  <section data-panel="info" hidden>
+    <div class="cols">
+      <div class="panel"><h3>Obligatorio</h3><ul>
+        <li>27", pantalla plana</li><li>QHD 2560 × 1440</li><li>{{ req.min_hz or 120 }} Hz o más</li>
+        <li>Panel IPS (VA no; OLED solo bajo {{ oled_max|ars }})</li><li>Pantalla mate</li>
+        <li>VESA 75 × 75 o 100 × 100</li><li>HDMI y 220 V</li></ul></div>
+      <div class="panel"><h3>Deseable</h3><ul>
+        <li>USB-C con carga de 65 W (hasta ~$100.000 más)</li><li>300 nits o más, sin parpadeo</li><li>Marca conocida</li><li>Peso: informativo</li></ul>
+        <h3 style="margin-top:14px">No pagar extra por</h3><p>KVM, parlantes, base ergonómica, HDR de marketing, más de 180 Hz.</p></div>
+      <div class="panel"><h3>Cuándo comprar</h3><p>Solo con descuento real contra el precio de mercado (mediana de 30 días entre todas las tiendas): 15 % es buena oferta, 30 % excepcional. El precio tachado de la tienda no cuenta.</p>
+        <h3 style="margin-top:14px">Uso</h3><p>Seguidos: cada 3 h en cada tienda. Descubrimiento: todo el mercado, una vez por día. {% if static %}Seguir, confirmar datos y descartar se hacen desde el dashboard de la PC (iniciar.ps1).{% else %}Abrí un monitor para confirmar datos, seguirlo o descartarlo.{% endif %}</p></div>
     </div>
-
-    <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <h3 class="mb-3 font-semibold">🏪 Dónde se busca</h3>
-      <div class="space-y-4">
-        {% for g in stores %}
-          <div>
-            <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ g.group }}</div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                  {% for name, how, where in g['items'] %}
-                    <tr><td class="w-48 py-1.5 pr-3 font-medium">{{ name }}</td><td class="pr-3 text-slate-600 dark:text-slate-300">{{ how }}</td>
-                        <td class="whitespace-nowrap text-right text-slate-400">{% if where == 'GitHub' %}☁️ GitHub{% elif where == 'Tu PC' %}💻 tu PC{% else %}{{ where }}{% endif %}</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-      <p class="mt-3 text-xs text-slate-400">☁️ GitHub Actions escanea cada ~3 h (cada hora en eventos). 💻 Frávega y Venex bloquean a GitHub: se escanean desde tu PC con la tarea programada.</p>
-    </div>
-
-    {% if not static %}
-    <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <h3 class="mb-2 font-semibold">Agregar un monitor a mano</h3>
-      <form class="grid gap-2" onsubmit="addTarget(event)">
-        <input name="name" required placeholder="Nombre (ej. Dell S2725DC)" class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
-        <div class="flex flex-wrap gap-2">
-          <input name="price" type="number" min="1" step="1000" required placeholder="Avisame si baja de…" class="w-48 rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
-          <input name="keywords" placeholder="Keywords (ej. S2725DC)" class="flex-1 rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700">
+    <div class="group"><h2>Dónde se busca</h2>
+      {% for g in stores %}
+        <div class="list" style="margin-bottom:12px">
+          <div class="alert" style="font-weight:600;font-size:12px;color:var(--muted)">{{ g.group }}</div>
+          {% for name, how, where in g['items'] %}
+            <div class="alert" style="display:grid;grid-template-columns:200px 1fr auto;gap:12px"><span style="font-weight:500">{{ name }}</span><span class="ink2">{{ how }}</span><span class="note">{{ {'GitHub': 'GitHub', 'Tu PC': 'tu PC'}.get(where, where) }}</span></div>
+          {% endfor %}
         </div>
-        <button class="justify-self-start rounded bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500">Crear</button>
+      {% endfor %}
+    </div>
+    {% if not static %}
+    <div class="group"><h2>Agregar un monitor a mano</h2>
+      <form class="inline-form panel" onsubmit="addTarget(event)" style="gap:8px">
+        <input name="name" required placeholder="Nombre, ej. Dell S2725DC" style="flex:2;min-width:200px">
+        <input name="keywords" placeholder="Código de modelo, ej. S2725DC" style="flex:1;min-width:150px">
+        <input name="price" type="number" min="1" step="1000" required placeholder="Avisame si baja de">
+        <button class="btn sm primary">Crear</button>
       </form>
     </div>
     {% endif %}
   </section>
-</main>
+</div>
 
 <script>
 const fmt = new Intl.DateTimeFormat('es-AR', {dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires'});
-function paintDates(){ document.querySelectorAll('[data-ts]').forEach(el => { const v = el.dataset.ts; if (v) el.textContent = fmt.format(new Date(v)); }); }
-paintDates();
-const ars = v => '$' + Math.round(v).toLocaleString('es-AR');
 const fmtDay = new Intl.DateTimeFormat('es-AR', {day: '2-digit', month: '2-digit', timeZone: 'America/Argentina/Buenos_Aires'});
-const store = {get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-               set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }};
+const ars = v => '$ ' + Math.round(v).toLocaleString('es-AR');
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const mem = {get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+             set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }};
+document.querySelectorAll('[data-ts]').forEach(el => { if (el.dataset.ts) el.textContent = fmt.format(new Date(el.dataset.ts)); });
+
+// ---------- tema
+function currentTheme(){ return document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
+function paintThemeBtn(){ document.getElementById('theme').textContent = currentTheme() === 'dark' ? 'Tema claro' : 'Tema oscuro'; }
+function toggleTheme(){
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next; try { localStorage.setItem('theme', next); } catch {}
+  paintThemeBtn(); drawAll();
+}
+paintThemeBtn();
 
 // ---------- pestañas
 function showTab(name){
+  if (!document.querySelector(`[data-panel="${name}"]`)) name = 'seguidos';
   document.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== name);
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
-  store.set('tab', name); if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+  mem.set('tab', name); history.replaceState(null, '', '#' + name);
   drawAll();
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
-showTab((location.hash || '').slice(1) || store.get('tab', 'seguidos'));
 
-// ---------- secciones + filtros + orden
+// ---------- secciones, filtros y orden
 function sectionOf(el){
   const st = el.dataset.status;
   if (st === 'descartado') return 'descartado';
   if (el.dataset.offer === '1') return 'offer';
   if (st === 'cumple' && el.dataset.usbc === '1') return 'usbc';
-  return st;   // cumple / a_confirmar / oled_oferta
+  return st;
 }
 function applyFilters(scope){
   const bar = document.querySelector(`[data-filters="${scope}"]`), panel = document.querySelector(`[data-panel="${scope}"]`);
   if (!bar) return;
-  const f = k => bar.querySelector(`[data-f="${k}"]`);
-  const on = k => f(k) && f(k).getAttribute('aria-pressed') === 'true';
-  const q = (f('q').value || '').toLowerCase().trim(), sort = f('sort').value;
-  const items = [...document.querySelectorAll(`#pool-${scope} .item, [data-panel="${scope}"] .sec-list .item`)];
+  const q = bar.querySelector('[data-f="q"]').value.toLowerCase().trim();
+  const view = bar.querySelector('[data-f="view"][aria-pressed="true"]').dataset.v;
+  const known = bar.querySelector('[data-f="known"]'), nocumple = bar.querySelector('[data-f="nocumple"]').checked;
+  const sort = bar.querySelector('[data-f="sort"]').value;
+  const items = [...panel.querySelectorAll('.item')];
   const key = {price: e => +e.dataset.price, real: e => -(+e.dataset.real), name: e => e.dataset.name}[sort];
   items.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; });
-  const lists = {}; panel.querySelectorAll('[data-section]').forEach(s => { lists[s.dataset.section] = s; s.querySelector('.sec-list').innerHTML = ''; });
+  const groups = {}; panel.querySelectorAll('[data-section]').forEach(g => { groups[g.dataset.section] = g; g.querySelector('.sec-list').replaceChildren(); });
   const counts = {};
   for (const el of items){
-    let show = !q || el.dataset.name.includes(q);
-    if (on('offer') && el.dataset.offer !== '1') show = false;
-    if (on('usbc') && el.dataset.usbc !== '1') show = false;
-    if (on('known') && el.dataset.known !== '1') show = false;
     const sec = sectionOf(el);
-    if (sec === 'descartado' && !on('nocumple')) show = false;
-    const target = lists[sec] || lists['a_confirmar'];
-    target.querySelector('.sec-list').appendChild(el);
+    let show = !q || el.dataset.name.includes(q);
+    if (view === 'offer' && el.dataset.offer !== '1') show = false;
+    if (view === 'usbc' && el.dataset.usbc !== '1') show = false;
+    if (known && known.checked && el.dataset.known !== '1') show = false;
+    if (sec === 'descartado' && !nocumple) show = false;
+    (groups[sec] || groups['a_confirmar']).querySelector('.sec-list').appendChild(el);
     el.hidden = !show; if (show) counts[sec] = (counts[sec] || 0) + 1;
   }
-  Object.entries(lists).forEach(([k, s]) => { s.hidden = !counts[k]; s.querySelector('.sec-count').textContent = counts[k] ? `(${counts[k]})` : ''; });
-  store.set('f-' + scope, {q, sort, offer: on('offer'), usbc: on('usbc'), known: on('known'), nocumple: on('nocumple')});
+  Object.entries(groups).forEach(([k, g]) => { g.hidden = !counts[k]; g.querySelector('.n').textContent = counts[k] || ''; });
+  mem.set('f-' + scope, {q, view, known: known ? known.checked : null, nocumple, sort});
   drawAll();
 }
 document.querySelectorAll('[data-filters]').forEach(bar => {
-  const scope = bar.dataset.filters, saved = store.get('f-' + scope, null);
-  if (saved){
-    bar.querySelector('[data-f="q"]').value = saved.q || '';
-    bar.querySelector('[data-f="sort"]').value = saved.sort || 'price';
-    ['offer', 'usbc', 'known', 'nocumple'].forEach(k => { const b = bar.querySelector(`[data-f="${k}"]`); if (b && k in saved) b.setAttribute('aria-pressed', saved[k]); });
+  const scope = bar.dataset.filters, s = mem.get('f-' + scope, null);
+  if (s){
+    bar.querySelector('[data-f="q"]').value = s.q || '';
+    bar.querySelector('[data-f="sort"]').value = s.sort || 'price';
+    bar.querySelectorAll('[data-f="view"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === (s.view || 'all')));
+    const k = bar.querySelector('[data-f="known"]'); if (k && s.known !== null && s.known !== undefined) k.checked = s.known;
+    bar.querySelector('[data-f="nocumple"]').checked = !!s.nocumple;
   }
-  bar.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); applyFilters(scope); }));
-  bar.querySelector('[data-f="q"]').addEventListener('input', () => applyFilters(scope));
-  bar.querySelector('[data-f="sort"]').addEventListener('change', () => applyFilters(scope));
+  bar.querySelectorAll('[data-f="view"]').forEach(b => b.addEventListener('click', () => {
+    bar.querySelectorAll('[data-f="view"]').forEach(x => x.setAttribute('aria-pressed', x === b)); applyFilters(scope); }));
+  bar.querySelectorAll('input, select').forEach(i => i.addEventListener(i.type === 'search' ? 'input' : 'change', () => applyFilters(scope)));
   applyFilters(scope);
 });
 
-// ---------- gráficos (SVG sin librerías)
-function drawChart(el, series, lo, hi, big){
-  const W = el.clientWidth || 130, H = el.clientHeight || 36;
-  if (!series.length){ el.innerHTML = `<span class="text-xs text-slate-400">${big ? 'Todavía no hay escaneos con precio.' : '—'}</span>`; return; }
-  const padL = big ? 62 : 2, padR = big ? 8 : 2, padT = 4, padB = big ? 16 : 2;
-  const prices = series.map(p => p.price);
-  let yMin = Math.min(...prices, lo), yMax = Math.max(...prices, hi);
-  const m = (yMax - yMin) * 0.08 || yMax * 0.05; yMin -= m; yMax += m;
-  const t0 = Date.parse(series[0].ts), t1 = Date.parse(series[series.length - 1].ts);
+// ---------- gráficos: minigráfico (fila) y gráfico con tooltip (detalle)
+function spark(el, series, ref){
+  const W = el.clientWidth, H = el.clientHeight;
+  if (!W || series.length < 2){ el.innerHTML = ''; return; }
+  const ps = series.map(p => p.price), lo = Math.min(...ps, ref || Infinity), hi = Math.max(...ps, ref || -Infinity);
+  const pad = Math.max((hi - lo) * .12, (hi + lo) / 2 * .02), y0 = lo - pad, y1 = hi + pad;
+  const t0 = Date.parse(series[0].ts), t1 = Date.parse(series.at(-1).ts) || t0 + 1;
+  const x = t => 1 + (Date.parse(t) - t0) / (t1 - t0 || 1) * (W - 6), y = v => 2 + (y1 - v) / (y1 - y0) * (H - 4);
+  const last = series.at(-1), down = ref && last.price < ref * .99, up = ref && last.price > ref * 1.01;
+  const col = down ? css('--good') : up ? css('--bad') : css('--ink-2');
+  let s = `<svg width="${W}" height="${H}">`;
+  if (ref) s += `<line x1="0" x2="${W}" y1="${y(ref)}" y2="${y(ref)}" stroke="${css('--line-strong')}" stroke-dasharray="2 3"/>`;
+  s += `<polyline points="${series.map(p => `${x(p.ts).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s += `<circle cx="${x(last.ts)}" cy="${y(last.price)}" r="2.5" fill="${col}"/></svg>`;
+  el.innerHTML = s;
+}
+function chart(el, series, ref, lo){
+  const W = el.clientWidth, H = el.clientHeight;
+  if (!W) return;
+  if (series.length < 1){ el.innerHTML = '<div class="note" style="padding-top:70px;text-align:center">Todavía no hay historial.</div>'; return; }
+  const padL = 64, padR = 10, padT = 10, padB = 22;
+  const ps = series.map(p => p.price), vals = ps.concat(ref ? [ref] : []);
+  let y0 = Math.min(...vals), y1 = Math.max(...vals); const pad = Math.max((y1 - y0) * .15, (y0 + y1) / 2 * .03); y0 -= pad; y1 += pad;
+  const t0 = Date.parse(series[0].ts), t1 = Date.parse(series.at(-1).ts);
   const x = t => series.length < 2 ? (padL + W - padR) / 2 : padL + (Date.parse(t) - t0) / (t1 - t0 || 1) * (W - padL - padR);
-  const y = v => padT + (yMax - v) / (yMax - yMin) * (H - padT - padB);
-  const yLo = y(lo), yHi = y(hi);
-  let svg = `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
-  svg += `<rect x="${padL}" y="${padT}" width="${W-padL-padR}" height="${Math.max(0, yHi-padT)}" fill="#f43f5e" opacity=".10"/>`;
-  svg += `<rect x="${padL}" y="${yLo}" width="${W-padL-padR}" height="${Math.max(0, H-padB-yLo)}" fill="#10b981" opacity=".14"/>`;
-  svg += `<line x1="${padL}" x2="${W-padR}" y1="${yLo}" y2="${yLo}" stroke="#10b981" stroke-dasharray="3 3"/>`;
-  svg += `<line x1="${padL}" x2="${W-padR}" y1="${yHi}" y2="${yHi}" stroke="#f43f5e" stroke-dasharray="3 3" opacity=".7"/>`;
-  const pts = series.map(p => `${x(p.ts).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ');
-  svg += `<polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="${big ? 2 : 1.5}" stroke-linejoin="round"/>`;
-  const last = series[series.length - 1];
-  if (big){
-    series.forEach(p => { svg += `<circle cx="${x(p.ts)}" cy="${y(p.price)}" r="3" fill="#6366f1"><title>${fmt.format(new Date(p.ts))}\n${ars(p.price)} · ${p.where}</title></circle>`; });
-    svg += `<text x="${padL-4}" y="${yLo+3}" text-anchor="end" style="fill:#059669">${ars(lo)}</text>`;
-    svg += `<text x="${padL-4}" y="${yHi+3}" text-anchor="end" style="fill:#e11d48">${ars(hi)}</text>`;
-    svg += `<text x="${padL}" y="${H-3}">${fmtDay.format(new Date(series[0].ts))}</text>`;
-    svg += `<text x="${W-padR}" y="${H-3}" text-anchor="end">${fmtDay.format(new Date(last.ts))}</text>`;
-  } else {
-    svg += `<circle cx="${x(last.ts)}" cy="${y(last.price)}" r="2.5" fill="#6366f1"/>`;
-  }
-  el.innerHTML = svg + '</svg>';
+  const y = v => padT + (y1 - v) / (y1 - y0) * (H - padT - padB);
+  const grid = css('--line'), axis = css('--line-strong'), line = css('--accent');
+  let s = `<svg width="${W}" height="${H}">`;
+  for (let i = 0; i <= 3; i++){ const v = y0 + (y1 - y0) * i / 3, yy = y(v);
+    s += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="${grid}"/><text x="${padL - 8}" y="${yy + 3}" text-anchor="end">${ars(v)}</text>`; }
+  if (ref) s += `<line x1="${padL}" x2="${W - padR}" y1="${y(ref)}" y2="${y(ref)}" stroke="${axis}" stroke-dasharray="4 4"/><text x="${W - padR}" y="${y(ref) - 5}" text-anchor="end">mercado ${ars(ref)}</text>`;
+  s += `<polyline points="${series.map(p => `${x(p.ts).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ')}" fill="none" stroke="${line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s += `<text x="${padL}" y="${H - 5}">${fmtDay.format(new Date(series[0].ts))}</text><text x="${W - padR}" y="${H - 5}" text-anchor="end">${fmtDay.format(new Date(series.at(-1).ts))}</text>`;
+  s += `<line class="cross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="${axis}" visibility="hidden"/><circle class="dot" r="4" fill="${line}" stroke="${css('--surface')}" stroke-width="2" visibility="hidden"/>`;
+  s += `<rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  el.innerHTML = s;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), cross = svg.querySelector('.cross'), dot = svg.querySelector('.dot');
+  svg.addEventListener('pointermove', e => {
+    const r = svg.getBoundingClientRect(), mx = e.clientX - r.left;
+    let best = series[0], bd = Infinity; for (const p of series){ const d = Math.abs(x(p.ts) - mx); if (d < bd){ bd = d; best = p; } }
+    const px = x(best.ts), py = y(best.price);
+    cross.setAttribute('x1', px); cross.setAttribute('x2', px); cross.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', px); dot.setAttribute('cy', py); dot.setAttribute('visibility', 'visible');
+    tip.hidden = false; tip.innerHTML = `<b class="num">${ars(best.price)}</b><div class="note">${fmt.format(new Date(best.ts))}${best.where ? ' · ' + best.where : ''}</div>`;
+    tip.style.left = Math.min(px + 10, W - tip.offsetWidth - 4) + 'px'; tip.style.top = Math.max(py - 48, 0) + 'px';
+  });
+  svg.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); });
 }
 function drawAll(){
-  document.querySelectorAll('[data-series]').forEach(card => {
-    if (!card.offsetParent) return;
-    const series = JSON.parse(card.dataset.series), lo = +card.dataset.lo, hi = +card.dataset.hi;
-    const spark = card.querySelector('.spark'); if (spark && spark.offsetParent) drawChart(spark, series, lo, hi, false);
-    const big = card.querySelector('.chart-big'); if (big && big.offsetParent) drawChart(big, series, lo, hi, true);
+  document.querySelectorAll('.item').forEach(it => {
+    if (it.hidden || !it.offsetParent) return;
+    const series = JSON.parse(it.dataset.series || '[]'), ref = +it.dataset.ref || null;
+    const sp = it.querySelector('.spark'); if (sp && sp.offsetParent) spark(sp, series, ref);
+    const ch = it.querySelector('.chart'); if (ch && it.open) chart(ch, series, ref, +it.dataset.lo);
   });
 }
-document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', drawAll));
-window.addEventListener('resize', drawAll);
-drawAll();
+document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('details.item')) drawAll(); }, true);
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawAll, 120); });
+showTab((location.hash || '').slice(1) || mem.get('tab', 'seguidos'));
 
 {% if not static %}
-// ---------- acciones (sólo en la app local)
+// ---------- acciones (dashboard local)
 async function api(method, url, body){
   const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
   const data = await r.json().catch(() => ({}));
-  if (!r.ok && r.status !== 409) { alert(data.detail || ('Error ' + r.status)); throw new Error(r.status); }
+  if (!r.ok && r.status !== 409){ alert(data.detail || ('Error ' + r.status)); throw new Error(r.status); }
   return {status: r.status, data};
 }
-const btn = document.getElementById('scan-btn'), spin = document.getElementById('scan-spin'), discBtn = document.getElementById('disc-btn');
-const statusEl = document.getElementById('scan-status');
-const bar = document.getElementById('progress'), barWrap = document.getElementById('progress-wrap');
+const statusEl = document.getElementById('status'), bar = document.getElementById('progress'), barWrap = document.getElementById('progress-wrap');
 let polling = null, wasRunning = false;
 function renderState(st){
-  btn.disabled = st.running; discBtn.disabled = st.running; spin.classList.toggle('hidden', !st.running);
-  barWrap.classList.toggle('hidden', !st.running);
+  ['scan-btn', 'disc-btn'].forEach(id => document.getElementById(id).disabled = st.running);
+  barWrap.hidden = !st.running;
   if (st.running){
     bar.style.width = (st.total ? Math.round(st.done / st.total * 100) : 3) + '%';
-    const verb = st.job === 'discover' ? 'Descubriendo' : 'Escaneando';
-    statusEl.textContent = `${verb} ${st.done}/${st.total || '?'}${st.current ? ' · ' + st.current.replace('Descubriendo · ', '') : ''}`;
+    statusEl.textContent = `${st.job === 'discover' ? 'Descubriendo' : 'Escaneando'} ${st.done}/${st.total || '?'}`;
   } else statusEl.textContent = st.error ? 'Error: ' + st.error : '';
 }
 async function poll(){
-  const {data} = await api('GET', '/api/status');
-  renderState(data.state);
-  if (data.state.running) wasRunning = true;
-  else { clearInterval(polling); polling = null; if (wasRunning) location.reload(); }
+  const {data} = await api('GET', '/api/status'); renderState(data.state);
+  if (data.state.running) wasRunning = true; else { clearInterval(polling); polling = null; if (wasRunning) location.reload(); }
 }
 async function startJob(url){
   const {status} = await api('POST', url);
-  if (status === 409) statusEl.textContent = 'Ya hay un escaneo en curso…';
+  if (status === 409) statusEl.textContent = 'Ya hay un escaneo en curso';
   wasRunning = true; if (!polling) polling = setInterval(poll, 1500); poll();
 }
 const startScan = () => startJob('/api/scan'), startDiscover = () => startJob('/api/discover');
 async function trackModel(key){
   const {data} = await api('POST', '/api/discover/track', {key});
-  alert(`📌 Ahora seguís: ${data.target.name}\nSe va a escanear cada ~3 h en cada tienda. Tocá "Escanear seguidos" para traer precios ya.`);
-  store.set('tab', 'seguidos'); location.hash = 'seguidos'; location.reload();
+  alert(`Ahora seguís ${data.target.name}. Tocá Escanear para traer precios.`);
+  mem.set('tab', 'seguidos'); location.hash = 'seguidos'; location.reload();
 }
-async function confirmData(key, label, answer){
-  await api('POST', '/api/confirm', {key, label, answer});
-  location.reload();
-}
+async function confirmData(key, label, answer){ await api('POST', '/api/confirm', {key, label, answer}); location.reload(); }
 async function discardModel(key){
-  const why = prompt('¿Por qué lo descartás? (queda anotado; se puede deshacer)', 'no me convence');
-  if (why === null) return;
-  await api('POST', '/api/confirm', {key, label: why || 'descartado a mano', answer: 'discard'});
-  location.reload();
+  const why = prompt('Motivo (se puede deshacer)', 'no me convence'); if (why === null) return;
+  await api('POST', '/api/confirm', {key, label: why || 'descartado a mano', answer: 'discard'}); location.reload();
 }
 async function saveRange(e, id){
-  e.preventDefault();
-  const lo = Number(e.target.lo.value), hi = Number(e.target.hi.value);
-  if (hi <= lo){ alert('"Caro desde" tiene que ser mayor que "avisame si baja de".'); return; }
+  e.preventDefault(); const lo = +e.target.lo.value, hi = +e.target.hi.value;
+  if (hi <= lo){ alert('"Caro desde" tiene que ser mayor que el precio de aviso.'); return; }
   await api('POST', '/api/targets', {target_id: id, target_price: lo, price_high: hi}); location.reload();
 }
-async function addUrl(e, id){
-  e.preventDefault();
-  await api('POST', '/api/targets', {target_id: id, store: e.target.store.value, url: e.target.url.value.trim()}); location.reload();
-}
+async function addUrl(e, id){ e.preventDefault(); await api('POST', '/api/targets', {target_id: id, store: e.target.store.value, url: e.target.url.value.trim()}); location.reload(); }
 async function toggleUrl(id, url, active){ await api('POST', `/api/targets/${id}/urls`, {url, active}); location.reload(); }
-async function deleteUrl(id, url){
-  if (!confirm('¿Quitar este link? (el historial queda en la base)')) return;
-  await api('POST', `/api/targets/${id}/urls`, {url, delete: true}); location.reload();
-}
+async function deleteUrl(id, url){ if (!confirm('¿Quitar este link? El historial queda guardado.')) return; await api('POST', `/api/targets/${id}/urls`, {url, delete: true}); location.reload(); }
 async function addTarget(e){
   e.preventDefault(); const f = e.target;
-  await api('POST', '/api/targets', {name: f.elements['name'].value.trim(), target_price: Number(f.price.value),
+  await api('POST', '/api/targets', {name: f.elements['name'].value.trim(), target_price: +f.price.value,
     keywords: f.keywords.value.split(',').map(s => s.trim()).filter(Boolean)});
-  store.set('tab', 'seguidos'); location.reload();
+  mem.set('tab', 'seguidos'); location.reload();
 }
 {% if state.running %}wasRunning = true; polling = setInterval(poll, 1500); poll();{% endif %}
 {% endif %}

@@ -377,24 +377,49 @@ class Database:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def best_series(self, target_id: str, days: int = 365) -> list[dict]:
-        """Mejor precio transferencia (con stock) de cada escaneo: la curva de historial.
+    def best_series(self, target_id: str, days: int = 365, stale_hours: int = 26) -> list[dict]:
+        """Mejor precio del mercado en cada escaneo: la curva de historial.
 
-        store/seller son los de la tienda que tenía ese precio en ese escaneo.
+        Cada punto usa el último precio conocido de CADA link del producto en ese momento (de las
+        últimas `stale_hours`), no sólo los links escaneados en esa corrida. Así un escaneo parcial
+        (p. ej. el local, que sólo mira Frávega y Venex) no produce picos falsos.
+        store/seller son los de la tienda que tenía el mejor precio en ese momento.
         """
+        from datetime import datetime, timedelta
+
         with self.connect() as con:
             rows = con.execute(
-                """SELECT run_id, price_cash AS price, store, seller, scanned_at AS ts FROM (
-                       SELECT *, ROW_NUMBER() OVER (PARTITION BY run_id
-                                                    ORDER BY price_cash ASC, id ASC) AS rn
-                       FROM snapshots
-                       WHERE target_id=? AND run_id IS NOT NULL AND error IS NULL
-                         AND price_cash IS NOT NULL AND (in_stock IS NULL OR in_stock = 1)
-                         AND scanned_at >= datetime('now', ?))
-                   WHERE rn = 1 ORDER BY run_id""",
-                (target_id, f"-{int(days)} days"),
+                """SELECT run_id, url, store, seller, price_cash, in_stock, error, scanned_at
+                   FROM snapshots WHERE target_id=? AND run_id IS NOT NULL
+                     AND scanned_at >= datetime('now', ?)
+                   ORDER BY scanned_at, id""",
+                (target_id, f"-{int(days) + 2} days"),
             ).fetchall()
-        return [dict(r) for r in rows]
+        latest: dict[str, dict] = {}       # url -> último snapshot sin error
+        out: list[dict] = []
+        cur_run, cur_ts = None, None
+
+        def emit() -> None:
+            if cur_run is None:
+                return
+            now = datetime.fromisoformat(cur_ts)
+            valid = [r for r in latest.values()
+                     if r["price_cash"] is not None and r["in_stock"] != 0
+                     and now - datetime.fromisoformat(r["scanned_at"]) <= timedelta(hours=stale_hours)]
+            if valid:
+                b = min(valid, key=lambda r: r["price_cash"])
+                out.append({"run_id": cur_run, "price": b["price_cash"], "store": b["store"],
+                            "seller": b["seller"], "ts": cur_ts})
+
+        for r in rows:
+            if r["run_id"] != cur_run:
+                emit()
+                cur_run = r["run_id"]
+            cur_ts = r["scanned_at"]
+            if r["error"] is None:
+                latest[r["url"]] = dict(r)
+        emit()
+        return out
 
     def last_run(self) -> dict | None:
         with self.connect() as con:

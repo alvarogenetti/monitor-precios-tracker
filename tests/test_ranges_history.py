@@ -54,7 +54,7 @@ def test_best_series_takes_min_in_stock_per_run(tmp_path):
 
     s = db.best_series("m", days=100000)
     assert [(p["run_id"], p["price"], p["store"]) for p in s] == [
-        (r1, 340000, "hardgamers"), (r2, 345000, "compragamer")]
+        (r1, 340000, "hardgamers"), (r2, 340000, "hardgamers")]   # hardgamers sigue vigente aunque no se escaneó en r2
 
 
 def test_migration_backfills_run_id(tmp_path):
@@ -121,3 +121,13 @@ def test_samsung_vtex_store_from_url():
     from scrapers.stores.vtex import VtexScraper
     assert get_scraper_class(None, "https://shop.samsung.com/ar/monitor/p") is VtexScraper
     assert VtexScraper._store_from_url("https://shop.samsung.com/ar/x") == "samsung"
+
+
+def test_best_series_partial_run_does_not_spike(tmp_path):
+    db = Database(tmp_path / "h.db")
+    r1 = db.start_run("ci")
+    db.insert_snapshot("m", _snap(340000, "compragamer", ts="2026-11-20T12:00:00+00:00"), r1)
+    db.insert_snapshot("m", _snap(365000, "venex", ts="2026-11-20T12:01:00+00:00"), r1)
+    r2 = db.start_run("cli")       # escaneo local: sólo Venex
+    db.insert_snapshot("m", _snap(365000, "venex", ts="2026-11-20T12:30:00+00:00"), r2)
+    assert [p["price"] for p in db.best_series("m", days=100000)] == [340000, 340000]
