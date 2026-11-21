@@ -28,8 +28,6 @@ from urllib.parse import urljoin
 
 from scrapers.base import BrowserSession, availability_to_stock
 from scrapers.stores.compragamer import CATALOG_URL_RE, item_in_stock, product_url
-from scrapers.stores.fravega import CARDS_JS as FRAVEGA_CARDS_JS
-from scrapers.stores.fravega import SELLER_RE, card_prices
 from scrapers.stores.hardgamers import CARDS_JS as HG_CARDS_JS
 from scrapers.stores.vtex import VTEX_STORES
 from services.price_parser import is_plausible, parse_ars
@@ -284,8 +282,14 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     # Datos que vienen del catálogo de ML (a veces cargados mal por los vendedores): si
     # descalifican, no descartan: quedan "a verificar".
     ml = set(s.get("_ml_fields") or [])
+    if s.get("discard"):
+        fails.append(f"descartado a mano: {s['discard']}")
+    weight_required = req.get("weight_required", True)
 
     def fail_or_verify(field: str, reason: str) -> bool:
+        if field == "weight_no_stand_kg" and field in ml and not weight_required:
+            warns.append(f"{reason} según ML (dato dudoso)")
+            return False
         if field in ml:
             warns.append(f"{reason} según ML (dato dudoso, verificar)")
             missing.append(reason)
@@ -321,7 +325,8 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
                                          or vesa in [v.lower() for v in req.get("vesa", [])]))
     w = s.get("weight_no_stand_kg")
     if w is None:
-        missing.append("peso")
+        if weight_required:
+            missing.append("peso")
     elif w >= req.get("max_weight_kg", 8):
         if not fail_or_verify("weight_no_stand_kg", f"pesa {w:g} kg"):
             w = None   # peso dudoso de ML: queda como "?"
@@ -375,6 +380,16 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     )
 
 
+def _load_overrides() -> dict[str, dict]:
+    try:
+        from services.overrides import load
+        from settings import settings
+
+        return load(settings.overrides_path)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def usb_c_label(spec: dict | None, badges: list[str]) -> str | None:
     pd = (spec or {}).get("usb_c_pd_w") or 0
     if pd >= 65:
@@ -396,15 +411,41 @@ def evaluate_target(target, snaps: list[dict], cfg: dict, catalog: SpecCatalog,
     spec = spec or catalog.match(target.name)
     if spec:
         key = norm(spec["model_key"])
-    spec = merge(spec, (ml_specs or {}).get(key))
+    from services.overrides import apply as apply_override
+
+    spec = apply_override(merge(spec, (ml_specs or {}).get(key)), _load_overrides().get(key))
     r = evaluate(offers, key, search, spec, cfg)
     return {"status": r.status, "missing": r.missing, "fails": r.fails, "warnings": r.warnings,
             "badges": r.badges, "checks": r.checks, "usb_c": usb_c_label(spec, r.badges),
-            "spec_notes": (spec or {}).get("notes"), "key": key}
+            "spec_notes": (spec or {}).get("notes"), "key": key,
+            "manual": (spec or {}).get("_manual") or []}
+
+
+def reevaluate(m: dict, cfg: dict, catalog: SpecCatalog, ml_spec: dict | None,
+               override: dict | None) -> dict:
+    """Vuelve a evaluar un modelo guardado del último descubrimiento con las specs y confirmaciones
+    actuales (así una confirmación manual se ve al instante, sin esperar al próximo descubrimiento)."""
+    from services.overrides import apply as apply_override
+    from services.spec_enrich import merge
+
+    offers = [Offer(**{k: o.get(k) for k in ("store", "title", "price", "url", "seller", "price_list", "in_stock")})
+              for o in m.get("offers") or []]
+    if not offers:
+        return m
+    spec = catalog.match(offers[0].title) or (m.get("spec") if (m.get("spec") or {}).get("model_key") else None)
+    if not spec:
+        _, _, spec = model_key(offers[0].title, title_facts(offers[0].title), catalog)
+    spec = apply_override(merge(spec, ml_spec), override)
+    r = evaluate(offers, m["key"], m["search"], spec, cfg)
+    for k in ("status", "fails", "missing", "warnings", "badges", "checks", "spec", "name"):
+        m[k] = getattr(r, k)
+    m["manual"] = (spec or {}).get("_manual") or []
+    return m
 
 
 def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
-            extra_specs: dict[str, dict] | None = None) -> list[ModelResult]:
+            extra_specs: dict[str, dict] | None = None,
+            overrides: dict[str, dict] | None = None) -> list[ModelResult]:
     exclude = [e.lower() for e in cfg.get("exclude_words", [])]
     max_price = cfg.get("max_price") or float("inf")
     ignore = {norm(k) for k in cfg.get("ignore_models", [])}
@@ -429,10 +470,13 @@ def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
         groups.setdefault(key, []).append(o)
         searches.setdefault(key, search)
         specs[key] = specs.get(key) or spec
+    from services.overrides import apply as apply_override
     from services.spec_enrich import merge
 
     extra_specs = extra_specs or {}
-    results = [evaluate(g, k, searches[k], merge(specs[k], extra_specs.get(k)), cfg)
+    overrides = overrides if overrides is not None else _load_overrides()
+    results = [evaluate(g, k, searches[k],
+                        apply_override(merge(specs[k], extra_specs.get(k)), overrides.get(k)), cfg)
                for k, g in groups.items()]
     results.sort(key=lambda r: (STATUS_ORDER[r.status], r.best["price"]))
     return results
@@ -470,36 +514,26 @@ async def _collect_compragamer(session: BrowserSession, url: str) -> list[Offer]
     return out
 
 
-async def _collect_cards(session: BrowserSession, url: str, store: str) -> list[Offer]:
+async def _collect_hardgamers(session: BrowserSession, url: str) -> list[Offer]:
+    """HardGamers: tarjetas del listado de búsqueda (con navegador)."""
     page = await session.new_page()
     try:
         await page.goto(url, wait_until="domcontentloaded")
-        sel = ".Product-List" if store == "hardgamers" else 'article[data-test-id="result-item"]'
         try:
-            await page.wait_for_selector(sel, timeout=20000)
+            await page.wait_for_selector(".Product-List", timeout=20000)
         except Exception:  # noqa: BLE001
             return []
-        cards = await page.evaluate(HG_CARDS_JS if store == "hardgamers" else FRAVEGA_CARDS_JS)
+        cards = await page.evaluate(HG_CARDS_JS)
     finally:
         await page.context.close()
     out = []
     for c in cards:
-        if store == "hardgamers":
-            price = parse_ars(c.get("price")) or parse_ars(c.get("priceText"))
-            stock = availability_to_stock(c.get("availability"))
-            if not is_plausible(price) or stock is False:
-                continue
-            out.append(Offer("hardgamers", re.sub(r"\s+", " ", c["name"]), price,
-                             urljoin(url, c["href"]) if c.get("href") else url,
-                             c.get("store") or None))
-        else:
-            cash, lst = card_prices(c.get("text", ""))
-            if not is_plausible(cash):
-                continue
-            m = SELLER_RE.search(c.get("text", ""))
-            out.append(Offer("fravega", c["name"].strip(), cash,
-                             urljoin(url, c["href"]) if c.get("href") else url,
-                             m.group(1).strip() if m else "Frávega", lst))
+        price = parse_ars(c.get("price")) or parse_ars(c.get("priceText"))
+        stock = availability_to_stock(c.get("availability"))
+        if not is_plausible(price) or stock is False:
+            continue
+        out.append(Offer("hardgamers", re.sub(r"\s+", " ", c["name"]), price,
+                         urljoin(url, c["href"]) if c.get("href") else url, c.get("store") or None))
     return out
 
 
@@ -545,7 +579,7 @@ async def collect(session: BrowserSession, sources: list[dict],
             elif src["store"] in VTEX_STORES:
                 got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])
             else:
-                got = await _collect_cards(session, src["url"], src["store"])
+                got = await _collect_hardgamers(session, src["url"])
             log.info("Descubrimiento %s: %d ofertas (%s)", src["store"], len(got), src["url"])
             offers += got
         except Exception as e:  # noqa: BLE001
@@ -663,6 +697,7 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
         extra = enrich(db, pending)
         if extra:
             results = analyze(offers, cfg, catalog, extra)
+
 
     targets = load_targets(settings.targets_path)
     for r in results:

@@ -136,7 +136,7 @@
   "resolution": "2560x1440",
   "hz_dp": 180,
   "hz_hdmi": null,
-  "anti_glare": null,
+  "anti_glare": true,
   "brightness_nits": 300,
   "flicker_free": true,
   "low_blue_light": true,
@@ -147,10 +147,12 @@
   "psu_voltage": "100-240V",
   "sources": [
    "https://www.lg.com/uk/monitors/gaming/27gs75q-b/",
-   "https://www.lg.com/us/monitors/lg-27gs75q-b-gaming-monitor"
+   "https://www.lg.com/us/monitors/lg-27gs75q-b-gaming-monitor",
+   "https://lg.com/my/monitors/lg-27gs75q-b",
+   "https://pcmonitors.info/lg/lg-ultragear-27gs75q-b-180hz-qhd-ips/"
   ],
   "confidence": "medium",
-  "notes": "180 Hz nativo, 200 Hz con OC sólo por DP. LG no informa versión ni Hz máximos de HDMI, ni el tipo de superficie. Flicker Safe + Modo lectura. Fuente externa de 40 W (19 V), AC 100-240 V. Que es plano se deduce (no informa curvatura).",
+  "notes": "Superficie antirreflejo (mate) según la página oficial de LG (Malasia) y pcmonitors.info. 180 Hz nativo, 200 Hz con OC sólo por DP. LG no informa versión ni Hz máximos de HDMI. Flicker Safe + Modo lectura. Fuente externa de 40 W (19 V), AC 100-240 V. Que es plano se deduce (no informa curvatura).",
   "verified_at": "2026-11"
  },
  {
@@ -631,5 +633,60 @@
   "confidence": "low",
   "notes": "Página oficial: IPS, 165 Hz por DP / 144 Hz por HDMI, 250 nits, flicker-free, LBL, 1x HDMI + 1x DP + 1x USB (tipo sin especificar), RGB, blanco. Peso 3 kg (sin aclarar si con base). No dice explícitamente que sea plano (diseño sin bordes). No informa VESA. Algunas publicaciones de Mercado Libre dicen 144 Hz; una tienda indica VGA+HDMI (probablemente un error).",
   "verified_at": "2026-11"
+ },
+ {
+  "model_key": "A27QI",
+  "aliases": [
+   "A27Qi",
+   "P27QDA"
+  ],
+  "search": "A27Qi",
+  "name": "Xiaomi 2K Monitor A27Qi (2026)",
+  "panel": "IPS",
+  "flat": true,
+  "resolution": "2560x1440",
+  "hz_dp": 120,
+  "hz_hdmi": 120,
+  "anti_glare": true,
+  "brightness_nits": 300,
+  "flicker_free": null,
+  "low_blue_light": true,
+  "vesa": "75x75",
+  "weight_no_stand_kg": null,
+  "hdmi_ports": 1,
+  "usb_c_pd_w": 0,
+  "psu_voltage": null,
+  "confidence": "medium",
+  "verified_at": "2026-11",
+  "sources": [
+   "https://www.mi.com/global/product/xiaomi-2k-monitor-a27qi-2026/specs/",
+   "https://www.displayspecifications.com/en/model/089c4219"
+  ],
+  "notes": "Versión 2026 (P27QDA-RAGL): 120 Hz; la versión anterior era de 100 Hz (verificar cuál vende la tienda). VESA 75x75, 3,9 kg con base, 6 ms. Mate según el catálogo de Mercado Libre."
+ },
+ {
+  "model_key": "S2725DC",
+  "search": "S2725DC",
+  "name": "Dell 27 Plus S2725DC (USB-C 65 W)",
+  "panel": "IPS",
+  "flat": true,
+  "resolution": "2560x1440",
+  "hz_dp": 144,
+  "hz_hdmi": 144,
+  "anti_glare": true,
+  "brightness_nits": 350,
+  "flicker_free": true,
+  "low_blue_light": true,
+  "vesa": "100x100",
+  "weight_no_stand_kg": 4.6,
+  "hdmi_ports": 1,
+  "usb_c_pd_w": 65,
+  "psu_voltage": "100-240V",
+  "confidence": "medium",
+  "verified_at": "2026-11",
+  "sources": [
+   "https://www.dell.com/es-ar"
+  ],
+  "notes": "Opción B del research: USB-C con 65 W + DP Alt, contraste 1500:1, TÜV 4 estrellas, ComfortView Plus. 144 Hz por HDMI, DP y USB-C. Blanco. Mate según el catálogo de ML."
  }
 ]

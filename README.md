@@ -1,357 +1,184 @@
 # Monitor de precios de monitores (Argentina)
 
-App local en **Python + FastAPI + Playwright + SQLite** que sigue precio y stock de monitores en
-tiendas argentinas, guarda historial y avisa por **Telegram** cuando:
+Sigue precio y stock de monitores **27" QHD IPS mate** en ~60 tiendas argentinas, detecta
+**ofertas reales** (descuento contra el precio de mercado, no contra el "precio de lista") y avisa
+por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 
-- el precio transferencia (`price_cash`) **baja** respecto al último registro válido,
-- el precio llega o queda **por debajo del objetivo** (`target_price`), o
-- un producto **sin stock vuelve a estar disponible**.
-
-Qué se busca y por qué (uso, requisitos, criterio de compra): ver **[PERFIL.md](PERFIL.md)**.
-
-Hay dos modos de ejecución:
-
-| Modo | Comando | Uso |
-|---|---|---|
-| Web | `python -m app.main` | Dashboard en http://127.0.0.1:8000 con botón "Escanear ahora" y scheduler opcional |
-| CLI | `python scan.py --once` | Un escaneo y termina. Sirve para GitHub Actions, el Programador de tareas de Windows o cron |
+- **Dashboard público:** https://alvarogenetti.github.io/monitor-precios-tracker/
+- **Qué se busca y por qué:** [PERFIL.md](PERFIL.md)
 
 ---
 
-## 1. Instalación
+## 1. Uso diario
 
-Requiere Python 3.11 o superior.
-
-```powershell
-cd monitor
-python -m venv .venv
-.venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium       # en Linux/CI: playwright install --with-deps chromium
-copy .env.example .env            # Linux/macOS: cp .env.example .env
-```
-
-Probalo:
-
-```powershell
-python -m pytest -q                       # tests unitarios (sin red)
-python scan.py --once --no-alerts         # escaneo real, sin mandar Telegram
-python -m app.main                        # dashboard en http://127.0.0.1:8000
-```
-
-## 2. Configurar el bot de Telegram (opcional)
-
-Si no lo configurás, todo funciona igual: las alertas quedan en la consola y en la tabla `alerts`.
-
-1. En Telegram hablale a **@BotFather**, mandá `/newbot` y seguí los pasos. Te devuelve un token
-   del estilo `123456789:AAH...`. Ese valor va en `TELEGRAM_BOT_TOKEN`.
-2. Abrí el chat con tu bot nuevo y mandale cualquier mensaje (por ejemplo `/start`).
-3. Para conseguir tu chat id, abrí en el navegador
-   `https://api.telegram.org/bot<TU_TOKEN>/getUpdates` y buscá `"chat":{"id": ...}`.
-   Ese número va en `TELEGRAM_CHAT_ID`. Para un grupo, agregá el bot al grupo, escribí algo y
-   repetí el paso; el id de un grupo empieza con `-`.
-4. Completá `.env`:
-
-   ```env
-   TELEGRAM_BOT_TOKEN=123456789:AAH...
-   TELEGRAM_CHAT_ID=987654321
-   ```
-
-## 3. Productos y links (`config/targets.json`)
-
-```json
-{
-  "id": "lg-27gs75q-b",
-  "name": "LG UltraGear 27GS75Q-B",
-  "target_price": 410000,
-  "price_high": 560000,
-  "notes": "Rango relevado en nov-2026: $529-582k",
-  "keywords": ["27GS75Q"],
-  "urls": [
-    {"store": "compragamer", "url": "https://compragamer.com/productos?criterio=27GS75Q"},
-    {"store": "hardgamers",  "url": "https://www.hardgamers.com.ar/search?text=27GS75Q"},
-    {"store": "maximus",     "url": "https://www.maximus.com.ar/Producto/ITEM=12345/maximus.aspx"}
-  ]
-}
-```
-
-- `target_price` y `price_high` definen el **rango de precio** (ver abajo).
-- `keywords`: todas tienen que aparecer en el título para que un resultado cuente. Se usan en
-  páginas de **búsqueda** (HardGamers, Compra Gamer, listados de ML). La comparación ignora
-  espacios y guiones, así que `27GS75Q` matchea "27GS75Q-B". Con `|` se aceptan alternativas:
-  `["MAG", "275QF|274QF"]` sigue los dos modelos de MSI en un mismo producto.
-- `exclude` (opcional): palabras que descartan un resultado. Si no lo ponés, se usa
-  `usado, reacondicionado, refurbished, open box`.
-- `store`: elige el adaptador. Con un nombre sin adaptador propio (`maximus`, `mexx`, `fullh4rd`,
-  `fravega`…) se usa el **genérico** y el nombre queda como etiqueta en el dashboard.
-- `active: false` pausa un link o un producto sin borrarlo.
-
-También podés agregar productos y links, pausarlos y cambiar el precio objetivo desde el dashboard.
-Eso llama a `POST /api/targets` y reescribe el JSON.
-
-### Ofertas REALES (descuento contra el mercado)
-
-El objetivo no es "comprar a precio normal" sino detectar **descuentos reales** y no caer en
-"50 % OFF" con el precio inflado antes:
-
-- **Precio de mercado** de cada monitor = mediana del mejor precio (entre todas las tiendas) de
-  cada escaneo de los últimos 30 días, sin contar las últimas 24 h. Hasta tener ~2 días de
-  historia se usa `market_price` del target (relevamiento inicial).
-- **Descuento real** = cuánto está el precio actual por debajo de ese mercado.
-  **≥ 15 %: buena oferta 💰 · ≥ 30 %: oferta excepcional 🔥.**
-- El "precio de lista" de la tienda sólo se usa para avisar si el descuento anunciado está
-  **inflado** (anuncia, p. ej., -50 % pero contra el mercado es menos de la mitad).
-- Lo mismo corre en el **descubrimiento** para cualquier modelo que cumpla los requisitos (con su
-  propio historial diario). Marcas sin reseñas: sólo ofertas ≥ 30 %. Una misma oferta no se
-  repite durante 7 días salvo que mejore.
-
-### Rangos de precio: Bajo / Normal / Alto
-
-Cada producto clasifica su mejor precio transferencia actual en tres rangos:
-
-| Rango | Condición | Qué significa |
-|---|---|---|
-| **Bajo · comprá** | precio ≤ `target_price` | Precio de compra recomendado. Dispara la alerta "precio objetivo alcanzado". |
-| **Normal** | `target_price` < precio ≤ `price_high` | Precio habitual de mercado. |
-| **Alto** | precio > `price_high` | Caro: conviene esperar. |
-
-Si no definís `price_high`, se usa el objetivo + 15 %. Los dos límites se editan desde la tabla del
-dashboard. Los valores iniciales salen del relevamiento de precios de noviembre de 2026 (ver `notes`
-de cada producto). El rango también aparece en las alertas de baja de precio.
-
-### Historial de precios
-
-Cada escaneo guarda un snapshot por link en `data/prices.db`, con o sin error. En el dashboard:
-
-- la columna **Historial** muestra un minigráfico del mejor precio de cada escaneo, sobre las zonas de rango;
-- al desplegar un producto aparece el gráfico grande con mínimo, mediana y máximo, y un botón
-  **descargar CSV** con todos los snapshots (`/api/history/<id>.csv`).
-
-### Adaptadores
-
-| Tienda | Qué hace |
+| Qué | Cómo |
 |---|---|
-| `compragamer` | Compra Gamer es una SPA en Angular. Playwright carga el sitio e **intercepta el catálogo JSON** que descarga la propia SPA, de donde salen `precioEspecial` (transferencia) y `precioLista`. Acepta fichas (`/producto/..._<id>`) o búsquedas (`/productos?criterio=...`). Si el producto no figura en el catálogo, se registra **sin stock**. |
-| `hardgamers` | Con una búsqueda trae las ofertas de decenas de tiendas y se queda con la **más barata** que matchee las keywords. En `seller` guarda la tienda (Maximus, Mexx, Full H4rd, etc.). |
-| `fravega` | Búsquedas (`/l/?keyword=EW270Q`): el más barato que matchee las keywords, con el vendedor del marketplace en `seller`. Las fichas (`/p/...`) usan el genérico. Frávega no indexa en HardGamers y suele tener LG, Samsung y BenQ. |
-| `fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo` | Tiendas de electrónica sobre **VTEX**: se consulta el buscador JSON público de su storefront (`/api/catalog_system/pub/products/search`), sin navegador. Trae precio, precio de lista, vendedor del marketplace y **promos** (teasers de VTEX). Frávega bloquea las IPs de GitHub: se escanea desde tu PC. |
-| `dell`, `megatone` | Leen la categoría de monitores del HTML (Dell: atributo `data-product-detail`; Megatone: JSON-LD con los primeros 20 de cada categoría). Sin navegador. Se usan en el descubrimiento. |
-| `electro` | Busca el modelo en **todas** las tiendas VTEX de electrónica y Samsung Shop a la vez (menos Frávega) y se queda con la más barata. |
-| `mercadolibre` | Fichas (`articulo.mercadolibre.com.ar/...`, `/p/MLA...`) y listados (`listado.mercadolibre.com.ar/...`). Mirá la limitación más abajo. |
-| `generic` | Cualquier ficha de producto. Busca el precio en JSON-LD, después en meta OpenGraph/itemprop y después en selectores comunes (WooCommerce, Tiendanube, VTEX, Magento, PrestaShop). Del bloque principal toma el **mínimo como precio transferencia** y el **máximo como precio de lista/cuotas**. Ignora valores de cuota, precios sin impuestos y productos relacionados. Se probó con Maximus, Mexx, TryHardware y Slot One. |
+| Ver el dashboard desde cualquier lado | El link de GitHub Pages (sólo lectura, se actualiza en cada escaneo) |
+| Dashboard completo en tu PC (escanear, confirmar datos, seguir modelos) | `C:\Proyectos\monitor-precios-tracker\iniciar.ps1` |
+| Avisos | Telegram: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y resumen diario a las 9 |
 
-Para probar una URL sin tocar la base:
+**Pestañas del dashboard**
 
-```powershell
-python scan.py --url "https://www.mexx.com.ar/productos-rubro/monitores/....html"
-python scan.py --url "https://www.hardgamers.com.ar/search?text=EW270Q" --keywords EW270Q
+- **📌 Seguidos**: los monitores que elegiste. Se escanean cada ~3 h en cada tienda. Secciones:
+  ofertas reales · cumple todo + USB-C · cumple todo · a confirmar · no cumple.
+- **🔎 Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
+  una vez por día. Arriba aparecen los **💡 sugeridos para seguir**. Con **+ Seguir** un modelo pasa
+  a Seguidos. Los no seguidos igual se vigilan: si aparece una oferta real, avisa.
+- **🔔 Alertas** y **ℹ️ Info** (requisitos obligatorios/deseables y en qué tiendas se busca).
+
+**Confirmar o descartar.** Si un modelo dice "A confirmar: acabado mate", podés responder
+**¿Pantalla mate? Sí / No** (lo viste en la ficha, en una reseña...). Se guarda en
+`config/overrides.json`, se sube solo a GitHub y pisa cualquier otro dato. **Descartar** saca un
+modelo de la lista (se puede deshacer).
+
+---
+
+## 2. Cómo decide
+
+### Requisitos (`config/discovery.json`)
+
+27" plano · QHD 2560×1440 · ≥ 120 Hz · IPS (VA no; OLED sólo bajo $650.000) · pantalla mate ·
+VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
+
+- Lo que dice el **título** (tamaño, resolución, Hz, panel, curvo, usado) se verifica siempre.
+  Si el título no dice QHD/2K/1440 o no dice el tamaño, se descarta.
+- Lo que el título no dice (mate, VESA, peso, brillo, Hz por HDMI, USB-C) sale de:
+  1. **tus confirmaciones** (`config/overrides.json`),
+  2. el **catálogo curado** de fichas técnicas (`config/specs.json`, con fuentes),
+  3. los **atributos del catálogo de Mercado Libre** (cacheados 30 días). Si un dato de ML
+     descalifica, queda "a verificar" en vez de descartar (ML a veces tiene datos mal cargados).
+- Estados: ✅ cumple todo · ❔ a confirmar · 🟣 OLED en oferta · ⛔ no cumple.
+- Marcas sin reseñas (`generic_brands`): sólo avisan ofertas ≥ 30 %.
+
+### Ofertas reales
+
+- **Precio de mercado** = mediana del mejor precio entre todas las tiendas de los últimos 30 días
+  (sin las últimas 24 h). Al principio se usa `market_price` de cada monitor seguido.
+- **Descuento real** = cuánto está por debajo de ese mercado: **≥ 15 % buena oferta 💰,
+  ≥ 30 % excepcional 🔥**.
+- Si la tienda anuncia "-50 %" pero contra el mercado es menos de la mitad → **inflado**.
+- La misma oferta no se repite durante 7 días salvo que mejore.
+
+### Eventos (`config/events.json`)
+
+Hot Sale, Cyber Monday, Black Friday...: durante un evento se escanea **cada hora** y las alertas
+lo marcan con 🔥.
+
+---
+
+## 3. Arquitectura
+
+```
+GitHub Actions (cada 30 min decide si toca)
+ ├─ escaneo de seguidos   (si pasaron 2h45 desde el último; 45 min en eventos)
+ ├─ descubrimiento + resumen diario (primera corrida desde las 9 AR)
+ ├─ publica la base en la rama `data`  (un único commit que se reemplaza)
+ └─ publica el dashboard en GitHub Pages
+
+Tu PC (tarea programada "MonitorPrecios-local", cada 3 h a y media)
+ └─ escaneo-local.ps1: Frávega y Venex (bloquean a GitHub) → fusiona y publica en la rama `data`
 ```
 
-### Detalles del mercado argentino
+- La base `data/prices.db` **no** está en `main`: vive en la rama `data` (así git no acumula una
+  copia por escaneo). `python -m services.datastore pull|push` la sincroniza; si dos procesos
+  publican a la vez, se fusionan las filas.
+- Secrets del repo: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ML_CLIENT_ID`, `ML_CLIENT_SECRET`.
 
-- **Doble precio**: `price_cash` es el precio especial (transferencia o efectivo) y es el que se
-  compara contra el objetivo. `price_list` es el precio de lista, tarjeta o cuotas.
-- **Formato de montos**: `"$ 340.869,00"`, `"$339.785"` y `"ARS 418.299"` se convierten a
-  `float` sin confundir el separador de miles con el decimal (ver `services/price_parser.py`).
-- **Stock**: se usa el `availability` de schema.org. Si no está, se buscan carteles como
-  "Sin stock", "Agotado", "Pausado" o "Sin disponibilidad" contra botones de compra.
-  "Sin stock en el local" no se cuenta como agotado.
+### Tiendas y adaptadores (`scrapers/stores/`)
 
-## 3b. Mercado Libre (API oficial)
-
-La web de ML manda los navegadores automatizados a una verificación anti-bot y, desde 2025, la API
-pública responde 403 sin token. Este proyecto **no evade** esos controles: usa la **API oficial**
-con una aplicación tuya (gratis).
-
-1. Entrá a https://developers.mercadolibre.com.ar/devcenter con tu cuenta de ML y creá una
-   aplicación. Datos mínimos: nombre, descripción, y **Redirect URI**
-   `https://github.com/alvarogenetti/monitor-precios-tracker`. Permisos: sólo lectura.
-2. Copiá el **App ID** y la **Secret Key** a `.env` como `ML_CLIENT_ID` y `ML_CLIENT_SECRET`
-   (y a los *secrets* del repo en GitHub con los mismos nombres).
-3. En la app, activá los **permisos funcionales** de lectura de publicaciones/ítems y catálogo.
-   Sin eso, la API responde 403 `PA_UNAUTHORIZED_RESULT_FROM_POLICIES` aunque el token sea válido.
-4. Probá: `python scan.py --meli-check`. Con los permisos activos alcanza el token de la app
-   (`client_credentials`). Si no, `python scan.py --meli-login` hace el login OAuth con tu usuario
-   y guarda el refresh token cifrado en `data/meli_token.enc` (no se sube a git).
-
-Qué consulta: para búsquedas (`listado.mercadolibre.com.ar/...`) busca en el **catálogo**
-(`/products/search`) los productos que matchean las keywords y toma la publicación **nueva más
-barata** entre todos los vendedores (`/products/{id}/items`), descartando envíos internacionales
-y vendedores con menos de 10 ventas o reputación roja/naranja (cuentas nuevas con precios raros). También acepta fichas de catálogo
-(`/p/MLA...`) y publicaciones (`MLA-123...`). Sin credenciales, el adaptador vuelve al modo web
-(que normalmente queda "bloqueado").
-
-## 4. Descubrir modelos que cumplan los requisitos
-
-El botón **🔎 Descubrir** del dashboard (o `python scan.py --discover`) no sigue productos puntuales:
-recorre el **catálogo completo de Compra Gamer** y búsquedas amplias de **HardGamers** y **Frávega**
-("monitor 27 qhd", "2k", "1440", "wqhd"...), agrupa las ofertas por modelo y evalúa cada uno contra
-los requisitos obligatorios de `config/discovery.json`:
-
-| Requisito | De dónde sale |
-|---|---|
-| 27" plano, QHD 2560×1440, ≥ 120 Hz, IPS (no VA), no curvo, no usado | Título de la publicación |
-| Mate antirreflejo, VESA 75/100, peso sin base < 8 kg, al menos un HDMI | `config/specs.json` (fichas verificadas a mano) y, si falta algo, los **atributos del catálogo de Mercado Libre** (IS_ANTI_GLARE, WITH_VESA_MOUNTING, WEIGHT_WITHOUT_STAND, IS_CURVED, BRIGHTNESS...), cacheados 30 días |
-| Brillo ≥ 300 nits, flicker-free, Hz por HDMI, fuente 100-240 V, ficha USA | Advertencias (no descartan) |
-| USB-C con PD ≥ 65 W | Insignia (opcional valorado) |
-
-Cada modelo queda en uno de estos estados:
-
-- **Cumple todo**: pasa el título y tiene las specs verificadas en el catálogo.
-- **A confirmar**: pasa lo que dice el título, pero falta en `specs.json` algún dato (mate, VESA, peso).
-  La columna "Notas" dice qué revisar. Cuando lo confirmes, agregá el modelo a `specs.json` y pasa a "Cumple".
-- **OLED en oferta**: los OLED se descartan, salvo que bajen de `oled_max_price` ($650.000 por defecto).
-- **Descartado**: falla algún requisito; se muestra el motivo (filtro "Descartado").
-
-Con **+ Seguir** un modelo pasa a la tabla principal con links de búsqueda de Compra Gamer y
-HardGamers (y Frávega si lo vende), y un rango inicial (bajo = mejor precio −5 %, alto = +10 %).
-
-La primera corrida es la "línea base". De ahí en más, cuando aparece un modelo **nuevo** que cumple o
-podría cumplir, llega una alerta por Telegram. El precio de cada modelo descubierto también queda en
-el historial (`discovery_prices`). En GitHub Actions corre una vez por día (12 UTC) o a mano.
-
-## 5. Escaneo automático
-
-### Opción A: GitHub Actions (gratis)
-
-`.github/workflows/price_watch.yml` corre cada 3 horas: baja la base, escanea, (a las 12 UTC)
-descubre modelos nuevos y manda el resumen diario, publica la base y regenera el dashboard público.
-
-**Dónde vive la base.** `data/prices.db` NO está en la rama `main`: se guarda en la rama **`data`**,
-que tiene un único commit que se reemplaza en cada corrida (`python -m services.datastore push`).
-Así git no acumula una copia de la base por escaneo. Si dos procesos publican a la vez (Actions y
-tu PC), el segundo baja la base remota, le fusiona sus filas y reintenta.
-
-**Dashboard público.** Cada corrida publica una versión de sólo lectura en GitHub Pages:
-https://alvarogenetti.github.io/monitor-precios-tracker/ (`python -m app.site` la genera local).
-
-1. Subí **esta carpeta como raíz de un repositorio**. GitHub solo lee workflows desde
-   `.github/` en la raíz del repo.
-2. En el repo, entrá a *Settings → Secrets and variables → Actions* y creá
-   `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`.
-3. En *Settings → Actions → General → Workflow permissions*, elegí "Read and write", y en
-   *Settings → Pages*, como fuente, "GitHub Actions".
-4. Para correrlo a mano: pestaña *Actions → price-watch → Run workflow*.
-
-> El cron de GitHub usa UTC y puede atrasarse varios minutos en horas pico.
-
-**Tiendas que bloquean GitHub.** Frávega y Venex responden 403 a las IPs de los servidores de
-GitHub. Esos links tienen `"ci": false` en `config/targets.json` (y las fuentes de Frávega en
-`config/discovery.json`): Actions los saltea y se revisan cuando escaneás desde tu PC.
-
-**Escaneo local programado.** `escaneo-local.ps1` escanea sólo esos links desde tu PC (IP
-hogareña) y publica la base en la rama `data`, así queda en el mismo historial. Para que corra solo cada
-3 horas (a y media, para no chocar con Actions):
-
-```powershell
-schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Proyectos\monitor-precios-tracker\escaneo-local.ps1"
-```
-
-El detalle de cada corrida queda en `data/escaneo-local.log`.
-
-**Historial en tu PC.** La base "oficial" es la de la rama `data`. Para ver el historial
-actualizado en el dashboard local:
-
-```powershell
-.\iniciar.ps1      # baja la base de GitHub, abre el navegador y levanta el dashboard
-```
-
-Los escaneos que lances desde el dashboard local quedan sólo en tu PC (no se publican).
-
-### Opción B: Programador de tareas de Windows
-
-```powershell
-schtasks /Create /SC HOURLY /MO 3 /TN "MonitorPrecios" /TR "\"C:\ruta\monitor\.venv\Scripts\python.exe\" \"C:\ruta\monitor\scan.py\" --once"
-```
-
-Las rutas son absolutas. `settings.py` resuelve `.env`, `config/` y `data/` relativo al proyecto,
-así que no importa desde qué carpeta se lance.
-
-### Opción C: scheduler interno
-
-Con `SCHEDULER_ENABLED=true` en `.env`, `python -m app.main` escanea cada
-`SCAN_INTERVAL_MINUTES` (180 por defecto) mientras el servidor esté levantado.
-
-### Eventos, promos y cupones
-
-- `config/events.json` lista Hot Sale, Cyber Monday, Black Friday, etc. Durante un evento el
-  escaneo corre **cada hora** (fuera de eventos, cada 3 h) y las alertas lo mencionan (🔥).
-  Las fechas futuras son aproximadas: actualizalas cuando se anuncien.
-- Cada precio guarda su **promo** si la tienda la informa: % de descuento sobre lista, teasers de
-  VTEX (cuotas, descuentos), ofertas y envío gratis de ML. Se ve en el dashboard (🏷️) y en las alertas.
-- Los **cupones/códigos** que no se reflejan en el precio publicado (los que se cargan en el
-  checkout o se anuncian en redes) no se pueden leer automáticamente.
-
-### Alertas y resumen
-
-- Por defecto avisa sólo **ofertas reales** (≥ 15 % / ≥ 30 % vs mercado), el precio objetivo
-  manual y la vuelta de stock de algo en oferta. Con `ALERT_PRICE_DROPS=true` también avisa cada
-  baja de 1 % o más (`ALERT_MIN_DROP_PCT`).
-- No avisa nada de ofertas absurdas: más de 1,5 veces el límite "alto" (`ALERT_MAX_OVER_HIGH`).
-- Todos los días a las 9 (AR) llega un **resumen** con el mejor precio de cada monitor y su rango
-  (`python scan.py --summary`).
-
-## 6. API
-
-| Método | Ruta | Descripción |
+| Adaptador | Tiendas | Cómo |
 |---|---|---|
-| GET | `/` | Dashboard |
-| POST | `/api/scan` | Lanza un escaneo en segundo plano (202). Si ya hay uno corriendo devuelve 409. Body opcional: `{"target_ids": [...]}` |
-| GET | `/api/status` | Estado del escaneo (`running`, `done/total`, `current`) y última corrida |
-| GET | `/api/dashboard` | Los datos de la tabla en JSON |
-| GET/POST | `/api/targets` | Lista, o crea/edita. Body: `{target_id?, name?, target_price?, price_high?, keywords?, store?, url?, active?}` |
-| POST | `/api/targets/{id}/urls` | `{url, active}` pausa o activa un link, `{url, delete: true}` lo quita |
-| GET | `/api/history/{id}` | Historial de snapshots de un producto |
-| POST | `/api/discover` | Lanza un descubrimiento en segundo plano (202, o 409 si hay un escaneo en curso) |
-| GET | `/api/discover` | Resultado del último descubrimiento |
-| POST | `/api/discover/track` | `{key}`: pasa un modelo descubierto a seguimiento |
-| GET | `/api/history/{id}/best` | Mejor precio de cada escaneo (la curva del gráfico) |
-| GET | `/api/history/{id}.csv` | Todos los snapshots en CSV |
+| `compragamer` | Compra Gamer | Intercepta el catálogo JSON que descarga la propia SPA (Playwright) |
+| `hardgamers` | ~41 tiendas vía HardGamers | Listado de búsqueda (Playwright) |
+| `mercadolibre` | Mercado Libre | **API oficial** con app propia: catálogo + publicación nueva más barata de vendedores con reputación |
+| `vtex` (`fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo`, `samsung`) y `electro` (todas juntas) | Electro y Samsung Shop | Buscador JSON público del storefront VTEX (sin navegador) |
+| `catalogs` (`dell`, `megatone`) | Dell AR, Megatone | Categoría de monitores leída del HTML (descubrimiento) |
+| `generic` | Cualquier ficha (Maximus, Venex...) | JSON-LD, meta tags y heurística de precios |
 
-## 7. Variables de entorno
+No se evade ningún control anti-bot: las tiendas que bloquean (ASUS con captcha, Frávega/Venex
+desde GitHub) se descartan o se escanean desde la PC. Detalle en la pestaña **Info**.
 
-Ver `.env.example`. Las principales:
+---
 
-- `HEADLESS`: `false` muestra el navegador, útil para depurar selectores.
-- `BLOCK_STYLESHEETS`: bloquea el CSS además de imágenes, fuentes y media. Si una tienda deja de
-  funcionar, probá con `false`.
-- `SCAN_DELAY_MIN` / `SCAN_DELAY_MAX`: pausa aleatoria entre URLs (2 a 5 s).
-- `SCRAPE_RETRIES`: reintentos con backoff exponencial (2 s, 4 s, ... más jitter).
+## 4. Instalación desde cero
 
-## 8. Estructura
-
-```
-app/main.py              FastAPI: dashboard, API y scheduler
-app/templates/index.html UI (Tailwind CDN + JS vanilla)
-config/targets.json      Productos, precios objetivo y links
-config/discovery.json    Requisitos obligatorios y fuentes del descubrimiento
-config/specs.json        Specs verificadas por modelo (mate, VESA, peso, brillo, Hz HDMI...)
-scrapers/base.py         Playwright: bloqueo de recursos, rotación de UA, reintentos, JSON-LD, stock
-scrapers/stores/         compragamer, hardgamers, fravega, mercadolibre, generic
-services/price_parser.py Normalizador de montos ARS
-services/db.py           SQLite: snapshots, scan_runs, alerts
-services/tracker.py      Orquestador secuencial y reglas de alertas
-services/discovery.py    Descubrimiento: recolección, agrupado por modelo y evaluación de requisitos
-services/notifier.py     Telegram Bot API
-scan.py                  CLI
-tests/                   pytest (parser, DB, heurísticas, alertas)
+```powershell
+git clone https://github.com/alvarogenetti/monitor-precios-tracker
+cd monitor-precios-tracker
+copy .env.example .env      # completar Telegram y Mercado Libre
+.\iniciar.ps1               # crea el entorno, instala Chromium, baja la base y abre el dashboard
 ```
 
-## Limitaciones conocidas
+**Telegram:** hablale a @BotFather → `/newbot` → token en `TELEGRAM_BOT_TOKEN`; mandale un mensaje
+al bot y tomá tu `chat.id` de `https://api.telegram.org/bot<TOKEN>/getUpdates`.
 
-- **Mercado Libre** suele redirigir a los navegadores automatizados a una verificación anti-bot
-  (`/gz/account-verification`). El scraper **no intenta evadirla**: registra el link como
-  `bloqueado` y sigue con el resto. Por eso los links de ML vienen con `active: false`. Si desde
-  tu conexión funcionan, activalos.
-- Los selectores dependen del HTML de cada tienda y pueden romperse cuando lo cambian. El
-  adaptador genérico y el fallback por JSON-LD reducen el riesgo, pero conviene revisar los
-  errores del dashboard cada tanto.
-- Usalo con frecuencias razonables (cada 3 horas está bien) y respetá los términos de cada sitio.
+**Mercado Libre:** creá una app en https://developers.mercadolibre.com.ar/devcenter (Redirect URI:
+`https://github.com/alvarogenetti/monitor-precios-tracker`) y activá los **permisos funcionales**
+de lectura de publicaciones/catálogo (sin eso la API responde 403). App ID y Secret Key van en
+`ML_CLIENT_ID` / `ML_CLIENT_SECRET`. Probá con `python scan.py --meli-check`.
 
-### Tiendas evaluadas que no se pueden usar (nov-2026)
+**Escaneo local programado** (Frávega y Venex):
 
-- **Musimundo**: el sitio está en mantenimiento y redirige a On City (que ya está).
-- **Garbarino / Compumundo**: el dominio no resuelve / responde 403.
-- **ASUS Store**: pide captcha (no se evade).
-- **LG Argentina**: no vende online (sólo "dónde comprar").
-- **Lenovo / HP**: sólo con navegador y casi sin monitores QHD en stock; no se sumaron.
+```powershell
+schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\Proyectos\monitor-precios-tracker\escaneo-local.ps1"
+```
+
+---
+
+## 5. Referencia
+
+### Configuración
+
+| Archivo | Qué tiene |
+|---|---|
+| `config/targets.json` | Monitores seguidos: links por tienda, keywords (`"274QF\|275QF"` = alternativas), precio de aviso, `market_price`, `"ci": false` para links que sólo se escanean desde la PC |
+| `config/discovery.json` | Requisitos, fuentes del descubrimiento, marcas sin reseñas, OLED máximo |
+| `config/specs.json` | Fichas técnicas verificadas por modelo (con fuentes y confianza) |
+| `config/overrides.json` | Tus confirmaciones / descartes desde el dashboard |
+| `config/events.json` | Fechas de eventos de descuentos |
+| `.env` | Credenciales y ajustes (ver `.env.example`) |
+
+### CLI (`scan.py`)
+
+```powershell
+python scan.py --once                 # escanea los seguidos
+python scan.py --once --only-local    # sólo los links "ci": false (Frávega, Venex)
+python scan.py --discover             # descubrimiento
+python scan.py --summary              # resumen diario por Telegram
+python scan.py --url <URL> --keywords X   # probar una URL sin guardar nada
+python scan.py --meli-check           # probar la API de Mercado Libre
+python -m app.site site               # generar el dashboard estático
+python -m services.datastore pull     # bajar la base de la rama data
+```
+
+### API local
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| POST | `/api/scan` · `/api/discover` | Escaneo / descubrimiento en segundo plano (409 si ya hay uno) |
+| GET | `/api/status` · `/api/dashboard` · `/api/discover` | Estado y datos |
+| GET/POST | `/api/targets` | Listar / crear / editar seguidos |
+| POST | `/api/targets/{id}/urls` | Pausar, activar o quitar un link |
+| POST | `/api/discover/track` | Pasar un modelo descubierto a seguidos |
+| POST | `/api/confirm` | Confirmar un dato (`si`/`no`), descartar o deshacer |
+| GET | `/api/history/{id}` · `/best` · `.csv` | Historial |
+
+### Estructura
+
+```
+app/            FastAPI, dashboard (templates/index.html) y generador estático (site.py)
+scrapers/       base Playwright + adaptadores por tienda
+services/       tracker (escaneo y alertas), discovery, market (ofertas reales), spec_enrich (ML),
+                overrides, datastore (rama data), events, daily, summary, meli_api, notifier, db
+config/         targets, discovery, specs, overrides, events
+tests/          pytest (sin red)
+iniciar.ps1     dashboard local · escaneo-local.ps1: tarea programada
+```
+
+### Limitaciones
+
+- HardGamers trae ~54 resultados por búsqueda; Megatone sólo los primeros 20 por categoría y Dell
+  sólo la primera página desde GitHub.
+- El buscador del catálogo de ML es impreciso; algunos modelos no aparecen.
+- Los cupones que se cargan en el checkout no se ven.
+- Frávega y Venex dependen de que la PC esté prendida.

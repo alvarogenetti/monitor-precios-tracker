@@ -26,6 +26,14 @@ def build_summary() -> str:
               else f"{round(r['diff']):+d}% vs objetivo")
         mark = {"excepcional": " 🔥", "buena": " 💰"}.get(r.get("level"), "")
         lines.append(f"{EMOJI[r['band']]} {name}: <b>{fmt_ars(b['price_cash'])}</b> ({vs}){mark} — {where}")
+    from app.main import build_context
+
+    recs = build_context()["recs"]
+    if recs:
+        lines.append("\n💡 <b>Conviene empezar a seguir:</b>")
+        for m in recs[:3]:
+            lines.append(f'• <a href="{html.escape(m["best"]["url"], quote=True)}">{html.escape(m["name"][:60])}</a> '
+                         f"— {fmt_ars(m['best']['price'])} ({html.escape(m['why'][0])})")
     disc = db.last_discovery()
     if disc:
         n = sum(1 for m in disc["results"] if m["status"] == "cumple")

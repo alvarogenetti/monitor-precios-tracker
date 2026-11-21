@@ -337,6 +337,45 @@
         }
       ],
       "market_price": 497000
+    },
+    {
+      "id": "dell-s2725dc",
+      "name": "Dell 27 Plus S2725DC (USB-C 65W)",
+      "target_price": 600000,
+      "price_high": 850000,
+      "market_price": 779000,
+      "notes": "Opción B del research: USB-C con carga de 65 W (un solo cable), contraste 1500:1, mate, VESA 100. Hoy sólo aparece importado (Frávega · Glic ~$779k).",
+      "keywords": [
+        "S2725DC"
+      ],
+      "active": true,
+      "urls": [
+        {
+          "store": "fravega",
+          "url": "https://www.fravega.com/l/?keyword=S2725DC",
+          "ci": false
+        },
+        {
+          "store": "mercadolibre",
+          "url": "https://listado.mercadolibre.com.ar/dell-s2725dc"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=S2725DC"
+        },
+        {
+          "store": "hardgamers",
+          "url": "https://www.hardgamers.com.ar/search?text=S2725DC"
+        },
+        {
+          "store": "compragamer",
+          "url": "https://compragamer.com/productos?criterio=S2725DC"
+        },
+        {
+          "store": "dell",
+          "url": "https://www.dell.com/es-ar/shop/computer-monitors/ar/computer-monitors"
+        }
+      ]
     }
   ]
 }

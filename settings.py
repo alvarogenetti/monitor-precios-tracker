@@ -61,6 +61,7 @@ class Settings:
     targets_path: Path = _path("TARGETS_PATH", "config/targets.json")
     discovery_path: Path = _path("DISCOVERY_PATH", "config/discovery.json")
     specs_path: Path = _path("SPECS_PATH", "config/specs.json")
+    overrides_path: Path = _path("OVERRIDES_PATH", "config/overrides.json")
 
     @property
     def meli_enabled(self) -> bool:

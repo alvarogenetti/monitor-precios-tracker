@@ -82,14 +82,6 @@ def test_migration_backfills_run_id(tmp_path):
         assert [r[0] for r in c.execute("SELECT run_id FROM snapshots ORDER BY id")] == [1, 2]
 
 
-def test_fravega_card_prices():
-    from scrapers.stores.fravega import card_prices
-    text = ("Monitor Gamer BenQ EW270Q LED 27 QHD 200Hz USB C\n\nVendido por Glic\n\n$943.695\n28\n"
-            "$679.460\n\nPrecio s/imp. nac. $561.537\n\nEnvío GRATIS\nComparar")
-    assert card_prices(text) == (679460, 943695)
-    assert card_prices("Monitor X\n$500.000\nPrecio s/imp. nac. $413.223") == (500000, None)
-
-
 def test_fravega_registered():
     from scrapers.stores import get_scraper_class
     from scrapers.stores.vtex import VtexScraper as FravegaScraper

@@ -96,6 +96,33 @@ def series_stats(prices: list[float]) -> dict | None:
     return {"n": n, "min": srt[0], "max": srt[-1], "median": median}
 
 
+def recommendations(rows: list[dict], models: list[dict], limit: int = 5) -> list[dict]:
+    """Modelos descubiertos que conviene empezar a seguir, con el motivo.
+
+    Sólo marcas conocidas que cumplen todo y no seguís todavía, si: están en oferta real, son más
+    baratos que todos tus seguidos que cumplen, o tienen USB-C y salen menos que tu opción USB-C."""
+    ok_rows = [r for r in rows if r.get("eval", {}).get("status") == "cumple" and r["best"]]
+    cheapest = min((r["best"]["price_cash"] for r in ok_rows), default=None)
+    usbc = min((r["best"]["price_cash"] for r in ok_rows if r.get("usb_c")), default=None)
+    out = []
+    for m in models:
+        if m.get("tracked") or m.get("generic") or m["status"] not in ("cumple", "oled_oferta"):
+            continue
+        price = m["best"]["price"]
+        why = []
+        if m.get("level"):
+            why.append(f"oferta real ({m['real'] * 100:.0f}% debajo del mercado)")
+        if cheapest and price < cheapest:
+            why.append("más barato que todos tus seguidos que cumplen")
+        if m.get("usb_c") and (usbc is None or price < usbc):
+            why.append("tiene USB-C con carga y sale menos que tu opción USB-C actual" if usbc
+                       else "tiene USB-C con carga (no seguís ninguno así)")
+        if why:
+            out.append({**m, "why": why})
+    out.sort(key=lambda m: (not m.get("level"), m["best"]["price"]))
+    return out[:limit]
+
+
 def build_context(static: bool = False) -> dict:
     """Todo lo que necesita el dashboard (se usa igual en la web local y en GitHub Pages)."""
     from scrapers.base import matches_keywords
@@ -118,8 +145,14 @@ def build_context(static: bool = False) -> dict:
     disc = db.last_discovery()
     models = []
     if disc:
+        from services.discovery import reevaluate
+        from services.overrides import load as load_overrides
+
+        ovs = load_overrides(settings.overrides_path)
+        ml = db.spec_cache_get([m["key"] for m in disc["results"]], 3650)
         generic = [g.lower() for g in cfg.get("generic_brands", [])]
         for m in disc["results"]:
+            reevaluate(m, cfg, catalog, ml.get(m["key"]) or None, ovs.get(m["key"]))
             # ¿Lo seguís? (se recalcula en vivo: puede haberse agregado después del descubrimiento)
             m["tracked"] = next((t.id for t in targets if t.keywords and any(
                 matches_keywords(o["title"], t.keywords, []) for o in m["offers"])), None)
@@ -144,13 +177,21 @@ def build_context(static: bool = False) -> dict:
         if date.fromisoformat(e["to"]) >= date.today():
             upcoming = e
             break
+    from services.stores_info import STORES
+
+    recs = recommendations(rows, models)
+    rec_keys = {m["key"] for m in recs}
+    for m in models:
+        m["recommended"] = m["key"] in rec_keys
     return {
         "static": static, "rows": rows, "models": models, "discovery": disc,
+        "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}),
+        "oled_max": cfg.get("oled_max_price"), "confirm_fields": ["acabado mate", "VESA", "panel", "Hz"],
         "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
         "telegram": settings.telegram_enabled, "scheduler": settings.scheduler_enabled or static,
         "interval": settings.scan_interval_minutes if not static else 180, "bands": BANDS,
         "event": active_event(), "upcoming": upcoming, "status_labels": STATUS_LABELS,
-        "kpi": {"offers": len(offers_now), "cheapest": cheapest,
+        "kpi": {"offers": len(offers_now), "cheapest": cheapest, "recs": len(recs),
                 "tracked": len(rows), "cumple": sum(1 for m in models if m["status"] == "cumple")},
     }
 
@@ -350,6 +391,28 @@ def api_discover_track(body: TrackRequest):
     targets.append(t)
     save_targets(settings.targets_path, targets)
     return {"created": True, "target": t.model_dump()}
+
+
+class ConfirmRequest(BaseModel):
+    key: str
+    label: str | None = None       # "acabado mate", "VESA", "panel", "Hz", "peso" o motivo de descarte
+    answer: str                    # si / no / discard / clear
+
+
+@app.post("/api/confirm")
+def api_confirm(body: ConfirmRequest):
+    """Confirma a mano un dato de un modelo (o lo descarta). Se guarda en config/overrides.json y
+    se pushea solo a GitHub para que Actions use lo mismo."""
+    from services import overrides
+
+    if body.answer not in ("si", "no", "discard", "clear"):
+        raise HTTPException(422, "answer debe ser si / no / discard / clear")
+    if body.answer in ("si", "no") and body.label not in overrides.FIELDS:
+        raise HTTPException(422, f"Dato desconocido: {body.label}")
+    ov = overrides.set_value(settings.overrides_path, body.key, body.label, body.answer)
+    overrides.push_async(settings.targets_path.parent.parent, [settings.overrides_path],
+                         f"config: confirmación manual de {body.key} ({body.label or body.answer})")
+    return {"key": body.key, "override": ov}
 
 
 # Va después de las rutas .csv y /best para que {target_id} no se las trague

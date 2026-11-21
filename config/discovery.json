@@ -15,7 +15,8 @@
     "max_weight_kg": 8,
     "min_hdmi_ports": 1,
     "ideal_brightness_nits": 300,
-    "psu_voltage": "220V"
+    "psu_voltage": "220V",
+    "weight_required": false
   },
   "oled_max_price": 650000,
   "max_price": 1500000,

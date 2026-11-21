@@ -43,6 +43,27 @@
   </div>
 {% endmacro %}
 
+{% macro confirm_box(key, missing, manual, can_discard) %}
+  {% if not static %}
+    {% set todo = missing|select('in', confirm_fields)|list %}
+    {% if todo or manual or can_discard %}
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] dark:bg-slate-800/60">
+      {% for f in todo %}
+        <span class="whitespace-nowrap">¿{{ {'acabado mate': 'Pantalla mate', 'VESA': 'Tiene VESA 75/100', 'panel': 'Panel IPS', 'Hz': '≥ 120 Hz'}[f] }}?
+          <button class="rounded bg-emerald-600 px-1.5 text-white hover:bg-emerald-500" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'si')">Sí</button>
+          <button class="rounded bg-rose-600 px-1.5 text-white hover:bg-rose-500" onclick="confirmData({{ key|tojson|forceescape }}, '{{ f }}', 'no')">No</button>
+        </span>
+      {% endfor %}
+      {% if manual %}<span class="text-slate-500">✋ confirmado a mano: {{ manual|join(', ') }}</span>{% endif %}
+      <span class="ml-auto flex gap-2">
+        {% if manual %}<button class="text-slate-500 underline" onclick="confirmData({{ key|tojson|forceescape }}, null, 'clear')">deshacer</button>{% endif %}
+        {% if can_discard %}<button class="text-rose-500 underline" onclick="discardModel({{ key|tojson|forceescape }})">descartar</button>{% endif %}
+      </span>
+    </div>
+    {% endif %}
+  {% elif manual %}<div class="text-[11px] text-slate-500">✋ confirmado a mano: {{ manual|join(', ') }}</div>{% endif %}
+{% endmacro %}
+
 <body class="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
 <main class="mx-auto max-w-6xl space-y-5 px-4 py-6">
 
@@ -96,7 +117,7 @@
       {% else %}<div class="mt-1 text-2xl text-slate-400">—</div>{% endif %}
     </div>
     <div class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Seguidos / descubiertos</div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Seguidos / descubiertos{% if kpi.recs %} · <span class="text-amber-600">💡 {{ kpi.recs }} sugerido{{ 's' if kpi.recs > 1 }}</span>{% endif %}</div>
       <div class="mt-1 text-2xl font-semibold">{{ kpi.tracked }} <span class="text-base font-normal text-slate-400">/ {{ kpi.cumple }} cumplen</span></div>
       <div class="text-xs text-slate-400">{{ models|length }} modelos evaluados</div>
     </div>
@@ -114,7 +135,7 @@
     <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="seguidos" role="tab">📌 Seguidos <span class="text-slate-400">({{ rows|length }})</span></button>
     <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="descubrimiento" role="tab">🔎 Descubrimiento <span class="text-slate-400">({{ models|selectattr('status', 'ne', 'descartado')|list|length }})</span></button>
     <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="alertas" role="tab">🔔 Alertas</button>
-    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="ayuda" role="tab">❓ Cómo funciona</button>
+    <button class="tab -mb-px whitespace-nowrap border-b-2 border-transparent px-3 py-2 font-medium" data-tab="ayuda" role="tab">ℹ️ Info</button>
   </nav>
 
   {# ---------- barra de filtros (misma para las dos listas) ---------- #}
@@ -162,6 +183,7 @@
                 {% for b in ev.badges or [] if 'Hz' in b %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{{ b }}</span>{% endfor %}
               </div>
               {% if ev.missing %}<div class="mt-0.5 text-xs text-amber-600">Confirmar: {{ ev.missing|join(', ') }}</div>{% endif %}
+              {% if ev.manual %}<div class="mt-0.5 text-[11px] text-slate-500">✋ confirmado a mano: {{ ev.manual|join(', ') }}</div>{% endif %}
               {% if ev.warnings %}<div class="mt-0.5 text-xs text-slate-500">⚠ {{ ev.warnings|join(' · ') }}</div>{% endif %}
             </div>
             <div class="spark hidden text-slate-500 md:block" style="width:130px;height:36px"></div>
@@ -182,6 +204,7 @@
               {% if r.hist %}<span class="text-slate-500">Mín. histórico: <b class="tabular">{{ r.hist.price_cash|ars }}</b> ({{ r.hist.store }})</span>{% endif %}
             </div>
             {{ checks_list(ev.checks) }}
+            {{ confirm_box(ev.key, ev.missing or [], ev.manual or [], false) }}
 
             <div class="overflow-x-auto">
               <table class="w-full text-left">
@@ -258,6 +281,21 @@
       <b>"+ Seguir"</b> lo pasa a <i>Seguidos</i>: se escanea cada ~3 h en cada tienda, con historial e avisos al momento.
       {% if discovery %}<div class="mt-1 text-xs text-indigo-700/80 dark:text-indigo-300/80">Último descubrimiento: <span data-ts="{{ discovery.finished_at }}"></span> · {{ discovery.n_offers }} ofertas leídas{% if discovery.errors %} · <span title="{{ discovery.errors|join(' | ') }}">{{ discovery.errors|length }} fuente(s) con error</span>{% endif %}</div>{% endif %}
     </div>
+    {% if recs %}
+      <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
+        <div class="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">💡 Conviene empezar a seguir</div>
+        <ul class="space-y-1.5 text-sm">
+          {% for m in recs %}
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <a class="font-medium text-indigo-700 hover:underline dark:text-indigo-300" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.name }}</a>
+              <span class="tabular font-semibold">{{ m.best.price|ars }}</span>
+              <span class="text-xs text-amber-800 dark:text-amber-300">{{ m.why|join(' · ') }}</span>
+              {% if not static %}<button onclick="trackModel({{ m.key|tojson|forceescape }})" class="ml-auto rounded bg-slate-800 px-2 py-0.5 text-xs text-white dark:bg-slate-700">+ Seguir</button>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
     {% if not models %}
       <p class="text-sm text-slate-400">Todavía no corrió ningún descubrimiento.</p>
     {% else %}
@@ -283,6 +321,7 @@
                 {{ status_pill(m.status) }} {{ usbc_pill(m.usb_c) }}
                 {% for b in m.badges if 'Hz' in b %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{{ b }}</span>{% endfor %}
                 {% if m.generic %}<span class="rounded bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">marca sin reseñas</span>{% endif %}
+                {% if m.recommended %}<span class="rounded bg-amber-100 px-1.5 text-[11px] font-medium text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">💡 sugerido</span>{% endif %}
               </div>
             </div>
             <div class="shrink-0 text-right">
@@ -296,6 +335,7 @@
           {% if m.fails %}<div class="text-xs text-rose-600">✗ {{ m.fails|join(' · ') }}</div>{% endif %}
           {% if m.missing %}<div class="text-xs text-amber-600">Confirmar: {{ m.missing|join(', ') }}</div>{% endif %}
           {% if m.warnings %}<div class="text-xs text-slate-500">⚠ {{ m.warnings|join(' · ') }}</div>{% endif %}
+          {{ confirm_box(m.key, m.missing or [], m.manual or [], not m.tracked and m.status != 'descartado') }}
           <div class="mt-auto flex items-center justify-between gap-2 text-xs">
             {% if m.spec and m.spec.notes %}<details class="text-slate-500"><summary class="text-indigo-600">Ficha</summary><p class="mt-1">{{ m.spec.notes }}</p></details>{% else %}<span></span>{% endif %}
             {% if m.tracked %}<span class="font-medium text-emerald-600">📌 Seguido</span>
@@ -322,29 +362,64 @@
 
   {# ================= AYUDA ================= #}
   <section data-panel="ayuda" class="space-y-4 text-sm" hidden>
-    <div class="grid gap-3 md:grid-cols-2">
+    <div class="grid gap-3 md:grid-cols-3">
       <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">Qué se busca</h3>
-        <ul class="list-disc space-y-1 pl-5 text-slate-600 dark:text-slate-300">
-          <li>27" plano, QHD 2560×1440, ≥ 120 Hz, IPS (no VA; OLED sólo en oferta)</li>
-          <li>Pantalla mate, flicker-free, ≥ 300 nits</li>
-          <li>VESA 75/100 y &lt; 8 kg (brazo Ironstek), HDMI, 220 V</li>
-          <li>Deseable: USB-C con carga ≥ 65 W (un solo cable)</li>
+        <h3 class="mb-2 font-semibold">✅ Obligatorio</h3>
+        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
+          <li>📐 <b>27"</b> plano</li>
+          <li>🖥️ <b>QHD 2560×1440</b> (~109 PPI, ideal al 100 %)</li>
+          <li>🔄 <b>≥ {{ req.min_hz or 120 }} Hz</b> (por HDMI 2.0 suelen ser 144 Hz: alcanza)</li>
+          <li>🎨 Panel <b>IPS</b> (Fast/Rapid/SS/Nano). VA no. OLED sólo bajo {{ oled_max|ars }}</li>
+          <li>🪞 Pantalla <b>mate</b> antirreflejo</li>
+          <li>🦾 <b>VESA 75×75 o 100×100</b> (brazo Ironstek){% if req.weight_required %} y &lt; {{ req.max_weight_kg }} kg{% endif %}</li>
+          <li>🔌 Al menos un <b>HDMI</b> · 220 V</li>
         </ul>
       </div>
       <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">Qué es una oferta real</h3>
-        <p class="text-slate-600 dark:text-slate-300">El <b>precio de mercado</b> es la mediana del mejor precio de los últimos 30 días entre todas las tiendas. <b>💰 ≥ 15 %</b> debajo es buena oferta; <b>🔥 ≥ 30 %</b> es excepcional. El "precio de lista" tachado no cuenta: si la tienda anuncia "-50 %" y contra el mercado es menos de la mitad, se marca <b>inflado</b>.</p>
+        <h3 class="mb-2 font-semibold">⭐ Deseable</h3>
+        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
+          <li>⚡ <b>USB-C con carga ≥ 65 W</b>: un solo cable para la notebook (vale hasta ~$100.000 más)</li>
+          <li>☀️ ≥ 300 nits, flicker-free, filtro de luz azul</li>
+          <li>🏷️ Marca conocida (las sin reseñas sólo con oferta ≥ 30 %)</li>
+          <li>⚖️ Peso: informativo (el brazo soporta hasta 8 kg)</li>
+        </ul>
+        <h3 class="mb-2 mt-4 font-semibold">🚫 No pagar extra por</h3>
+        <p class="text-slate-600 dark:text-slate-300">KVM, parlantes, base ergonómica (va al brazo), HDR400 de marketing, más de 180 Hz.</p>
       </div>
       <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">Seguidos vs. Descubrimiento</h3>
-        <p class="text-slate-600 dark:text-slate-300"><b>Seguidos</b>: cada ~3 h en cada tienda, con historial por tienda. <b>Descubrimiento</b>: una vez por día, todos los modelos de todas las tiendas; también avisa ofertas reales. "+ Seguir" pasa un modelo descubierto a Seguidos.</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <h3 class="mb-2 font-semibold">Estados</h3>
-        <p class="text-slate-600 dark:text-slate-300">✅ <b>Cumple todo</b>: verificado con la ficha técnica. ❔ <b>A confirmar</b>: el título cumple pero falta algún dato (mate, VESA, peso). ⛔ <b>No cumple</b>: falla algún requisito (se muestra el motivo).</p>
+        <h3 class="mb-2 font-semibold">💰 Cuándo comprar</h3>
+        <p class="text-slate-600 dark:text-slate-300">Sin apuro: sólo con <b>descuento real</b> contra el precio de mercado (mediana de 30 días entre todas las tiendas). <b>≥ 15 %</b> buena oferta, <b>≥ 30 %</b> excepcional. El "precio de lista" tachado no cuenta: si está inflado, se marca.</p>
+        <h3 class="mb-2 mt-4 font-semibold">🧭 Cómo se usa</h3>
+        <ul class="space-y-1 text-slate-600 dark:text-slate-300">
+          <li><b>Seguidos</b>: cada ~3 h en cada tienda. <b>Descubrimiento</b>: todos los modelos, 1 vez por día (también avisa ofertas).</li>
+          <li><b>+ Seguir</b> pasa un descubierto a Seguidos. <b>💡 Sugerido</b>: conviene seguirlo.</li>
+          <li><b>¿Pantalla mate? Sí / No</b>: confirmá vos un dato que falta (se guarda y se sube a GitHub). <b>Descartar</b> lo saca de la lista.</li>
+        </ul>
       </div>
     </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <h3 class="mb-3 font-semibold">🏪 Dónde se busca</h3>
+      <div class="space-y-4">
+        {% for g in stores %}
+          <div>
+            <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ g.group }}</div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  {% for name, how, where in g['items'] %}
+                    <tr><td class="w-48 py-1.5 pr-3 font-medium">{{ name }}</td><td class="pr-3 text-slate-600 dark:text-slate-300">{{ how }}</td>
+                        <td class="whitespace-nowrap text-right text-slate-400">{% if where == 'GitHub' %}☁️ GitHub{% elif where == 'Tu PC' %}💻 tu PC{% else %}{{ where }}{% endif %}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="mt-3 text-xs text-slate-400">☁️ GitHub Actions escanea cada ~3 h (cada hora en eventos). 💻 Frávega y Venex bloquean a GitHub: se escanean desde tu PC con la tarea programada.</p>
+    </div>
+
     {% if not static %}
     <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <h3 class="mb-2 font-semibold">Agregar un monitor a mano</h3>
@@ -507,6 +582,16 @@ async function trackModel(key){
   const {data} = await api('POST', '/api/discover/track', {key});
   alert(`📌 Ahora seguís: ${data.target.name}\nSe va a escanear cada ~3 h en cada tienda. Tocá "Escanear seguidos" para traer precios ya.`);
   store.set('tab', 'seguidos'); location.hash = 'seguidos'; location.reload();
+}
+async function confirmData(key, label, answer){
+  await api('POST', '/api/confirm', {key, label, answer});
+  location.reload();
+}
+async function discardModel(key){
+  const why = prompt('¿Por qué lo descartás? (queda anotado; se puede deshacer)', 'no me convence');
+  if (why === null) return;
+  await api('POST', '/api/confirm', {key, label: why || 'descartado a mano', answer: 'discard'});
+  location.reload();
 }
 async function saveRange(e, id){
   e.preventDefault();
