@@ -394,6 +394,41 @@
       ],
       "segment": "usbc",
       "why": "Opción B del research: USB-C 65 W, contraste 1500:1 (mejores negros para temas oscuros), TÜV 4 estrellas. Hoy solo importado."
+    },
+    {
+      "id": "ironstek-fl04a",
+      "name": "Brazo Ironstek FL04A-LTA (monitor + notebook)",
+      "kind": "accesorio",
+      "segment": "accesorios",
+      "why": "Dos brazos a gas independientes (monitor y bandeja de notebook) en vez del caño fijo de casi todos los dobles: ajuste de altura 41 cm, extensión 49 cm, 2-8 kg por brazo, VESA 75/100, bandeja 29,5x26,5 cm. No encontré otro de este estilo en Argentina.",
+      "target_price": 78000.0,
+      "price_high": 100000.0,
+      "market_price": 87200,
+      "notes": "Nov-2026: Electro y Hogar $108.999 en cuotas (6 sin interés) o $87.199 por transferencia; en ML el mismo vendedor lo publica a $119.999. Los demás de ML/Frávega/On City/Carrefour (MUA4002, Onebox, Gadnic, Klip KMM-301, Zaka, Philco, 1SOW) son de caño fijo.",
+      "keywords": [
+        "FL04A"
+      ],
+      "active": true,
+      "urls": [
+        {
+          "store": "electroyhogar",
+          "url": "https://www.electroyhogar.com.ar/productos/soporte-monitor-ironstek-fl04a-lta-base-notebook-p-2-monitores-brazo-hidraulico-13-a-32-1a8yp/",
+          "note": "Tienda del vendedor (Tiendanube): toma el precio por transferencia"
+        },
+        {
+          "store": "mercadolibre",
+          "url": "https://www.mercadolibre.com.ar/p/MLA74960236",
+          "note": "API oficial de ML: producto de catálogo, publicación nueva más barata"
+        },
+        {
+          "store": "hardgamers",
+          "url": "https://www.hardgamers.com.ar/search?text=FL04A"
+        },
+        {
+          "store": "electro",
+          "url": "https://electro.vtex/?q=FL04A"
+        }
+      ]
     }
   ]
 }

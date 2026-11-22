@@ -106,7 +106,11 @@ def api_scrape(client, url: str, target: "Target") -> ScrapeResult:
                             seller=client.nickname(it.get("seller_id")))
 
     if kind == "product":
-        products = [{"id": ident, "name": None}]
+        try:
+            name = client.product(ident).get("name")
+        except Exception:  # noqa: BLE001
+            name = None
+        products = [{"id": ident, "name": name}]
     else:
         kws = target.keywords or search_query(target).split()
         products, seen = [], set()

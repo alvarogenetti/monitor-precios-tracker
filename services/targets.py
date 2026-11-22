@@ -56,6 +56,8 @@ class Target(BaseModel):
     # Segmento en el dashboard (baratos / escalon / usbc / si_caen) y por qué está ahí
     segment: str | None = None
     why: str | None = None
+    # "monitor" se evalúa contra los requisitos; "accesorio" (brazo, etc.) sólo se sigue por precio
+    kind: str = "monitor"
     # Nota libre (de dónde salen los rangos, specs a confirmar, etc.)
     notes: str | None = None
     # Palabras que DEBEN aparecer en el título (para páginas de búsqueda / listados).

@@ -141,3 +141,12 @@ def test_vtex_interest_free_installments():
         "Price": 500000.0, "ListPrice": 500000.0, "AvailableQuantity": 3, "Installments": inst}}]}]}]
     o = offers_from(p, "oncity")[0]
     assert o["cuotas"] == 12 and promo_text(o) == "12 cuotas sin interés"
+
+
+def test_accesorio_no_se_evalua_como_monitor():
+    from services.segments import SEGMENT_KEYS
+    from services.targets import Target
+
+    t = Target(id="brazo", name="Brazo", target_price=78000, kind="accesorio", segment="accesorios")
+    assert t.kind == "accesorio" and "accesorios" in SEGMENT_KEYS
+    assert Target(id="m", name="Monitor", target_price=1).kind == "monitor"

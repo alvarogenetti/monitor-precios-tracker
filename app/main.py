@@ -140,6 +140,9 @@ def build_context(static: bool = False) -> dict:
     rows = build_dashboard()
     targets = [r["target"] for r in rows]
     for r in rows:
+        if r["target"].kind != "monitor":
+            r["eval"], r["usb_c"] = {"status": "accesorio"}, None
+            continue
         snaps = [o["snap"] for o in r["offers"] if o["active"] and o["snap"]]
         ev = evaluate_target(r["target"], snaps, cfg, catalog)
         if ev:

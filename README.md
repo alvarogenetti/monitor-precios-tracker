@@ -21,7 +21,8 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 
 - **Seguidos**: los monitores que elegiste, escaneados cada ~3 h en cada tienda y agrupados por
   segmento (`segment` en `config/targets.json`, editable desde el dashboard), cada uno con su "por qué":
-  **Opciones baratas** · **Un escalón arriba** · **Con USB-C 65 W** · **Gama alta: solo si caen fuerte**.
+  **Opciones baratas** · **Un escalón arriba** · **Con USB-C 65 W** · **Gama alta: solo si caen fuerte** ·
+  **Accesorios** (el brazo Ironstek FL04A: sólo precio, sin evaluar requisitos).
   Arriba de todo, las ofertas reales del momento.
 - **Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
   una vez por día. Arriba aparecen los **💡 sugeridos para seguir**. Con **+ Seguir** un modelo pasa
@@ -145,7 +146,7 @@ schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powe
 
 | Archivo | Qué tiene |
 |---|---|
-| `config/targets.json` | Monitores seguidos: links por tienda, keywords (`"274QF\|275QF"` = alternativas), precio de aviso, `market_price`, `"ci": false` para links que sólo se escanean desde la PC |
+| `config/targets.json` | Monitores seguidos: links por tienda, keywords (`"274QF\|275QF"` = alternativas), precio de aviso, `market_price`, `"ci": false` para links que sólo se escanean desde la PC, `"kind": "accesorio"` para seguir algo que no es un monitor |
 | `config/discovery.json` | Requisitos, fuentes del descubrimiento, marcas sin reseñas, OLED máximo |
 | `config/specs.json` | Fichas técnicas verificadas por modelo (con fuentes y confianza) |
 | `config/overrides.json` | Tus confirmaciones / descartes desde el dashboard |

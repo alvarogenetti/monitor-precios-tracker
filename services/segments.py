@@ -11,6 +11,8 @@ SEGMENTS = [
      "Un solo cable para la notebook (video + carga). Es lo deseable; vale hasta ~$100.000 más."),
     ("si_caen", "Gama alta: solo si caen fuerte",
      "Hoy caros para lo que aportan a programar; valen la pena con 25-30 % de descuento real."),
+    ("accesorios", "Accesorios",
+     "Brazo y otros: no se evalúan como monitor, sólo se sigue el precio y avisa las ofertas reales."),
 ]
 SEGMENT_KEYS = [k for k, _, _ in SEGMENTS]
 
