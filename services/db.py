@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS offer_alerts (
     created_at  TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS event_refs (
+    event       TEXT NOT NULL,       -- "Black Friday|2026-11-26"
+    target_id   TEXT NOT NULL,
+    ref         REAL,                -- precio de mercado congelado antes del evento
+    best        REAL,                -- mejor precio en ese momento
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (event, target_id)
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     target_id   TEXT NOT NULL,
@@ -420,6 +429,30 @@ class Database:
                 latest[r["url"]] = dict(r)
         emit()
         return out
+
+    def url_median(self, target_id: str, url: str, days: int = 30, exclude_hours: int = 24) -> float | None:
+        """Precio habitual de UN link (mediana de 30 días sin las últimas 24 h)."""
+        import statistics
+
+        with self.connect() as con:
+            rows = con.execute(
+                """SELECT price_cash FROM snapshots WHERE target_id=? AND url=? AND error IS NULL
+                   AND price_cash IS NOT NULL AND (in_stock IS NULL OR in_stock = 1)
+                   AND scanned_at >= datetime('now', ?) AND scanned_at <= datetime('now', ?)""",
+                (target_id, url, f"-{int(days)} days", f"-{int(exclude_hours)} hours")).fetchall()
+        prices = [r[0] for r in rows]
+        return statistics.median(prices) if len(prices) >= 3 else None
+
+    def event_refs(self, event: str) -> dict[str, dict]:
+        with self.connect() as con:
+            rows = con.execute("SELECT * FROM event_refs WHERE event=?", (event,)).fetchall()
+        return {r["target_id"]: dict(r) for r in rows}
+
+    def freeze_event_refs(self, event: str, refs: dict[str, tuple[float | None, float | None]]) -> None:
+        with self.connect() as con:
+            for tid, (ref, best) in refs.items():
+                con.execute("""INSERT OR IGNORE INTO event_refs (event, target_id, ref, best, created_at)
+                               VALUES (?,?,?,?,?)""", (event, tid, ref, best, utcnow()))
 
     def last_run(self) -> dict | None:
         with self.connect() as con:

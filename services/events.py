@@ -41,6 +41,24 @@ def active_event(now: datetime | None = None, events: list[dict] | None = None) 
     return None
 
 
+def event_key(ev: dict) -> str:
+    return f"{ev['name']}|{ev['from']}"
+
+
+def current_or_next(now: datetime | None = None, events: list[dict] | None = None,
+                    within_days: int = 14) -> tuple[dict | None, int | None]:
+    """(evento, días hasta que empieza): el que está en curso (0) o el próximo dentro de
+    `within_days` días. (None, None) si no hay ninguno."""
+    today = (now or datetime.now(AR)).astimezone(AR).date()
+    for ev in sorted(events if events is not None else load(), key=lambda e: e["from"]):
+        start, end = date.fromisoformat(ev["from"]), date.fromisoformat(ev["to"])
+        if start <= today <= end:
+            return ev, 0
+        if 0 < (start - today).days <= within_days:
+            return ev, (start - today).days
+    return None, None
+
+
 def last_ci_scan(db_path: Path | str | None) -> datetime | None:
     if not db_path or not Path(db_path).exists():
         return None

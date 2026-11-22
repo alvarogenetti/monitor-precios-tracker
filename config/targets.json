@@ -38,7 +38,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 343000
+      "market_price": 343000,
+      "segment": "baratos",
+      "why": "Opción A del research: verificado en reseñas (Tom's Hardware), 400 nits y trae cables HDMI y DP."
     },
     {
       "id": "asrock-pg27qft1b",
@@ -78,7 +80,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 323000
+      "market_price": 323000,
+      "segment": "baratos",
+      "why": "El más barato que cumple todo: IPS 180 Hz, mate, 400 nits, VESA 100. Es el QFT2A sin la antena Wi-Fi."
     },
     {
       "id": "gigabyte-gs27qa",
@@ -125,7 +129,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 345000
+      "market_price": 345000,
+      "segment": "baratos",
+      "why": "Alternativa a los ASRock: el más liviano (4,4 kg), color preciso medido y base simple."
     },
     {
       "id": "msi-mag-274qf-x24",
@@ -176,7 +182,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 372000
+      "market_price": 372000,
+      "segment": "escalon",
+      "why": "Rapid IPS más rápido (0,5 ms) y el 274QF X24 llega a 240 Hz; MSI tiene buena postventa. Para código la diferencia es chica."
     },
     {
       "id": "lg-27gs75q-b",
@@ -216,7 +224,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 529000
+      "market_price": 529000,
+      "segment": "si_caen",
+      "why": "Buena calibración de fábrica y terminación, 200 Hz. Hoy sale ~60 % más que los baratos sin ventaja real para programar."
     },
     {
       "id": "benq-ew270q",
@@ -256,7 +266,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 679000
+      "market_price": 679000,
+      "segment": "usbc",
+      "why": "USB-C 65 W, 200 Hz, parlantes decentes y el filtro de luz azul de BenQ. Hoy solo importado."
     },
     {
       "id": "samsung-odyssey-g5-s27fg500el",
@@ -296,7 +308,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 430000
+      "market_price": 430000,
+      "segment": "escalon",
+      "why": "Marca grande con garantía y service oficial en todo el país. IPS plano 180 Hz: pagás la marca, no un mejor panel."
     },
     {
       "id": "ktc-m27t6s",
@@ -336,7 +350,9 @@
           "note": "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop (la más barata)"
         }
       ],
-      "market_price": 497000
+      "market_price": 497000,
+      "segment": "si_caen",
+      "why": "Mini-LED de 1152 zonas: contraste y HDR muy superiores para series y juegos. Para programar hay que apagar el atenuado local."
     },
     {
       "id": "dell-s2725dc",
@@ -375,7 +391,9 @@
           "store": "dell",
           "url": "https://www.dell.com/es-ar/shop/computer-monitors/ar/computer-monitors"
         }
-      ]
+      ],
+      "segment": "usbc",
+      "why": "Opción B del research: USB-C 65 W, contraste 1500:1 (mejores negros para temas oscuros), TÜV 4 estrellas. Hoy solo importado."
     }
   ]
 }

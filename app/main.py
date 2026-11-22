@@ -72,11 +72,18 @@ def build_dashboard() -> list[dict]:
         for o in offers:
             s = o["snap"]
             o["market"] = describe(s["price_cash"], s["price_list"], ref) if s and s["price_cash"] else None
+            usual = db.url_median(t.id, o["url"]) if s and s["price_cash"] and o["active"] else None
+            o["hike"] = round((s["price_cash"] / usual - 1) * 100) if usual and s["price_cash"] >= usual * 1.10 else None
         real = real_discount(best["price_cash"], ref) if best else None
+        from services.events import current_or_next, event_key
+
+        ev, _ = current_or_next(within_days=14)
+        ev_ref = db.event_refs(event_key(ev)).get(t.id) if ev else None
         rows.append({"target": t, "offers": offers, "best": best, "hist": hist.get(t.id),
                      "stock": stock, "last": last, "diff": diff,
                      "band": t.band(best["price_cash"], ref) if best else None,
                      "ref": ref, "ref_src": ref_src, "real": real, "level": level(real),
+                     "ev_ref": ev_ref, "ev_name": ev["name"] if ev else None,
                      "inflated": bool(best and inflated(best["price_cash"], best["price_list"], ref)),
                      "high": t.high,
                      "series": [{"ts": p["ts"], "price": p["price"],
@@ -149,7 +156,12 @@ def build_context(static: bool = False) -> dict:
         from services.overrides import load as load_overrides
 
         ovs = load_overrides(settings.overrides_path)
-        ml = db.spec_cache_get([m["key"] for m in disc["results"]], 3650)
+        from services.spec_enrich import combine
+
+        keys = [m["key"] for m in disc["results"]]
+        ml = db.spec_cache_get(keys, 3650)
+        pages = {k[5:]: v for k, v in db.spec_cache_get(["page:" + k for k in keys], 3650).items()}
+        ml = {k: combine(ml.get(k) or None, pages.get(k) or None) for k in set(ml) | set(pages)}
         generic = [g.lower() for g in cfg.get("generic_brands", [])]
         for m in disc["results"]:
             reevaluate(m, cfg, catalog, ml.get(m["key"]) or None, ovs.get(m["key"]))
@@ -177,6 +189,7 @@ def build_context(static: bool = False) -> dict:
         if date.fromisoformat(e["to"]) >= date.today():
             upcoming = e
             break
+    from services.segments import SEGMENTS
     from services.stores_info import STORES
 
     recs = recommendations(rows, models)
@@ -185,7 +198,7 @@ def build_context(static: bool = False) -> dict:
         m["recommended"] = m["key"] in rec_keys
     return {
         "static": static, "rows": rows, "models": models, "discovery": disc,
-        "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}),
+        "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}), "segments": SEGMENTS,
         "oled_max": cfg.get("oled_max_price"), "confirm_fields": ["acabado mate", "VESA", "panel", "Hz"],
         "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
         "telegram": settings.telegram_enabled, "scheduler": settings.scheduler_enabled or static,
@@ -245,6 +258,8 @@ class TargetUpsert(BaseModel):
     target_price: float | None = Field(default=None, gt=0)
     price_high: float | None = Field(default=None, gt=0)
     keywords: list[str] | None = None
+    segment: str | None = None
+    why: str | None = None
     active: bool | None = None
     store: str | None = None
     url: str | None = None
@@ -284,6 +299,14 @@ def api_targets_upsert(body: TargetUpsert):
                 raise HTTPException(422, str(e)) from e
         if body.keywords is not None:
             t.keywords = [k for k in body.keywords if k.strip()]
+        if body.segment is not None:
+            from services.segments import SEGMENT_KEYS
+
+            if body.segment not in SEGMENT_KEYS:
+                raise HTTPException(422, f"Segmento desconocido: {body.segment}")
+            t.segment = body.segment
+        if body.why is not None:
+            t.why = body.why.strip() or None
         if body.active is not None:
             t.active = body.active
 
@@ -386,8 +409,15 @@ def api_discover_track(body: TrackRequest):
     notes = "Agregado desde Descubrir."
     if m.get("missing"):
         notes += " Falta confirmar: " + ", ".join(m["missing"]) + "."
+    from services.discovery import usb_c_label
+    from services.segments import auto_segment
+
+    cheapest = min((r["best"]["price_cash"] for r in build_dashboard() if r["best"]), default=None)
+    usb = bool(usb_c_label(m.get("spec"), m.get("badges") or []))
     t = Target(id=new_id, name=m["name"][:90], target_price=round(best * 0.95, -3),
-               price_high=round(best * 1.10, -3), keywords=keywords, notes=notes, urls=urls)
+               price_high=round(best * 1.10, -3), market_price=round(best, -3), keywords=keywords,
+               notes=notes, urls=urls, segment=auto_segment(best, usb, cheapest),
+               why="Agregado desde Descubrimiento" + (" (tiene USB-C con carga)" if usb else ""))
     targets.append(t)
     save_targets(settings.targets_path, targets)
     return {"created": True, "target": t.model_dump()}

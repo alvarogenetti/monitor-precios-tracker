@@ -83,11 +83,15 @@ def offers_from(products: list[dict], store: str) -> list[dict]:
                            (o.get("Teasers") or []) + (o.get("PromotionTeasers") or [])
                            + (o.get("DiscountHighLight") or []) if isinstance(t, dict)]
                 promo = ", ".join(dict.fromkeys(t for t in teasers if t)) or None
+                free = [i.get("NumberOfInstallments") or 0 for i in (o.get("Installments") or [])
+                        if not i.get("InterestRate") and (i.get("NumberOfInstallments") or 0) > 1]
+                cuotas = max(free) if free else None
                 seller = s.get("sellerName") or ""
                 link = p.get("link") or f"https://{host}/{p.get('linkText', '')}/p"
                 out.append({
                     "store": store, "label": label, "title": p.get("productName") or "",
                     "brand": p.get("brand"), "price": float(price), "list": lst, "promo": promo,
+                    "cuotas": cuotas,
                     "seller": label if not seller or seller.lower() in label.lower() or
                               host.split("/")[0].split(".")[1] in seller.lower() else f"{label} · {seller}",
                     "url": link, "description": p.get("description") or "",
@@ -102,6 +106,8 @@ def best_match(offers: list[dict], keywords: list[str], exclude) -> dict | None:
 
 def promo_text(o: dict) -> str | None:
     parts = []
+    if o.get("cuotas"):
+        parts.append(f"{o['cuotas']} cuotas sin interés")
     if o.get("list"):
         parts.append(f"-{(o['list'] - o['price']) / o['list'] * 100:.0f}% sobre lista")
     if o.get("promo"):

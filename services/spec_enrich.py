@@ -50,7 +50,7 @@ def attrs_to_spec(attrs: dict[str, Any], product_id: str) -> dict:
         "vesa": "sí (medida sin informar)" if vesa else ("none" if vesa is False else None),
         "weight_no_stand_kg": _num(attrs.get("WEIGHT_WITHOUT_STAND")),
         "psu_voltage": attrs.get("VOLTAGE"),
-        "source": "mercadolibre",
+        "source": "el catálogo de Mercado Libre",
         "sources": [f"https://www.mercadolibre.com.ar/p/{product_id}"],
     }
     return {k: v for k, v in spec.items() if v is not None}
@@ -81,20 +81,36 @@ def lookup_ml(client, key: str, search: str, brand: str | None) -> dict | None:
     return attrs_to_spec(attrs, p["id"])
 
 
+def combine(ml: dict | None, page: dict | None) -> dict | None:
+    """ML (estructurado) primero; la ficha de la tienda completa lo que ML no tiene."""
+    if not page:
+        return ml
+    if not ml:
+        return page
+    out = dict(page)
+    out.update({k: v for k, v in ml.items() if v is not None and k not in ("source", "sources")})
+    out["source"] = "el catálogo de Mercado Libre y la ficha de la tienda"
+    out["sources"] = list(ml.get("sources") or []) + list(page.get("sources") or [])
+    return out
+
+
 def merge(curated: dict | None, auto: dict | None) -> dict | None:
     """Specs curadas primero; ML completa sólo lo que falta."""
     if not auto:
         return curated
     if not curated:
-        return {**auto, "confidence": "ML",
-                "_ml_fields": [k for k in auto if k not in ("source", "sources")]}
+        fields = [k for k in auto if k not in ("source", "sources")]
+        src = auto.get("source") or "el catálogo de Mercado Libre"
+        return {**auto, "confidence": "ML", "_ml_fields": fields,
+                "notes": f"Fuente: {src} (sin verificar a mano): {', '.join(fields)}."}
     out = dict(curated)
     filled = [k for k, v in auto.items() if out.get(k) is None and k not in ("source", "sources")]
     for k in filled:
         out[k] = auto[k]
     out["_ml_fields"] = filled
     if filled:
-        out["notes"] = (out.get("notes") or "") + f" Completado con el catálogo de ML: {', '.join(filled)}."
+        src = auto.get("source") or "el catálogo de Mercado Libre"
+        out["notes"] = (out.get("notes") or "") + f" Completado con {src}: {', '.join(filled)}."
     return out
 
 

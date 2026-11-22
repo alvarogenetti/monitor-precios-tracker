@@ -102,6 +102,8 @@
   .group { margin-top: 18px; }
   .group h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .group h2 .n { font-weight: 400; margin-left: 4px; }
+  .group .desc { margin: -2px 0 8px; font-size: 12px; color: var(--muted); }
+  .why { font-size: 13px; color: var(--ink-2); }
   .list { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; overflow: hidden; }
   .row { border-top: 1px solid var(--line); }
   .row:first-child { border-top: 0; }
@@ -278,10 +280,15 @@
   {# ======================= SEGUIDOS ======================= #}
   <section data-panel="seguidos">
     {{ toolbar('seguidos', false) }}
-    {{ sections() }}
+    <div class="group" data-section="offer"><h2>Ofertas reales ahora<span class="n"></span></h2><div class="list sec-list"></div></div>
+    {% for key, title, desc in segments %}
+      <div class="group" data-section="{{ key }}"><h2>{{ title }}<span class="n"></span></h2><p class="desc">{{ desc }}</p><div class="list sec-list"></div></div>
+    {% endfor %}
+    <div class="group" data-section="otros"><h2>Sin segmento<span class="n"></span></h2><div class="list sec-list"></div></div>
+    <div class="group" data-section="descartado"><h2>No cumplen<span class="n"></span></h2><div class="list sec-list"></div></div>
     <div id="pool-seguidos" hidden>
     {% for r in rows %}{% set t = r.target %}{% set ev = r.eval %}{% set st = ev.status or 'a_confirmar' %}
-      <details class="row item" data-status="{{ st }}" data-usbc="{{ 1 if r.usb_c else 0 }}" data-offer="{{ 1 if r.level else 0 }}" data-known="1"
+      <details class="row item" data-status="{{ st }}" data-segment="{{ t.segment or 'otros' }}" data-usbc="{{ 1 if r.usb_c else 0 }}" data-offer="{{ 1 if r.level else 0 }}" data-known="1"
                data-price="{{ r.best.price_cash if r.best else 99999999 }}" data-real="{{ r.real if r.real is not none else -9 }}"
                data-name="{{ t.name|lower }} {{ (r.best.store ~ ' ' ~ (r.best.seller or '')|lower) if r.best else '' }}"
                data-series='{{ r.series|tojson }}' data-ref="{{ r.ref or '' }}" data-lo="{{ t.target_price }}">
@@ -295,10 +302,12 @@
           {{ delta(r.real if r.best else none) }}
         </summary>
         <div class="detail">
+          {% if t.why %}<div class="why">{{ t.why }}</div>{% endif %}
           <div class="facts">
             {% if r.best %}<a class="link" target="_blank" rel="noopener" href="{{ r.best.product_url or r.best.url }}">Ver la mejor oferta</a>{% endif %}
             <span>Mercado <b class="num">{{ r.ref|ars if r.ref else '—' }}</b></span>
             {% if r.hist %}<span>Mínimo histórico <b class="num">{{ r.hist.price_cash|ars }}</b></span>{% endif %}
+            {% if r.ev_ref and r.ev_ref.ref %}<span>Antes de {{ r.ev_name }} <b class="num">{{ r.ev_ref.ref|ars }}</b></span>{% endif %}
             {% if r.stats %}<span>Máximo <b class="num">{{ r.stats.max|ars }}</b></span>{% endif %}
             <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
           </div>
@@ -317,7 +326,7 @@
                   {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
                   {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="strike">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
                 </td>
-                <td class="note">{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}</td>
+                <td class="note">{% if o.hike %}<span style="color:var(--bad)">subió {{ o.hike }} % vs su precio habitual</span> · {% endif %}{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}</td>
                 <td class="r note">{% if s %}<span data-ts="{{ s.scanned_at }}"></span>{% endif %}</td>
                 {% if not static %}<td class="r" style="white-space:nowrap">
                   <button class="link" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
@@ -328,6 +337,8 @@
           </table>
           {% if not static %}
           <div class="row-actions">
+            <label class="inline-form">Segmento
+              <select onchange="saveSegment('{{ t.id }}', this.value)">{% for key, title, _ in segments %}<option value="{{ key }}" {{ 'selected' if t.segment == key }}>{{ title }}</option>{% endfor %}</select></label>
             <form class="inline-form" onsubmit="saveRange(event, '{{ t.id }}')">Avisame si baja de
               <input name="lo" type="number" min="1" step="1000" value="{{ t.target_price|int }}"> · caro desde
               <input name="hi" type="number" min="1" step="1000" value="{{ r.high|int }}">
@@ -404,7 +415,7 @@
     <p class="note" style="margin:14px 0">Por Telegram{% if not telegram %} (no configurado en esta PC){% endif %}: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y el resumen diario de las 9.</p>
     <div class="list">
       {% for a in alerts %}
-        <div class="alert"><div class="meta"><span data-ts="{{ a.created_at }}"></span> · {{ {'real_offer': 'Oferta real', 'new_model': 'Modelos nuevos', 'target_reached': 'Precio de aviso', 'back_in_stock': 'Volvió el stock', 'price_drop': 'Bajó de precio'}.get(a.kind, a.kind) }}{% if not a.sent %} · no enviada{% endif %}</div>
+        <div class="alert"><div class="meta"><span data-ts="{{ a.created_at }}"></span> · {{ {'real_offer': 'Oferta real', 'new_model': 'Modelos nuevos', 'target_reached': 'Precio de aviso', 'back_in_stock': 'Volvió el stock', 'price_drop': 'Bajó de precio', 'pre_event_hike': 'Suba antes del evento'}.get(a.kind, a.kind) }}{% if not a.sent %} · no enviada{% endif %}</div>
           <div class="msg">{{ a.message|striptags|truncate(360) }}</div></div>
       {% else %}<div class="alert muted">Todavía no hubo alertas.</div>{% endfor %}
     </div>
@@ -480,6 +491,7 @@ function sectionOf(el){
   const st = el.dataset.status;
   if (st === 'descartado') return 'descartado';
   if (el.dataset.offer === '1') return 'offer';
+  if (el.dataset.segment) return el.dataset.segment;
   if (st === 'cumple' && el.dataset.usbc === '1') return 'usbc';
   return st;
 }
@@ -502,7 +514,7 @@ function applyFilters(scope){
     if (view === 'usbc' && el.dataset.usbc !== '1') show = false;
     if (known && known.checked && el.dataset.known !== '1') show = false;
     if (sec === 'descartado' && !nocumple) show = false;
-    (groups[sec] || groups['a_confirmar']).querySelector('.sec-list').appendChild(el);
+    (groups[sec] || groups['otros'] || groups['a_confirmar']).querySelector('.sec-list').appendChild(el);
     el.hidden = !show; if (show) counts[sec] = (counts[sec] || 0) + 1;
   }
   Object.entries(groups).forEach(([k, g]) => { g.hidden = !counts[k]; g.querySelector('.n').textContent = counts[k] || ''; });
@@ -622,6 +634,7 @@ async function discardModel(key){
   const why = prompt('Motivo (se puede deshacer)', 'no me convence'); if (why === null) return;
   await api('POST', '/api/confirm', {key, label: why || 'descartado a mano', answer: 'discard'}); location.reload();
 }
+async function saveSegment(id, segment){ await api('POST', '/api/targets', {target_id: id, segment}); location.reload(); }
 async function saveRange(e, id){
   e.preventDefault(); const lo = +e.target.lo.value, hi = +e.target.hi.value;
   if (hi <= lo){ alert('"Caro desde" tiene que ser mayor que el precio de aviso.'); return; }

@@ -131,3 +131,13 @@ def test_best_series_partial_run_does_not_spike(tmp_path):
     r2 = db.start_run("cli")       # escaneo local: sólo Venex
     db.insert_snapshot("m", _snap(365000, "venex", ts="2026-11-20T12:30:00+00:00"), r2)
     assert [p["price"] for p in db.best_series("m", days=100000)] == [340000, 340000]
+
+
+def test_vtex_interest_free_installments():
+    from scrapers.stores.vtex import offers_from, promo_text
+    inst = [{"NumberOfInstallments": 1, "InterestRate": 0.0}, {"NumberOfInstallments": 6, "InterestRate": 0.0},
+            {"NumberOfInstallments": 12, "InterestRate": 0.0}, {"NumberOfInstallments": 18, "InterestRate": 9.5}]
+    p = [{"productName": "Monitor X 27", "items": [{"sellers": [{"sellerName": "On City", "commertialOffer": {
+        "Price": 500000.0, "ListPrice": 500000.0, "AvailableQuantity": 3, "Installments": inst}}]}]}]
+    o = offers_from(p, "oncity")[0]
+    assert o["cuotas"] == 12 and promo_text(o) == "12 cuotas sin interés"

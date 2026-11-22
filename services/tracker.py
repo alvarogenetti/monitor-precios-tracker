@@ -33,9 +33,18 @@ class Alert:
 
 
 def market_ref(db: Database, target: Target) -> tuple[float | None, str]:
-    """Precio de referencia de mercado del target (mediana 30 días o el sembrado)."""
+    """Precio de referencia de mercado del target (mediana 30 días o el sembrado).
+
+    Durante un evento (Black Friday, Hot Sale...) se usa el precio de mercado CONGELADO antes de
+    que empiece: si las tiendas suben precios los días previos, no inflan la referencia."""
+    from services.events import current_or_next, event_key
     from services.market import reference
 
+    ev, days = current_or_next(within_days=0)
+    if ev is not None and days == 0:
+        frozen = db.event_refs(event_key(ev)).get(target.id)
+        if frozen and frozen.get("ref"):
+            return frozen["ref"], f"precio de mercado antes de {ev['name']}"
     return reference(db.best_series(target.id, days=31), seed=target.market_price)
 
 
@@ -93,6 +102,19 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult,
             "real_offer",
             f"{LEVELS[lvl]}: <b>{real * 100:.0f}% debajo del mercado</b>\n{name}\n"
             f"<b>{fmt_ars(price)}</b> (mercado {fmt_ars(ref_price)}: {html.escape(ref_src)}){fake}{footer}"))
+
+    # 1b) Suba antes de un evento: la trampa del "50 % OFF" empieza subiendo el precio los días previos
+    from services.events import current_or_next
+
+    ev_next, days_to = current_or_next(within_days=14)
+    if sellable and ev_next and days_to and days_to > 0:
+        usual = db.url_median(target.id, res.url)
+        if usual and price >= usual * 1.10 and not (prev_price and prev_price >= usual * 1.10):
+            alerts.append(Alert(
+                "pre_event_hike",
+                f"📈 <b>Subió antes de {html.escape(ev_next['name'])}</b> (faltan {days_to} días)\n{name}\n"
+                f"{fmt_ars(usual)} → <b>{fmt_ars(price)}</b> (+{(price / usual - 1) * 100:.0f}%). "
+                f"Si en el evento lo 'rebajan', compará contra {fmt_ars(usual)}.{footer}"))
 
     # 2) Volvió el stock (sólo si está en precio de oferta, salvo modo "todo")
     if res.in_stock is True and prev_known and prev_known["in_stock"] == 0 and (lvl or notify_drops):

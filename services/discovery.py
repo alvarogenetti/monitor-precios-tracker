@@ -697,6 +697,15 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
         extra = enrich(db, pending)
         if extra:
             results = analyze(offers, cfg, catalog, extra)
+        still = [r for r in results if r.status == "a_confirmar"]
+        if still:
+            from services import page_specs
+            from services.spec_enrich import combine
+
+            pages = page_specs.enrich(db, still)
+            if pages:
+                extra = {k: combine(extra.get(k), pages.get(k)) for k in set(extra) | set(pages)}
+                results = analyze(offers, cfg, catalog, extra)
 
 
     targets = load_targets(settings.targets_path)

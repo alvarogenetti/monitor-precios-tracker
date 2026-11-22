@@ -19,12 +19,14 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 
 **Pestañas del dashboard**
 
-- **📌 Seguidos**: los monitores que elegiste. Se escanean cada ~3 h en cada tienda. Secciones:
-  ofertas reales · cumple todo + USB-C · cumple todo · a confirmar · no cumple.
-- **🔎 Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
+- **Seguidos**: los monitores que elegiste, escaneados cada ~3 h en cada tienda y agrupados por
+  segmento (`segment` en `config/targets.json`, editable desde el dashboard), cada uno con su "por qué":
+  **Opciones baratas** · **Un escalón arriba** · **Con USB-C 65 W** · **Gama alta: solo si caen fuerte**.
+  Arriba de todo, las ofertas reales del momento.
+- **Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
   una vez por día. Arriba aparecen los **💡 sugeridos para seguir**. Con **+ Seguir** un modelo pasa
   a Seguidos. Los no seguidos igual se vigilan: si aparece una oferta real, avisa.
-- **🔔 Alertas** y **ℹ️ Info** (requisitos obligatorios/deseables y en qué tiendas se busca).
+- **Alertas** e **Info** (requisitos obligatorios/deseables y en qué tiendas se busca).
 
 **Confirmar o descartar.** Si un modelo dice "A confirmar: acabado mate", podés responder
 **¿Pantalla mate? Sí / No** (lo viste en la ficha, en una reseña...). Se guarda en
@@ -45,8 +47,9 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
 - Lo que el título no dice (mate, VESA, peso, brillo, Hz por HDMI, USB-C) sale de:
   1. **tus confirmaciones** (`config/overrides.json`),
   2. el **catálogo curado** de fichas técnicas (`config/specs.json`, con fuentes),
-  3. los **atributos del catálogo de Mercado Libre** (cacheados 30 días). Si un dato de ML
-     descalifica, queda "a verificar" en vez de descartar (ML a veces tiene datos mal cargados).
+  3. los **atributos del catálogo de Mercado Libre** y, si falta algo, el **texto de la ficha de
+     la tienda** ("antirreflejo", "VESA 100x100"...; cacheados 30 días). Si uno de estos datos
+     descalifica, queda "a verificar" en vez de descartar.
 - Estados: ✅ cumple todo · ❔ a confirmar · 🟣 OLED en oferta · ⛔ no cumple.
 - Marcas sin reseñas (`generic_brands`): sólo avisan ofertas ≥ 30 %.
 
@@ -61,8 +64,19 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
 
 ### Eventos (`config/events.json`)
 
-Hot Sale, Cyber Monday, Black Friday...: durante un evento se escanea **cada hora** y las alertas
-lo marcan con 🔥.
+Hot Sale, Cyber Monday, Black Friday...:
+
+- **2 días antes**, el resumen diario manda los **precios de referencia** de cada seguido y se
+  congelan: durante el evento las ofertas se miden contra ese precio, así una suba previa no infla
+  la referencia.
+- **En los 14 días previos**, si una tienda **sube** un precio 10 % o más sobre su precio habitual,
+  avisa ("Subió antes de Black Friday"): es la trampa del "50 % OFF".
+- **Durante el evento** se escanea cada hora.
+
+### Promos y cuotas
+
+Cada oferta guarda su promo cuando la tienda la informa: **cuotas sin interés** (máximo de cuotas
+sin interés en tiendas VTEX), % sobre el precio de lista, ofertas y envío gratis de ML.
 
 ---
 
@@ -169,7 +183,8 @@ python -m services.datastore pull     # bajar la base de la rama data
 app/            FastAPI, dashboard (templates/index.html) y generador estático (site.py)
 scrapers/       base Playwright + adaptadores por tienda
 services/       tracker (escaneo y alertas), discovery, market (ofertas reales), spec_enrich (ML),
-                overrides, datastore (rama data), events, daily, summary, meli_api, notifier, db
+                page_specs (fichas de tiendas), overrides, segments, datastore (rama data),
+                events, daily, summary, stores_info, meli_api, notifier, db
 config/         targets, discovery, specs, overrides, events
 tests/          pytest (sin red)
 iniciar.ps1     dashboard local · escaneo-local.ps1: tarea programada
