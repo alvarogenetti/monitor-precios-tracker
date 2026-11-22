@@ -62,8 +62,23 @@ def _sha_file(db: Path) -> Path:
 
 
 def pull(db: Path) -> str | None:
-    sha = fetch_db(db)
+    """Baja la base remota. Si ya hay una local, le fusiona sus filas que la remota no tiene
+    (escaneos hechos desde el dashboard o a mano que todavía no se publicaron): no se pierden."""
+    from services.db import Database
+
     db.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        remote = Path(tmp) / FILE
+        sha = fetch_db(remote)
+        if sha:
+            if db.exists() and db.stat().st_size:
+                try:
+                    n = Database(remote).merge_from(db)
+                    if n:
+                        log.info("Se conservaron %d filas locales sin publicar", n)
+                except Exception as e:  # noqa: BLE001 — base local corrupta/vieja: manda la remota
+                    log.warning("No se pudo fusionar la base local: %s", e)
+            db.write_bytes(remote.read_bytes())
     _sha_file(db).write_text(sha or "", encoding="utf-8")
     log.info("Base bajada de la rama %s (%s)", BRANCH, sha[:7] if sha else "rama nueva")
     return sha

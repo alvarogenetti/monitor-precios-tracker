@@ -66,3 +66,8 @@ def test_push_pull_and_conflict_merge(tmp_path, monkeypatch):
     out = subprocess.run(["git", "--git-dir", str(origin), "rev-list", "--count", "data"],
                          capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "1"
+    # un escaneo local sin publicar sobrevive a un pull (no lo pisa la base remota)
+    c = Database(db_ci)
+    c.insert_snapshot("m", snap("u4", 60, "2026-11-20T12:00:00+00:00"), c.start_run("cli"))
+    datastore.pull(db_ci)
+    assert "u4" in {h["url"] for h in Database(db_ci).history("m")}
