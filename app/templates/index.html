@@ -422,7 +422,7 @@
             {{ confirm_box(m.key, m.missing or [], m.manual or [], not m.tracked and m.status != 'descartado') }}
             {% if m.offers %}
             <table class="stores"><thead><tr><th>Tienda</th><th class="r">Precio</th><th>Publicación</th></tr></thead><tbody>
-              {% for o in m.offers[:6] %}<tr><td>{{ o.seller or o.store }}</td><td class="r num"><a href="{{ o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.price|ars }}</a></td><td class="note">{{ o.title[:90] }}</td></tr>{% endfor %}
+              {% for o in m.offers[:6] %}<tr><td>{{ o.seller or o.store }}</td><td class="r num"><a href="{{ o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.price|ars }}</a></td><td class="note">{% if o.used %}<b>outlet/usado · no cuenta</b> · {% endif %}{{ o.title[:90] }}</td></tr>{% endfor %}
             </tbody></table>
             {% endif %}
             {% if m.spec and m.spec.notes %}<div class="note">{{ m.spec.notes }}</div>{% endif %}
@@ -450,7 +450,8 @@
       <div class="panel"><h3>Obligatorio</h3><ul>
         <li>27", pantalla plana</li><li>QHD 2560 × 1440</li><li>{{ req.min_hz or 120 }} Hz o más</li>
         <li>Panel IPS (VA no; OLED solo bajo {{ oled_max|ars }})</li><li>Pantalla mate</li>
-        <li>VESA 75 × 75 o 100 × 100</li><li>HDMI y 220 V</li></ul></div>
+        <li>VESA 75 × 75 o 100 × 100</li><li>HDMI y 220 V</li>
+        {% if not req.accept_used %}<li>Nuevo: outlet, usado, reacondicionado o exhibición se muestran marcados pero no cuentan</li>{% endif %}</ul></div>
       <div class="panel"><h3>Deseable</h3><ul>
         <li>USB-C con carga de 65 W (hasta ~$100.000 más)</li><li>300 nits o más, sin parpadeo</li><li>Marca conocida</li><li>Peso: informativo</li></ul>
         <h3 style="margin-top:14px">No pagar extra por</h3><p>KVM, parlantes, base ergonómica, HDR de marketing, más de 180 Hz.</p></div>

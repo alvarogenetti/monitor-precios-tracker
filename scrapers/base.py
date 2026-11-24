@@ -67,6 +67,17 @@ LIST_LABEL_RE = re.compile(
 
 DEFAULT_EXCLUDE = ["usado", "reacondicionado", "refurbished", "open box", "openbox"]
 
+# No es nuevo: outlet, usado, reacondicionado, exhibición, caja abierta, píxeles quemados... (sin acentos).
+USED_RE = re.compile(r"\b(outlet|usad[oa]s?|reacondicionad[oa]s?|refurbish\w*|open\s?box|caja\s+abierta|"
+                     r"exhibicion|de\s+muestra|grado\s+[bc]|b-?stock|pixel(es)?\s+(quemad|muert)\w*|"
+                     r"detalles?\s+esteticos?)\b")
+
+
+def is_used(title: str) -> bool:
+    """True si el título dice que no es un producto nuevo (outlet, usado, reacondicionado...)."""
+    t = unicodedata.normalize("NFKD", title or "").encode("ascii", "ignore").decode().lower()
+    return bool(USED_RE.search(t))
+
 
 # ------------------------------------------------------------------ modelos
 @dataclass
@@ -365,4 +376,6 @@ def matches_keywords(title: str, keywords: Iterable[str],
         return False
     # Para excluir sí respetamos palabras (con espacios), en minúscula y sin acentos.
     lowered = unicodedata.normalize("NFKD", (title or "").lower()).encode("ascii", "ignore").decode()
+    if is_used(title):                 # seguidos: sólo nuevos
+        return False
     return not any(re.search(rf"\b{re.escape(e.lower())}\b", lowered) for e in exclude if e)

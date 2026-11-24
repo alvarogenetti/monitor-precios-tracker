@@ -255,6 +255,7 @@ class Offer:
     seller: str | None = None
     price_list: float | None = None
     in_stock: bool | None = True
+    used: bool = False                 # outlet / usado / reacondicionado: se muestra, no cuenta como precio
 
 
 @dataclass
@@ -300,7 +301,14 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         us_plug=any(f.us_plug for f in facts_list),
         outlet=all(f.outlet for f in facts_list),
     )
-    sellable = [o for o in offers if o.in_stock is not False] or offers
+    from scrapers.base import is_used
+
+    for o in offers:
+        o.used = is_used(o.title)
+    new = [o for o in offers if not o.used]
+    accept_used = req.get("accept_used", False)
+    pool = offers if accept_used or not new else new      # el precio sale de las ofertas nuevas
+    sellable = [o for o in pool if o.in_stock is not False] or pool
     best = min(sellable, key=lambda o: o.price)
     s = spec or {}
     fails: list[str] = []
@@ -418,8 +426,11 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         warns.append(f"fuente {psu}: verificar 220 V")
     if facts.us_plug:
         warns.append("ficha USA (usar cable/adaptador)")
-    if facts.outlet:
-        warns.append("outlet")
+    if not new and not accept_used:
+        fails.append("sólo outlet/usado")
+    elif len(new) < len(offers):
+        u = min((o for o in offers if o.used), key=lambda o: o.price)
+        warns.append(f"también hay outlet/usado desde ${u.price:,.0f} (no cuenta)".replace(",", "."))
     importers = [i.lower() for i in cfg.get("import_sellers", [])]
     if best.seller and any(i in best.seller.lower() for i in importers):
         warns.append("vendedor de importados: verificar garantía local y 220 V")

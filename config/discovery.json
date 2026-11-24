@@ -16,7 +16,9 @@
     "min_hdmi_ports": 1,
     "ideal_brightness_nits": 300,
     "psu_voltage": "220V",
-    "weight_required": false
+    "weight_required": false,
+    "accept_used": false,
+    "_accept_used_nota": "false = sólo nuevos: las ofertas outlet/usado/reacondicionado/exhibición se muestran pero no cuentan como precio ni para 'cumple'."
   },
   "oled_max_price": 650000,
   "finance": {
@@ -24,12 +26,7 @@
     "_nota": "Inflación mensual esperada para valuar las cuotas sin interés en pesos de hoy. Ajustala cuando cambie (0 = no descontar)."
   },
   "max_price": 1500000,
-  "exclude_words": [
-    "usado",
-    "reacondicionado",
-    "refurbished",
-    "open box"
-  ],
+  "exclude_words": [],
   "sources": [
     {
       "store": "compragamer",
@@ -298,5 +295,6 @@
     "Hikvision",
     "CX"
   ],
-  "usb_c_bonus": "USB-C con carga >= 65 W: deseable (vale hasta ~$100.000 más), no obligatorio"
+  "usb_c_bonus": "USB-C con carga >= 65 W: deseable (vale hasta ~$100.000 más), no obligatorio",
+  "_exclude_nota": "Palabras que descartan una oferta antes de analizarla. Outlet/usado/reacondicionado NO van acá: se muestran marcadas y no cuentan (requirements.accept_used)."
 }

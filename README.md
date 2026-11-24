@@ -70,6 +70,11 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
 
 - Lo que dice el **título** (tamaño, resolución, Hz, panel, curvo, usado) se verifica siempre.
   Si el título no dice QHD/2K/1440 o no dice el tamaño, se descarta.
+- **Sólo nuevos** (`requirements.accept_used: false`): si el título dice outlet, usado, reacondicionado,
+  exhibición, caja abierta o píxeles quemados, la oferta se muestra marcada "outlet/usado · no cuenta",
+  pero no es el mejor precio, no entra en la mediana ni en "cumple". Un modelo con sólo ofertas así queda
+  ⛔ "sólo outlet/usado". Los seguidos nunca toman esas ofertas. Lo que sólo aparece en la descripción
+  (y no en el título) no se detecta: el aviso del modelo lo menciona si hay outlet en otras tiendas.
 - Lo que el título no dice (mate, VESA, peso, brillo, Hz por HDMI, USB-C) sale de, en orden:
   1. **tus confirmaciones** (`config/overrides.json`),
   2. el **catálogo curado** de fichas técnicas (`config/specs.json`, con fuentes),

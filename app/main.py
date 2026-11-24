@@ -199,7 +199,7 @@ def merge_discovery_offers(rows: list[dict], models: list[dict], finished_at: st
         own = {o["url"] for o in r["offers"]} | {o["snap"].get("product_url") for o in r["offers"] if o["snap"]}
         extra, seen = [], set()
         for o in sorted(found.get(t.id, []), key=lambda o: o["price"]):
-            if o["url"] in own or o["url"] in seen or not o.get("price"):
+            if o["url"] in own or o["url"] in seen or not o.get("price") or o.get("used"):
                 continue
             seen.add(o["url"])
             title = re.sub(r"\s*\[.*\]$", "", o.get("title") or "")
