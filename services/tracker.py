@@ -28,8 +28,29 @@ def fmt_ars(v: float | None) -> str:
 # ------------------------------------------------------------------ alertas
 @dataclass
 class Alert:
-    kind: str       # price_drop | target_reached | back_in_stock
+    kind: str       # real_offer | pre_event_hike | back_in_stock | price_drop | target_reached
     text: str       # HTML para Telegram
+    score: float = 0.0      # para ordenar el mensaje agrupado (descuento real)
+    urgent: bool = False    # oferta excepcional: sale al instante, sin esperar al final del escaneo
+
+
+KIND_ORDER = {"real_offer": 0, "target_reached": 1, "back_in_stock": 2, "pre_event_hike": 3, "price_drop": 4}
+
+
+def bundle(alerts: list[Alert], header: str, limit: int = 3800) -> list[str]:
+    """Un solo mensaje con todos los avisos de un escaneo (ofertas primero, por mejor descuento).
+    Telegram corta a 4096 caracteres: si no entra, se parte en varios."""
+    items = sorted(alerts, key=lambda a: (KIND_ORDER.get(a.kind, 9), -a.score))
+    msgs, cur = [], header
+    for a in items:
+        block = "\n\n" + a.text
+        if len(cur) + len(block) > limit and cur != header:
+            msgs.append(cur)
+            cur = header + " (sigue)"
+        cur += block
+    if cur != header:
+        msgs.append(cur)
+    return msgs
 
 
 def market_ref(db: Database, target: Target) -> tuple[float | None, str]:
@@ -101,7 +122,8 @@ def evaluate_alerts(db: Database, target: Target, res: ScrapeResult,
         alerts.append(Alert(
             "real_offer",
             f"{LEVELS[lvl]}: <b>{real * 100:.0f}% debajo del mercado</b>\n{name}\n"
-            f"<b>{fmt_ars(price)}</b> (mercado {fmt_ars(ref_price)}: {html.escape(ref_src)}){fake}{footer}"))
+            f"<b>{fmt_ars(price)}</b> (mercado {fmt_ars(ref_price)}: {html.escape(ref_src)}){fake}{footer}",
+            score=real, urgent=lvl == "excepcional"))
 
     # 1b) Suba antes de un evento: la trampa del "50 % OFF" empieza subiendo el precio los días previos
     from services.events import current_or_next
@@ -174,13 +196,14 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
         targets = [t for t in targets if t.id in target_ids]
     in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
     jobs = [(t, u) for t in targets for u in t.urls if u.active and (u.ci or not in_ci)
-            and u.store != "mercadolibre"]   # ML: sólo links y carga manual (ver README)
+            and u.store not in ("mercadolibre", "tiendabna")]   # sólo links y carga manual (ver README)
     if only_local:  # escaneo-local.ps1: sólo lo que GitHub Actions no puede leer
         jobs = [(t, u) for t, u in jobs if not u.ci]
     run_id = db.start_run(trigger)
     log.info("Escaneo #%d (%s): %d URLs en %d productos", run_id, trigger, len(jobs), len(targets))
 
     results: list[dict] = []
+    pending: list[tuple[str, Alert]] = []
     refs: dict[str, tuple[float | None, str]] = {}
     n_ok = n_err = n_alerts = 0
     if not jobs:
@@ -209,8 +232,11 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
             alerts = evaluate_alerts(db, target, res, refs[target.id])
             db.insert_snapshot(target.id, res.to_dict(), run_id)
             for a in alerts:
-                sent = await send_telegram(a.text) if send_alerts else False
-                db.insert_alert(target.id, a.kind, a.text, sent)
+                if a.urgent:   # oferta excepcional (>= 30 %): no espera al final del escaneo
+                    db.insert_alert(target.id, a.kind, a.text,
+                                    await send_telegram(a.text) if send_alerts else False)
+                else:
+                    pending.append((target.id, a))
             n_alerts += len(alerts)
             n_ok += res.ok
             n_err += not res.ok
@@ -221,6 +247,14 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
         if on_progress:
             on_progress(len(jobs), len(jobs), "")
 
+    # El resto de los avisos del escaneo, en UN mensaje (en eventos hay escaneos cada hora)
+    if pending:
+        header = f"🔔 <b>{len(pending)} aviso{'s' if len(pending) > 1 else ''} del último escaneo</b>"
+        sent = True
+        for msg in bundle([a for _, a in pending], header):
+            sent = (await send_telegram(msg) if send_alerts else False) and sent
+        for tid, a in pending:
+            db.insert_alert(tid, a.kind, a.text, sent and send_alerts)
     db.finish_run(run_id, n_ok, n_err, n_alerts)
     summary = {"run_id": run_id, "ok": n_ok, "errors": n_err, "alerts": n_alerts,
                "results": results}

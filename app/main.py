@@ -32,6 +32,13 @@ def ml_search_url(name: str) -> str:
 
 
 templates.env.filters["ml_search"] = ml_search_url
+
+# Tiendas que no se leen automáticamente (bloqueo/antibot): link para mirar + carga manual "Lo vi a $"
+MANUAL_STORES = {
+    "mercadolibre": ("Mercado Libre", ml_search_url),
+    "tiendabna": ("Tienda BNA", lambda name: "https://www.tiendabna.com.ar/"),
+}
+templates.env.globals["MANUAL_STORES"] = {k: v[0] for k, v in MANUAL_STORES.items()}
 db = Database(settings.db_path)
 
 
@@ -65,6 +72,24 @@ def _fresh_manual(snap: dict) -> bool:
     return datetime.fromisoformat(snap["scanned_at"]) >= datetime.now(timezone.utc) - timedelta(days=ML_MANUAL_DAYS)
 
 
+def add_installments(row: dict, infl: float) -> None:
+    """Para cada oferta con cuotas sin interés: cuánto vale en pesos de hoy. Si pagar en cuotas en
+    alguna tienda sale menos (en pesos de hoy) que la mejor oferta de contado, queda en row["cuotas"]."""
+    from services.market import installments, present_value
+
+    best = row["best"]["price_cash"] if row.get("best") else None
+    top = None
+    for o in row["offers"]:
+        s = o.get("snap")
+        n = installments(s.get("promo")) if s and s.get("price_cash") and not s.get("error") else None
+        o["pv"] = round(present_value(s["price_cash"], n, infl), -2) if n and infl else None
+        o["cuotas"] = n
+        if o["pv"] and (top is None or o["pv"] < top["pv"]):
+            top = {"pv": o["pv"], "n": n, "price": s["price_cash"], "store": s.get("seller") or o["store"],
+                   "url": s.get("product_url") or o["url"]}
+    row["cuotas"] = top if top and best and top["pv"] < best else None
+
+
 def build_dashboard() -> list[dict]:
     targets = load_targets(settings.targets_path)
     latest = {(r["target_id"], r["url"]): r for r in db.latest_per_url()}
@@ -77,8 +102,8 @@ def build_dashboard() -> list[dict]:
             offers.append({"store": u.store, "url": u.url, "active": u.active, "note": u.note,
                            "snap": snap})
         for o in offers:
-            if o["store"] == "mercadolibre":
-                o["ml"] = True
+            if o["store"] in MANUAL_STORES:
+                o["ml"] = True     # tienda que se revisa a mano (ML, Tienda BNA): link + carga manual
                 if o["snap"] and not _fresh_manual(o["snap"]):
                     o["snap"] = None      # el precio viejo de la API (o una carga vencida) no cuenta
         valid = [o["snap"] for o in offers
@@ -249,6 +274,11 @@ def build_context(static: bool = False) -> dict:
             models.append(m)
 
     merge_discovery_offers(rows, models, (disc or {}).get("finished_at"))
+    from services.market import monthly_inflation
+
+    infl = monthly_inflation()
+    for r in rows:
+        add_installments(r, infl)
 
     def best_ok(items, price):
         ok = [x for x in items if x[1] is not None]
@@ -278,7 +308,7 @@ def build_context(static: bool = False) -> dict:
     return {
         "static": static, "rows": rows, "models": models, "discovery": disc,
         "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}), "segments": SEGMENTS,
-        "advice": buy_today(rows, models),
+        "advice": buy_today(rows, models), "inflation": infl,
         "oled_max": cfg.get("oled_max_price"), "confirm_fields": ["acabado mate", "VESA", "panel", "Hz"],
         "health": store_health_rows(),
         "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
@@ -512,6 +542,7 @@ def api_discover_track(body: TrackRequest):
 
 class ManualPrice(BaseModel):
     target_id: str
+    store: str = "mercadolibre"
     price: float = Field(gt=0)
     url: str | None = None          # link a la publicación que viste
     seller: str | None = None
@@ -557,16 +588,19 @@ def api_manual_price(body: ManualPrice):
     t = next((t for t in load_targets(settings.targets_path) if t.id == body.target_id), None)
     if not t:
         raise HTTPException(404, "No existe ese seguido")
-    ml = next((u for u in t.urls if u.store == "mercadolibre"), None)
+    if body.store not in MANUAL_STORES:
+        raise HTTPException(422, f"Tienda sin carga manual: {body.store}")
+    label, link = MANUAL_STORES[body.store]
+    ml = next((u for u in t.urls if u.store == body.store), None)
     if ml is None:
-        ml = TargetUrl(store="mercadolibre", url=ml_search_url(t.name), ci=False,
-                       note="Sólo links y carga manual (ver README)")
+        ml = TargetUrl(store=body.store, url=link(t.name), ci=False,
+                       note=f"{label}: sólo link y carga manual (ver README)")
         t.urls.append(ml)
         targets = [x if x.id != t.id else t for x in load_targets(settings.targets_path)]
         save_targets(settings.targets_path, targets)
     from datetime import datetime, timezone
 
-    snap = {"store": "mercadolibre", "url": ml.url, "title": t.name, "seller": body.seller or None,
+    snap = {"store": body.store, "url": ml.url, "title": t.name, "seller": body.seller or None,
             "product_url": (body.url or "").strip() or ml.url, "price_cash": body.price, "price_list": None,
             "in_stock": True, "error": None, "promo": "carga manual",
             "scanned_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
@@ -574,7 +608,7 @@ def api_manual_price(body: ManualPrice):
     db.insert_snapshot(t.id, snap, run_id)
     db.finish_run(run_id, 1, 0, 0)
     _push_db_async()
-    return {"saved": True, "hint": seller_hint(body.seller)}
+    return {"saved": True, "hint": seller_hint(body.seller) if body.store == "mercadolibre" else None}
 
 
 def _push_db_async() -> None:
@@ -585,7 +619,7 @@ def _push_db_async() -> None:
         try:
             from services import datastore
 
-            datastore.push(settings.db_path, "carga manual de precio de Mercado Libre")
+            datastore.push(settings.db_path, "carga manual de precio")
         except Exception as e:  # noqa: BLE001
             log.warning("No se pudo publicar la base: %s", e)
 

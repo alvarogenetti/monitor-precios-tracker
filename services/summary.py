@@ -63,7 +63,10 @@ def build_summary() -> str:
     rows.sort(key=lambda r: (r["best"] is None, -(r.get("real") or -1)))
     from services.advice import telegram_lines
 
-    lines = pre_event_block(db, rows) + telegram_lines(ctx.get("advice")) + ["📊 <b>Resumen diario de precios</b>"]
+    from services.event_report import report_block
+
+    lines = (report_block(db, [r["target"] for r in rows]) + pre_event_block(db, rows)
+             + telegram_lines(ctx.get("advice")) + ["📊 <b>Resumen diario de precios</b>"])
     for r in rows:
         t, b = r["target"], r["best"]
         name = html.escape(t.name)

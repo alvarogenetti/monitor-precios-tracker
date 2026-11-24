@@ -87,3 +87,36 @@ def describe(price: float | None, list_price: float | None, ref: float | None) -
         tag = " (inflado)" if inflated(price, list_price, ref) else ""
         parts.append(f"la tienda dice -{claimed * 100:.0f}%{tag}")
     return " · ".join(parts) or None
+
+
+# ------------------------------------------------------------------ cuotas sin interés
+def installments(promo: str | None) -> int | None:
+    """Cantidad de cuotas sin interés que informa la promo ("12 cuotas sin interés · ...")."""
+    import re
+
+    m = re.search(r"(\d{1,2})\s*cuotas\s+sin\s+inter", promo or "", re.I)
+    n = int(m.group(1)) if m else None
+    return n if n and n > 1 else None
+
+
+def present_value(price: float, n: int, monthly_inflation: float) -> float:
+    """Cuánto valen HOY n cuotas iguales sin interés (la primera al mes): con inflación, pagar en
+    cuotas fijas es más barato que pagar el mismo precio de contado."""
+    if not n or n <= 1 or monthly_inflation <= 0:
+        return price
+    cuota = price / n
+    return sum(cuota / (1 + monthly_inflation) ** k for k in range(1, n + 1))
+
+
+def monthly_inflation() -> float:
+    """config/discovery.json -> finance.inflation_monthly (editable; 0 = no descontar)."""
+    import json
+    from pathlib import Path
+
+    try:
+        cfg = json.loads((Path(__file__).resolve().parent.parent / "config" / "discovery.json")
+                         .read_text(encoding="utf-8"))
+        return float((cfg.get("finance") or {}).get("inflation_monthly") or 0)
+    except (OSError, ValueError):
+        return 0.0
+

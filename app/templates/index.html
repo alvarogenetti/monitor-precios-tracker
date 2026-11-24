@@ -289,7 +289,7 @@
       <div class="adv-verdict">{{ advice.verdict }}</div>
       <ul>
         <li><span>Más barato que cumple todo</span><a class="link" target="_blank" rel="noopener" href="{{ c.url }}">{{ c.name }}</a><b class="num">{{ c.price|ars }}</b><span class="note">{{ c.store }}{% if not c.tracked %} · no lo seguís{% endif %}</span></li>
-        {% if u and u is not sameas c %}<li><span>Con USB-C</span><a class="link" target="_blank" rel="noopener" href="{{ u.url }}">{{ u.name }}</a><b class="num">{{ u.price|ars }}</b><span class="note">+{{ advice.usbc_extra|ars }} · {{ u.store }}</span></li>{% endif %}
+        {% if u and u is not sameas c %}<li><span>Con USB-C</span><a class="link" target="_blank" rel="noopener" href="{{ u.url }}">{{ u.name }}</a><b class="num">{{ u.price|ars }}</b><span class="note">+{{ advice.usbc_extra|ars }} · {{ u.store }}{% if u.cuotas %} · en {{ u.cuotas.n }} cuotas ≈ {{ u.cuotas.pv|ars }} de hoy{% endif %}</span></li>{% endif %}
       </ul></div>
     {% endif %}
     {{ toolbar('seguidos', false) }}
@@ -320,6 +320,7 @@
             {% if r.best %}<a class="link" target="_blank" rel="noopener" href="{{ r.best.product_url or r.best.url }}">Ver la mejor oferta</a>{% endif %}
             <span>Mercado <b class="num">{{ r.ref|ars if r.ref else '—' }}</b></span>
             {% if r.hist %}<span>Mínimo histórico <b class="num">{{ r.hist.price_cash|ars }}</b></span>{% endif %}
+            {% if r.cuotas %}<span title="{{ r.cuotas.n }} cuotas sin interés de {{ (r.cuotas.price / r.cuotas.n)|ars }}, valuadas con {{ '%.1f'|format(inflation * 100) }} % de inflación mensual">En {{ r.cuotas.n }} cuotas en {{ r.cuotas.store }} <b class="num">≈ {{ r.cuotas.pv|ars }}</b> de hoy</span>{% endif %}
             {% if r.ev_ref and r.ev_ref.ref %}<span>Antes de {{ r.ev_name }} <b class="num">{{ r.ev_ref.ref|ars }}</b></span>{% endif %}
             {% if r.stats %}<span>Máximo <b class="num">{{ r.stats.max|ars }}</b></span>{% endif %}
             <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
@@ -335,16 +336,17 @@
               <tr style="{% if not o.active %}opacity:.45{% endif %}">
                 <td><a href="{{ (s.product_url if s and s.product_url) or o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.store|capitalize }}</a>{% if s and s.seller and s.seller|lower != o.store %}<div class="note">{{ s.seller }}</div>{% endif %}{% if o.via %}<div class="note">visto en Descubrimiento</div>{% endif %}</td>
                 <td class="r num">
-                  {% if o.ml and not s %}<a class="link" target="_blank" rel="noopener" href="{{ o.url if 'listado.' in o.url or '/p/' in o.url else t.name|ml_search }}">Ver en ML</a>
+                  {% if o.ml and not s %}<a class="link" target="_blank" rel="noopener" href="{{ o.url if o.store != 'mercadolibre' or 'listado.' in o.url or '/p/' in o.url else t.name|ml_search }}">Ver en {{ 'ML' if o.store == 'mercadolibre' else MANUAL_STORES[o.store] }}</a>
                   {% elif not s %}<span class="muted">—</span>
                   {% elif s.error %}<span style="color:var(--bad)" title="{{ s.error }}">error</span>
                   {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
                   {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="strike">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
                 </td>
                 <td class="note">{% if o.ml %}{% if s %}carga manual{{ ' · ' ~ s.seller if s.seller }} · vence a los 3 días · {% else %}sin acceso automático: revisalo a mano{% endif %}{% if not static %}
-                  <form class="inline-form" style="margin-top:4px" onsubmit="manualPrice(event, '{{ t.id }}')">Lo vi a $ <input name="price" type="number" min="1" step="1" required style="width:96px">
+                  <form class="inline-form" style="margin-top:4px" onsubmit="manualPrice(event, '{{ t.id }}', '{{ o.store }}')">Lo vi a $ <input name="price" type="number" min="1" step="1" required style="width:96px">
                     <input name="seller" placeholder="vendedor" style="width:100px"> <input name="url" type="url" placeholder="link (opcional)" style="width:130px">
-                    <button class="btn sm">Cargar</button></form>{% endif %}{% endif %}{% if o.hike %}<span style="color:var(--bad)">subió {{ o.hike }} % vs su precio habitual</span> · {% endif %}{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}</td>
+                    <button class="btn sm">Cargar</button></form>{% if o.store == 'mercadolibre' and not (r.offers|selectattr('store', 'equalto', 'tiendabna')|list) %}
+                  <form class="inline-form" style="margin-top:4px" onsubmit="manualPrice(event, '{{ t.id }}', 'tiendabna')">En <a class="link" href="https://www.tiendabna.com.ar/" target="_blank" rel="noopener">Tienda BNA</a> a $ <input name="price" type="number" min="1" step="1" required style="width:96px"><input name="seller" type="hidden" value=""><input name="url" type="url" placeholder="link (opcional)" style="width:130px"> <button class="btn sm">Cargar</button></form>{% endif %}{% endif %}{% endif %}{% if o.hike %}<span style="color:var(--bad)">subió {{ o.hike }} % vs su precio habitual</span> · {% endif %}{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}{% if o.pv %} · <b title="Cuotas fijas sin interés valuadas con {{ '%.1f'|format(inflation * 100) }} % de inflación mensual">≈ {{ o.pv|ars }} en pesos de hoy</b>{% endif %}</td>
                 <td class="r note">{% if s %}<span data-ts="{{ s.scanned_at }}"></span>{% endif %}</td>
                 {% if not static %}<td class="r" style="white-space:nowrap">{% if not o.via and not o.ml %}
                   <button class="link" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
@@ -674,9 +676,9 @@ async function discardModel(key){
   const why = prompt('Motivo (se puede deshacer)', 'no me convence'); if (why === null) return;
   await api('POST', '/api/confirm', {key, label: why || 'descartado a mano', answer: 'discard'}); location.reload();
 }
-async function manualPrice(e, id){
+async function manualPrice(e, id, store){
   e.preventDefault(); const f = e.target;
-  const r = await api('POST', '/api/manual-price', {target_id: id, price: +f.price.value,
+  const r = await api('POST', '/api/manual-price', {target_id: id, store: store || 'mercadolibre', price: +f.price.value,
     seller: f.seller.value.trim() || null, url: f.url.value.trim() || null});
   if (r && r.hint) alert(r.hint);
   location.reload();

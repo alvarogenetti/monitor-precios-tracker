@@ -19,7 +19,8 @@ def _cands(rows: list[dict], models: list[dict]) -> list[dict]:
             continue
         out.append({"name": r["target"].name, "price": b["price_cash"], "store": b.get("seller") or b["store"],
                     "url": b.get("product_url") or b.get("url"), "usb_c": bool(r.get("usb_c")),
-                    "real": r.get("real"), "level": r.get("level"), "tracked": True})
+                    "real": r.get("real"), "level": r.get("level"), "tracked": True,
+                    "cuotas": r.get("cuotas")})
     for m in models:
         if m.get("tracked") or m.get("generic") or m.get("status") != "cumple":
             continue
@@ -71,7 +72,9 @@ def telegram_lines(adv: dict | None) -> list[str]:
              f"• Más barato que cumple todo: {html.escape(c['name'])} — <b>{fmt_ars(c['price'])}</b> "
              f"({html.escape(c['store'])})"]
     if u and u is not c:
+        cq = u.get("cuotas")
         lines.append(f"• Con USB-C: {html.escape(u['name'])} — {fmt_ars(u['price'])} "
-                     f"(+{fmt_ars(adv['usbc_extra'])})")
+                     f"(+{fmt_ars(adv['usbc_extra'])})"
+                     + (f"; en {cq['n']} cuotas ≈ {fmt_ars(cq['pv'])} de hoy" if cq else ""))
     lines.append(f"→ {html.escape(adv['verdict'])}")
     return lines + [""]

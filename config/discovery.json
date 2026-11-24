@@ -19,6 +19,10 @@
     "weight_required": false
   },
   "oled_max_price": 650000,
+  "finance": {
+    "inflation_monthly": 0.02,
+    "_nota": "Inflación mensual esperada para valuar las cuotas sin interés en pesos de hoy. Ajustala cuando cambie (0 = no descontar)."
+  },
   "max_price": 1500000,
   "exclude_words": [
     "usado",

@@ -15,7 +15,7 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 |---|---|
 | Ver el dashboard desde cualquier lado | El link de GitHub Pages (sólo lectura, se actualiza en cada escaneo) |
 | Dashboard completo en tu PC (escanear, confirmar datos, seguir modelos) | `C:\Proyectos\monitor-precios-tracker\iniciar.ps1` |
-| Avisos | Telegram: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y resumen diario a las 9 |
+| Avisos | Telegram: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y resumen diario a las 9. Los avisos de cada escaneo llegan **en un solo mensaje** (ofertas primero); sólo una oferta excepcional (≥ 30 %) sale al instante |
 
 **Qué compraría hoy.** Arriba de Seguidos (y al principio del resumen de Telegram): el monitor más
 barato que cumple todo entre seguidos y descubrimiento (marcas conocidas), la opción USB-C más barata
@@ -40,10 +40,12 @@ y cuánto más sale, y un veredicto: **comprá** si alguno tiene descuento real 
   de las tiendas**: ofertas que trajo cada una en el último descubrimiento, última vez con datos y
   último problema). El resumen diario avisa las tiendas que volvieron vacías o con error.
 
-**Mercado Libre: a mano.** Desde el 23/11/2026 no se lee automáticamente (ver
+**Mercado Libre y Tienda BNA: a mano.** Desde el 23/11/2026 no se lee automáticamente (ver
 [sección 6](#6-mercado-libre-por-qué-es-manual)). En cada seguido, la fila de Mercado Libre tiene
 **Ver en ML** (abre la búsqueda en tu navegador) y **Lo vi a $** para cargar un precio que viste: entra
 al análisis como cualquier tienda durante 3 días. En eventos, el resumen de Telegram trae los links.
+Lo mismo con **Tienda BNA** (protegida contra bots con Cloudflare, muy fuerte en cuotas durante los
+eventos): "En Tienda BNA a $" en la misma fila.
 
 **Confirmar o descartar.** Si un modelo dice "A confirmar: acabado mate", podés responder
 **¿Pantalla mate? Sí / No** (lo viste en la ficha, en una reseña...). Se guarda en
@@ -103,7 +105,20 @@ Hot Sale, Cyber Monday, Black Friday...:
 ### Promos y cuotas
 
 Cada oferta guarda su promo cuando la tienda la informa: **cuotas sin interés** (máximo de cuotas
-sin interés en tiendas VTEX), % sobre el precio de lista, ofertas y envío gratis de ML.
+sin interés en tiendas VTEX y en las del descubrimiento que lo publican), % sobre el precio de lista.
+
+**Cuotas en pesos de hoy.** Con inflación, N cuotas fijas sin interés valen menos que el mismo
+precio de contado. Cada oferta con cuotas muestra cuánto vale hoy (valor presente con la inflación
+mensual de `config/discovery.json` → `finance.inflation_monthly`, por defecto 2 %; 0 = no descontar).
+Si pagar en cuotas en alguna tienda sale menos que la mejor oferta de contado, el detalle del
+seguido lo muestra ("En 12 cuotas en Frávega ≈ $598.800 de hoy"), y también "Qué compraría hoy".
+
+### Informe del evento
+
+El primer día después de que termina un evento, el resumen diario trae **"Cómo fue Black Friday"**:
+las ofertas reales que hubo (mejor precio de cada seguido contra su referencia congelada), qué
+tiendas anunciaban descuentos inflados y cuántas subas hubo en las 2 semanas previas. Una sola vez
+por evento (`services/event_report.py`).
 
 ---
 

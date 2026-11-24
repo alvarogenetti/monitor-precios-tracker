@@ -90,3 +90,14 @@ def test_market_reference_median():
     ref, src = reference(pts, seed=999999, now=now)
     assert ref == 347500 and "mediana" in src
     assert reference(pts[:3], seed=300000, now=now) == (300000, "precio de mercado inicial (relevamiento)")
+
+
+def test_bundle_agrupa_y_ordena():
+    from services.tracker import Alert, bundle
+
+    al = [Alert("price_drop", "bajó"), Alert("real_offer", "oferta 18", score=0.18),
+          Alert("real_offer", "oferta 25", score=0.25), Alert("pre_event_hike", "subió")]
+    msgs = bundle(al, "🔔 4 avisos")
+    assert len(msgs) == 1 and msgs[0].index("oferta 25") < msgs[0].index("oferta 18") < msgs[0].index("subió") < msgs[0].index("bajó")
+    many = bundle([Alert("price_drop", "x" * 1000) for _ in range(10)], "H")
+    assert len(many) >= 3 and all(len(m) <= 3800 for m in many) and many[1].startswith("H (sigue)")

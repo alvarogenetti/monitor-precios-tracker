@@ -43,3 +43,21 @@ def test_frozen_reference_during_event(tmp_path, monkeypatch):
     db.freeze_event_refs(events.event_key(_ev(-1)[0]), {"m": (280000, 290000)})
     ref, src = market_ref(db, T)
     assert ref == 280000 and "antes de Black Friday" in src
+
+
+def test_cuotas_en_pesos_de_hoy():
+    from app.main import add_installments
+    from services.market import installments, present_value
+
+    assert installments("12 cuotas sin interés · -16% sobre lista") == 12
+    assert installments("1 cuota sin interés") is None and installments(None) is None
+    assert round(present_value(400000, 12, 0.02)) == 352511
+    assert present_value(400000, 12, 0) == 400000
+    snap = lambda p, promo: {"price_cash": p, "promo": promo, "error": None, "store": "x"}
+    row = {"best": snap(370000, None), "offers": [
+        {"store": "fravega", "url": "f", "snap": snap(400000, "12 cuotas sin interés")},
+        {"store": "x", "url": "x", "snap": snap(370000, None)}]}
+    add_installments(row, 0.02)
+    assert row["cuotas"]["pv"] == 352500 and row["offers"][0]["pv"] == 352500
+    add_installments(row, 0.0)
+    assert row["cuotas"] is None
