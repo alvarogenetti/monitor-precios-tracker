@@ -93,7 +93,7 @@ def test_merge_from_also_merges_discovery_tables(tmp_path):
     with b.connect() as con:
         con.execute("INSERT INTO discovered_models VALUES ('X','X','cumple','2026-11-24T12:00:00+00:00',?, "
                     "'2026-11-24T12:00:00+00:00', 100, 90)", (rid,))
-        con.execute("INSERT INTO discovery_prices VALUES (?, 'X', 100, 's', NULL, '2026-11-24T12:00:00+00:00')", (rid,))
+        con.execute("INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at) VALUES (?, 'X', 100, 's', NULL, '2026-11-24T12:00:00+00:00')", (rid,))
     b.freeze_event_refs("BF|2026-11-26", {"m": (300000, 310000)})
     b.record_offer_alert("X", "buena", 100) if hasattr(b, "record_offer_alert") else None
     b.spec_cache_put("page:X", {"anti_glare": True})

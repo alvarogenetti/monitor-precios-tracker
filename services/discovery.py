@@ -281,6 +281,7 @@ class ModelResult:
     real: float | None = None          # descuento real vs mercado (0.2 = 20 % abajo)
     level: str | None = None           # buena / excepcional
     generic: bool = False              # marca sin reseñas
+    spread: dict | None = None         # ofertas nuevas con stock: {"max", "avg", "n"} (para el gráfico)
 
 
 def _majority(values: list) -> Any:
@@ -310,6 +311,8 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     pool = offers if accept_used or not new else new      # el precio sale de las ofertas nuevas
     sellable = [o for o in pool if o.in_stock is not False] or pool
     best = min(sellable, key=lambda o: o.price)
+    ps = [o.price for o in sellable]
+    spread = {"max": max(ps), "avg": sum(ps) / len(ps), "n": len(ps)}
     s = spec or {}
     fails: list[str] = []
     missing: list[str] = []
@@ -460,7 +463,7 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         key=key, search=search, name=name, brand=brand_of(best.title), status=status,
         best=asdict(best), offers=[asdict(o) for o in sorted(offers, key=lambda o: o.price)[:12]],
         n_stores=len(stores), facts=asdict(facts), spec=spec, fails=fails, missing=missing,
-        warnings=warns, badges=badges, checks=checks,
+        warnings=warns, badges=badges, checks=checks, spread=spread,
     )
 
 

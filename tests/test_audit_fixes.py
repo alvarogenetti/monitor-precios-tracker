@@ -38,7 +38,7 @@ def test_serie_del_descubrimiento_un_punto_por_dia(tmp_path):
     db = Database(tmp_path / "a.db")
     with db.connect() as con:
         for i, (day, price) in enumerate((("2026-11-26T03", 500), ("2026-11-26T09", 450), ("2026-11-27T03", 480))):
-            con.execute("INSERT INTO discovery_prices VALUES (?, 'X', ?, 's', NULL, ?)", (i, price, day + ":00:00+00:00"))
+            con.execute("INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at) VALUES (?, 'X', ?, 's', NULL, ?)", (i, price, day + ":00:00+00:00"))
     assert [p["price"] for p in db.discovery_series("X")] == [450, 480]
 
 

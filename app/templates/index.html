@@ -130,8 +130,19 @@
   .detail { padding: 4px 16px 18px; display: grid; gap: 16px; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 12px; color: var(--ink-2); }
   .facts b { color: var(--ink); font-weight: 600; }
-  .chart { position: relative; height: 180px; color: var(--muted); }
-  .chart svg text { font-size: 10px; fill: var(--muted); }
+  .hist { display: grid; gap: 12px; }
+  .hist-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: none; color: var(--ink-2); font: inherit; font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--hover); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .hstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; font-size: 12px; color: var(--muted); }
+  .hstats b { display: block; font-size: 16px; color: var(--ink); font-weight: 600; }
+  .hstats .good { color: var(--good); } .hstats .bad { color: var(--bad); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+  .legend svg { vertical-align: middle; margin-right: 5px; }
+  .plot { position: relative; height: 220px; color: var(--muted); }
+  .plot svg text { font-size: 10px; fill: var(--muted); }
+  .tip .sw { display: inline-block; width: 14px; vertical-align: middle; margin-right: 5px; }
   .tip { position: absolute; pointer-events: none; background: var(--raised); border: 1px solid var(--ring);
          border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); white-space: nowrap; }
   table.stores { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -326,7 +337,7 @@
             <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
             {% if ev.key %}<span class="muted" title="Identificador del modelo (código normalizado)">ID {{ ev.key }}</span>{% endif %}
           </div>
-          <div class="chart"></div>
+          <div class="hist" data-src="{{ series_file('t', t.id) if static else '/api/series/t/' ~ t.id ~ '?m=' ~ ((ev.key or '')|urlencode) }}"></div>
           {{ reqs(ev.checks) }}
           {{ confirm_box(ev.key, ev.missing or [], ev.manual or [], false) }}
           <table class="stores">
@@ -416,7 +427,7 @@
               <span class="muted" title="Identificador del modelo (código normalizado)">ID {{ m.key }}</span>
               {% if not static and not m.tracked and m.status != 'descartado' %}<button class="btn sm" style="margin-left:auto" onclick="trackModel({{ m.key|tojson|forceescape }})">Seguir</button>{% endif %}
             </div>
-            {% if (m.series or [])|length > 1 %}<div class="chart"></div>{% endif %}
+            <div class="hist" data-src="{{ series_file('m', m.key) if static else '/api/series/m/' ~ (m.key|urlencode) }}"></div>
             {{ reqs(m.checks) }}
             {% if m.warnings %}<div class="note">{{ m.warnings|join(' · ') }}</div>{% endif %}
             {{ confirm_box(m.key, m.missing or [], m.manual or [], not m.tracked and m.status != 'descartado') }}
@@ -596,35 +607,89 @@ function spark(el, series, ref){
   s += `<circle cx="${x(last.ts)}" cy="${y(last.price)}" r="2.5" fill="${col}"/></svg>`;
   el.innerHTML = s;
 }
-function chart(el, series, ref, lo){
+// Gráfico grande: historial por día (más barato, más caro, promedio) con selector de período.
+const RANGES = [[7, '1 semana'], [30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [365, '1 año'], [0, 'Todo']];
+const DAY = 864e5, tDay = d => Date.parse(d + 'T12:00:00-03:00');
+const fmtLong = new Intl.DateTimeFormat('es-AR', {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires'});
+const fmtTick = new Intl.DateTimeFormat('es-AR', {day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires'});
+const histCache = {};
+const LINES = () => [
+  {k: 'lo', label: 'Más barato', color: css('--accent'), dash: '', w: 2.25},
+  {k: 'avg', label: 'Promedio', color: css('--ink-2'), dash: '6 4', w: 1.5},
+  {k: 'hi', label: 'Más caro', color: css('--warn'), dash: '1 4', w: 2},
+];
+const swatch = l => `<svg width="18" height="6"><line x1="1" x2="17" y1="3" y2="3" stroke="${l.color}" stroke-width="${l.w}" stroke-dasharray="${l.dash}" stroke-linecap="round"/></svg>`;
+async function hist(el, ref){
+  const src = el.dataset.src;
+  if (!histCache[src]) histCache[src] = fetch(src).then(r => r.ok ? r.json() : []).catch(() => []);
+  const all = await histCache[src];
+  if (!all.length){ el.innerHTML = '<div class="note">Todavía no hay historial.</div>'; return; }
+  const span = (Date.now() - tDay(all[0].d)) / DAY;
+  const avail = RANGES.filter((r, i) => r[0] === 0 || i === 0 || span > RANGES[i - 1][0]);
+  let pick = +(el.dataset.range ?? mem.get('histRange', 90));
+  if (!avail.some(r => r[0] === pick)) pick = 0;
+  const pts = all.filter(p => !pick || tDay(p.d) >= Date.now() - pick * DAY);
+  const last = pts.at(-1), first = pts[0];
+  const minP = pts.reduce((m, p) => p.lo < m.lo ? p : m, first);
+  const maxV = Math.max(...pts.map(p => p.hi ?? p.lo));
+  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Argentina/Buenos_Aires'});
+  const varP = pts.length > 1 ? last.lo / first.lo - 1 : null;
+  const pct = v => (v > 0 ? '+' : '') + Math.round(v * 100) + ' %';
+  const lines = LINES();
+  el.innerHTML = `<div class="hist-top"><div class="note">Historial de precios · ofertas nuevas, día por día${all.some(p => p.hi == null) ? ' (más caro y promedio desde el 24/11/2026)' : ''}</div>
+      <div class="seg" role="group" aria-label="Período">${avail.map(r => `<button type="button" data-r="${r[0]}" aria-pressed="${r[0] === pick}">${r[1]}</button>`).join('')}</div></div>
+    <div class="hstats">
+      <div>${last.d === today ? 'Hoy, lo más barato' : 'Último dato (' + fmtDay.format(new Date(tDay(last.d))) + ')'}<b class="num">${ars(last.lo)}</b></div>
+      <div>Mínimo del período<b class="num">${ars(minP.lo)}</b>el ${fmtTick.format(new Date(tDay(minP.d)))}</div>
+      <div>Máximo del período<b class="num">${ars(maxV)}</b></div>
+      ${varP == null ? '' : `<div>Variación del más barato<b class="num ${varP < -0.005 ? 'good' : varP > 0.005 ? 'bad' : ''}">${pct(varP)}</b></div>`}
+    </div>
+    <div class="legend">${lines.map(l => `<span>${swatch(l)}${l.label}</span>`).join('')}${ref ? `<span>${swatch({color: css('--line-strong'), w: 1, dash: '2 3'})}Precio de mercado</span>` : ''}</div>
+    <div class="plot"></div>`;
+  el.querySelectorAll('.seg button').forEach(bt => bt.addEventListener('click', () => {
+    el.dataset.range = bt.dataset.r; mem.set('histRange', +bt.dataset.r); hist(el, ref); }));
+  plot(el.querySelector('.plot'), pts, ref, lines);
+}
+function plot(el, pts, ref, lines){
   const W = el.clientWidth, H = el.clientHeight;
   if (!W) return;
-  if (series.length < 1){ el.innerHTML = '<div class="note" style="padding-top:70px;text-align:center">Todavía no hay historial.</div>'; return; }
-  const padL = 64, padR = 10, padT = 10, padB = 22;
-  const ps = series.map(p => p.price), vals = ps.concat(ref ? [ref] : []);
-  let y0 = Math.min(...vals), y1 = Math.max(...vals); const pad = Math.max((y1 - y0) * .15, (y0 + y1) / 2 * .03); y0 -= pad; y1 += pad;
-  const t0 = Date.parse(series[0].ts), t1 = Date.parse(series.at(-1).ts);
-  const x = t => series.length < 2 ? (padL + W - padR) / 2 : padL + (Date.parse(t) - t0) / (t1 - t0 || 1) * (W - padL - padR);
+  const padL = 64, padR = 12, padT = 10, padB = 24;
+  const vals = pts.flatMap(p => [p.lo, p.hi, p.avg]).filter(v => v != null).concat(ref ? [ref] : []);
+  let y0 = Math.min(...vals), y1 = Math.max(...vals); const pad = Math.max((y1 - y0) * .12, (y0 + y1) / 2 * .03); y0 -= pad; y1 += pad;
+  const t0 = tDay(pts[0].d), t1 = tDay(pts.at(-1).d);
+  const x = d => pts.length < 2 ? (padL + W - padR) / 2 : padL + (tDay(d) - t0) / (t1 - t0 || 1) * (W - padL - padR);
   const y = v => padT + (y1 - v) / (y1 - y0) * (H - padT - padB);
-  const grid = css('--line'), axis = css('--line-strong'), line = css('--accent');
+  const grid = css('--line'), axis = css('--line-strong');
   let s = `<svg width="${W}" height="${H}">`;
   for (let i = 0; i <= 3; i++){ const v = y0 + (y1 - y0) * i / 3, yy = y(v);
     s += `<line x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}" stroke="${grid}"/><text x="${padL - 8}" y="${yy + 3}" text-anchor="end">${ars(v)}</text>`; }
-  if (ref) s += `<line x1="${padL}" x2="${W - padR}" y1="${y(ref)}" y2="${y(ref)}" stroke="${axis}" stroke-dasharray="4 4"/><text x="${W - padR}" y="${y(ref) - 5}" text-anchor="end">mercado ${ars(ref)}</text>`;
-  s += `<polyline points="${series.map(p => `${x(p.ts).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ')}" fill="none" stroke="${line}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-  s += `<text x="${padL}" y="${H - 5}">${fmtDay.format(new Date(series[0].ts))}</text><text x="${W - padR}" y="${H - 5}" text-anchor="end">${fmtDay.format(new Date(series.at(-1).ts))}</text>`;
-  s += `<line class="cross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="${axis}" visibility="hidden"/><circle class="dot" r="4" fill="${line}" stroke="${css('--surface')}" stroke-width="2" visibility="hidden"/>`;
+  const nt = Math.max(2, Math.min(pts.length, Math.floor((W - padL - padR) / 80)));
+  const ticks = pts.length < 2 ? [pts[0]] : [...new Set(Array.from({length: nt}, (_, i) => Math.round(i * (pts.length - 1) / (nt - 1))))].map(i => pts[i]);
+  ticks.forEach((p, i) => { const a = pts.length < 2 ? 'middle' : i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle';
+    s += `<text x="${x(p.d)}" y="${H - 6}" text-anchor="${a}">${fmtTick.format(new Date(tDay(p.d)))}</text>`; });
+  if (ref) s += `<line x1="${padL}" x2="${W - padR}" y1="${y(ref)}" y2="${y(ref)}" stroke="${axis}" stroke-dasharray="2 3"/>`;
+  for (const l of lines.slice().reverse()){      // el más barato queda arriba de todo
+    let seg = [];
+    const flush = () => { if (seg.length > 1) s += `<polyline points="${seg.join(' ')}" fill="none" stroke="${l.color}" stroke-width="${l.w}" stroke-dasharray="${l.dash}" stroke-linejoin="round" stroke-linecap="round"/>`;
+      else if (seg.length === 1) s += `<circle cx="${seg[0].split(',')[0]}" cy="${seg[0].split(',')[1]}" r="3" fill="${l.color}"/>`; seg = []; };
+    for (const p of pts){ if (p[l.k] == null) flush(); else seg.push(`${x(p.d).toFixed(1)},${y(p[l.k]).toFixed(1)}`); }
+    flush();
+  }
+  s += `<line class="cross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" stroke="${axis}" visibility="hidden"/><circle class="dot" r="4" fill="${lines[0].color}" stroke="${css('--surface')}" stroke-width="2" visibility="hidden"/>`;
   s += `<rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
   el.innerHTML = s;
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), cross = svg.querySelector('.cross'), dot = svg.querySelector('.dot');
   svg.addEventListener('pointermove', e => {
     const r = svg.getBoundingClientRect(), mx = e.clientX - r.left;
-    let best = series[0], bd = Infinity; for (const p of series){ const d = Math.abs(x(p.ts) - mx); if (d < bd){ bd = d; best = p; } }
-    const px = x(best.ts), py = y(best.price);
+    let p = pts[0], bd = Infinity; for (const q of pts){ const d = Math.abs(x(q.d) - mx); if (d < bd){ bd = d; p = q; } }
+    const px = x(p.d), py = y(p.lo);
     cross.setAttribute('x1', px); cross.setAttribute('x2', px); cross.setAttribute('visibility', 'visible');
     dot.setAttribute('cx', px); dot.setAttribute('cy', py); dot.setAttribute('visibility', 'visible');
-    tip.hidden = false; tip.innerHTML = `<b class="num">${ars(best.price)}</b><div class="note">${fmt.format(new Date(best.ts))}${best.where ? ' · ' + best.where : ''}</div>`;
-    tip.style.left = Math.min(px + 10, W - tip.offsetWidth - 4) + 'px'; tip.style.top = Math.max(py - 48, 0) + 'px';
+    const row = l => p[l.k] == null ? '' : `<div>${swatch(l)}${l.label} <b class="num">${ars(p[l.k])}</b>${l.k === 'lo' && p.where ? ` <span class="note">${p.where}</span>` : ''}</div>`;
+    tip.hidden = false;
+    tip.innerHTML = `<div class="note" style="margin-bottom:3px">${fmtLong.format(new Date(tDay(p.d)))}${p.n ? ` · ${p.n} oferta${p.n > 1 ? 's' : ''}` : ''}</div>` + lines.map(row).join('');
+    tip.style.left = (px + 12 + tip.offsetWidth > W ? px - tip.offsetWidth - 12 : px + 12) + 'px';
+    tip.style.top = Math.max(Math.min(py - 40, H - tip.offsetHeight - 4), 0) + 'px';
   });
   svg.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); });
 }
@@ -633,7 +698,7 @@ function drawAll(){
     if (it.hidden || !it.offsetParent) return;
     const series = JSON.parse(it.dataset.series || '[]'), ref = +it.dataset.ref || null;
     const sp = it.querySelector('.spark'); if (sp && sp.offsetParent) spark(sp, series, ref);
-    const ch = it.querySelector('.chart'); if (ch && it.open) chart(ch, series, ref, +it.dataset.lo);
+    const ch = it.querySelector('.hist'); if (ch && it.open) hist(ch, ref);
   });
 }
 document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('details.item')) drawAll(); }, true);

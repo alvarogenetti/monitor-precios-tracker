@@ -53,9 +53,10 @@ STORES = [
         ("Casa del Audio, Rodo, Sodimac, Easy, Castillo, Novogar...", "Se revisaron: no venden 27\" QHD", "—"),
         ("Compel, Fefotec, Incot, BitHard, Vccit, Ar-Hard, Integrados Argentinos, Authogar",
          "Se revisaron: no venden 27\" QHD", "—"),
-        ("BuscaHard, Precios GG, Historial de Precios, Precialo", "Comparadores revisados: sus tiendas útiles se leen "
-         "directo (BuscaHard bloquea bots de IA en robots.txt; Precios GG está vacío; Historial cubre "
-         "supermercados; Precialo es de Mercado Libre)", "—"),
+        ("BuscaHard, Precios GG, Historial de Precios, Precialo, ComparaYa", "Comparadores revisados: sus tiendas "
+         "útiles se leen directo (BuscaHard bloquea bots de IA en robots.txt; Precios GG está vacío; Historial "
+         "cubre supermercados; Precialo es casi todo Mercado Libre y su robots.txt prohíbe el buscador; "
+         "ComparaYa carga los precios desde su API y su robots.txt la prohíbe)", "—"),
         ("MercadoTrack, RadarLibre, Jina/Apify/Octoparse", "Leer ML a través de terceros: va contra la cláusula 12 de "
          "ML (uso automatizado). MejoresCompras sólo como link «Historial»", "—"),
     ]},

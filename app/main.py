@@ -161,12 +161,34 @@ def build_dashboard() -> list[dict]:
                      "ev_ref": ev_ref, "ev_name": ev["name"] if ev else None,
                      "inflated": bool(best and inflated(best["price_cash"], best["price_list"], ref)),
                      "high": t.high,
-                     "series": [{"ts": p["ts"], "price": p["price"],
-                                 "where": p["store"] + (f" · {p['seller']}" if p["seller"] else "")}
-                                for p in series],
+                     "series": spark_points(series),
                      "stats": series_stats([p["price"] for p in series]),
                      "hit": bool(best and best["price_cash"] <= t.target_price)})
     return rows
+
+
+def spark_points(series: list[dict], days: int = 30) -> list[dict]:
+    """Minigráfico de la fila: el más barato de cada día, últimos `days` días (el historial
+    completo del gráfico grande se pide aparte: /api/series o series/*.json en el sitio público)."""
+    from datetime import datetime, timedelta, timezone
+
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    per_day: dict[str, dict] = {}
+    for p in series:
+        if p["ts"] < since:
+            continue
+        d = per_day.get(p["ts"][:10])
+        if d is None or p["price"] < d["price"]:
+            per_day[p["ts"][:10]] = {"ts": p["ts"], "price": p["price"]}
+    return sorted(per_day.values(), key=lambda p: p["ts"])
+
+
+def series_file(kind: str, key: str) -> str:
+    """Nombre del archivo con el historial en el sitio público (sin caracteres raros)."""
+    return f"series/{kind}-" + re.sub(r"[^A-Za-z0-9_-]", "_", key) + ".json"
+
+
+templates.env.globals["series_file"] = series_file
 
 
 def series_stats(prices: list[float]) -> dict | None:
@@ -485,6 +507,13 @@ def api_target_url(target_id: str, body: UrlToggle):
         u.active = body.active
     save_targets(settings.targets_path, targets)
     return {"target": t.model_dump()}
+
+
+@app.get("/api/series/{kind}/{key:path}")
+def api_series(kind: str, key: str, m: str | None = None):
+    """Historial por día (más barato, más caro, promedio) para el gráfico grande.
+    Seguidos (kind t): `m` = clave del mismo modelo en el descubrimiento, para sumar sus tiendas."""
+    return db.tracked_series(key, m) if kind == "t" else db.daily_series("m", key)
 
 
 @app.get("/api/history/{target_id}/best")

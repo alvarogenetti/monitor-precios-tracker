@@ -97,7 +97,7 @@ def test_discovered_models_tracks_new(tmp_path):
     db.finish_discovery(run2, 2, [asdict(r) for r in r2], [])
     last = db.last_discovery()
     m = next(x for x in last["results"] if x["key"] == "PG27QFT1B")
-    assert m["min_price"] == 315000 and len(m["series"]) == 2
+    assert m["min_price"] == 315000 and len(m["series"]) == 1   # minigráfico: un punto por día
 
 
 def test_brand_hz_fallback_only_without_code_and_compatible_panel():

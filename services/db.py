@@ -105,6 +105,26 @@ def utcnow() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def merge_daily(a: list[dict], b: list[dict]) -> list[dict]:
+    """Une dos historiales por día: más barato y más caro de ambos, promedio ponderado por ofertas."""
+    out = {x["d"]: dict(x) for x in a}
+    for y in b:
+        x = out.get(y["d"])
+        if x is None:
+            out[y["d"]] = dict(y)
+            continue
+        if y["lo"] < x["lo"]:
+            x["lo"], x["where"] = y["lo"], y["where"]
+        his = [v for v in (x["hi"], y["hi"]) if v is not None]
+        x["hi"] = max(his) if his else None
+        if x["avg"] is not None and y["avg"] is not None:
+            nx, ny = x["n"] or 1, y["n"] or 1
+            x["avg"], x["n"] = (x["avg"] * nx + y["avg"] * ny) / (nx + ny), nx + ny
+        elif y["avg"] is not None:
+            x["avg"], x["n"] = y["avg"], y["n"]
+    return sorted(out.values(), key=lambda x: x["d"])
+
+
 class Database:
     def __init__(self, path: Path | str):
         self.path = Path(path)
@@ -118,6 +138,10 @@ class Database:
         dcols = {r["name"] for r in con.execute("PRAGMA table_info(discovery_runs)")}
         if "sources" not in dcols:   # ofertas por fuente en cada descubrimiento (estado de las tiendas)
             con.execute("ALTER TABLE discovery_runs ADD COLUMN sources TEXT")
+        pcols = {r["name"] for r in con.execute("PRAGMA table_info(discovery_prices)")}
+        for col, typ in (("price_max", "REAL"), ("price_avg", "REAL"), ("n_offers", "INTEGER")):
+            if col not in pcols:     # más caro / promedio de las ofertas nuevas (gráfico de historial)
+                con.execute(f"ALTER TABLE discovery_prices ADD COLUMN {col} {typ}")
         cols = {r["name"] for r in con.execute("PRAGMA table_info(snapshots)")}
         if "promo" not in cols:
             con.execute("ALTER TABLE snapshots ADD COLUMN promo TEXT")
@@ -264,10 +288,11 @@ class Database:
             if con.execute("SELECT 1 FROM discovery_prices WHERE model_key=? AND scanned_at=?",
                            (p["model_key"], p["scanned_at"])).fetchone():
                 continue
-            con.execute("""INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at)
-                           VALUES (?,?,?,?,?,?)""",
+            ex = [p[c] if c in p.keys() else None for c in ("price_max", "price_avg", "n_offers")]
+            con.execute("""INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at,
+                           price_max, price_avg, n_offers) VALUES (?,?,?,?,?,?,?,?,?)""",
                         (dmap.get(p["run_id"], p["run_id"]), p["model_key"], p["price"], p["store"],
-                         p["seller"], p["scanned_at"]))
+                         p["seller"], p["scanned_at"], *ex))
             n += 1
         for m in con.execute("SELECT * FROM o.discovered_models").fetchall():
             cur = con.execute("SELECT * FROM discovered_models WHERE model_key=?", (m["model_key"],)).fetchone()
@@ -374,11 +399,63 @@ class Database:
                         """UPDATE discovered_models SET name=?, status=?, last_seen=?, last_price=?,
                            min_price=MIN(COALESCE(min_price, ?), ?) WHERE model_key=?""",
                         (r.name, r.status, now, price, price, price, r.key))
+                sp = getattr(r, "spread", None) or {}
                 con.execute(
                     """INSERT INTO discovery_prices (run_id, model_key, price, store, seller,
-                       scanned_at) VALUES (?,?,?,?,?,?)""",
-                    (run_id, r.key, price, best["store"], best.get("seller"), now))
+                       scanned_at, price_max, price_avg, n_offers) VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (run_id, r.key, price, best["store"], best.get("seller"), now,
+                     sp.get("max"), sp.get("avg"), sp.get("n")))
         return new
+
+    def daily_series(self, kind: str, key: str, days: int = 3650) -> list[dict]:
+        """Historial por día (fecha de Argentina) para el gráfico grande: más barato (lo), más caro
+        (hi) y promedio (avg) de las ofertas nuevas con stock, y dónde estaba el más barato.
+        kind "t" = seguido (todas sus tiendas en cada escaneo); "m" = modelo del descubrimiento
+        (hi/avg existen desde el 24/11/2026; antes quedan en None)."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        ar = ZoneInfo("America/Argentina/Buenos_Aires")
+        day = lambda ts: datetime.fromisoformat(ts).astimezone(ar).date().isoformat()  # noqa: E731
+        days_out: dict[str, dict] = {}
+
+        def add(d, lo, hi, avg, n, where):
+            cur = days_out.get(d)
+            if cur is None:
+                days_out[d] = {"d": d, "lo": lo, "hi": hi, "avg": avg, "n": n, "where": where, "_k": 1}
+                return
+            if lo < cur["lo"]:
+                cur["lo"], cur["where"] = lo, where
+            if hi is not None:
+                cur["hi"] = max(cur["hi"] or hi, hi)
+            if avg is not None:   # promedio de los escaneos del día
+                cur["avg"] = avg if cur["avg"] is None else (cur["avg"] * cur["_k"] + avg) / (cur["_k"] + 1)
+                cur["_k"] += 1
+            cur["n"] = max(cur["n"] or 0, n or 0) or None
+
+        if kind == "t":
+            for p in self.best_series(key, days):
+                add(day(p["ts"]), p["price"], p.get("hi"), p.get("avg"), p.get("n"),
+                    p["store"] + (f" · {p['seller']}" if p["seller"] else ""))
+        else:
+            with self.connect() as con:
+                rows = con.execute(
+                    """SELECT * FROM discovery_prices WHERE model_key=?
+                       AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?) ORDER BY scanned_at""",
+                    (key, f"-{int(days)} days")).fetchall()
+            for r in rows:
+                r = dict(r)
+                add(day(r["scanned_at"]), r["price"], r.get("price_max"), r.get("price_avg"), r.get("n_offers"),
+                    (r["seller"] or r["store"] or ""))
+        out = sorted(days_out.values(), key=lambda x: x["d"])
+        for x in out:
+            x.pop("_k", None)
+        return out
+
+    def tracked_series(self, target_id: str, model_key: str | None) -> list[dict]:
+        """Seguido: sus tiendas + lo que el descubrimiento vio del mismo modelo en las otras."""
+        return merge_daily(self.daily_series("t", target_id),
+                           self.daily_series("m", model_key) if model_key else [])
 
     def discovery_series(self, model_key: str) -> list[dict]:
         with self.connect() as con:
@@ -413,10 +490,11 @@ class Database:
             d["errors"] = json.loads(d["errors"] or "[]")
             meta = {r["model_key"]: dict(r) for r in con.execute("SELECT * FROM discovered_models")}
             series: dict[str, list] = {}
-            for r in con.execute("""SELECT model_key, price, scanned_at FROM discovery_prices
-                                    ORDER BY run_id"""):
-                series.setdefault(r["model_key"], []).append(
-                    {"ts": r["scanned_at"], "price": r["price"], "where": ""})
+            for r in con.execute("""SELECT model_key, MIN(price) AS price, MAX(scanned_at) AS ts
+                                    FROM discovery_prices
+                                    WHERE scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', '-30 days')
+                                    GROUP BY model_key, substr(scanned_at, 1, 10) ORDER BY ts"""):
+                series.setdefault(r["model_key"], []).append({"ts": r["ts"], "price": r["price"]})
         for m in d["results"]:
             info = meta.get(m["key"], {})
             m["first_seen"] = info.get("first_seen")
@@ -506,8 +584,10 @@ class Database:
                      and now - datetime.fromisoformat(r["scanned_at"]) <= timedelta(hours=stale_hours)]
             if valid:
                 b = min(valid, key=lambda r: r["price_cash"])
+                ps = [r["price_cash"] for r in valid]
                 out.append({"run_id": cur_run, "price": b["price_cash"], "store": b["store"],
-                            "seller": b["seller"], "ts": cur_ts})
+                            "seller": b["seller"], "ts": cur_ts,
+                            "hi": max(ps), "avg": sum(ps) / len(ps), "n": len(ps)})
 
         for r in rows:
             if r["run_id"] != cur_run:
