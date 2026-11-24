@@ -151,12 +151,20 @@ de hoy") y también "Qué compraría hoy".
 | PrestaShop / TiendaNegocio | Armytech / Otecno | Descubrimiento |
 | Categoría en HTML | Dell AR, Megatone, Mallweb | Descubrimiento |
 | Ficha directa (genérico) | Venex (desde la PC), Maximus, Electro y Hogar | Seguidos |
-| **A mano** (link + "Lo vi a $") | **Mercado Libre** (API bloqueada), **Tienda BNA** (Cloudflare) | Cuando cargás un precio |
+| Comparador (fichas de producto en HTML) | **ComparaYa**: **Mercado Libre** (es afiliado de ML) y tiendas que no leemos directo (Portal Store, Gaming City, SCP Hardstore, Net Gaming…) | Descubrimiento |
+| **A mano** (link + "Lo vi a $") | **Mercado Libre** (además de ComparaYa), **Tienda BNA** (Cloudflare) | Cuando cargás un precio |
 
 Los comparadores (HardGamers, Seguimiento Gamer, BuscaHard, Precios GG, Historial de Precios, Precialo,
 ComparaYa, Libre Opción) se revisaron uno por uno (noviembre 2026): se leen los que lo permiten y sus tiendas útiles
-se leen directo. Ninguno incluye Mercado Libre de forma legítima salvo MejoresCompras (dice usar la API
-oficial), que aparece como link **Historial** al lado de cada **Ver en ML**.
+se leen directo. **ComparaYa** es el que trae Mercado Libre: es afiliado de ML (sus links a ML son de
+afiliado) y publica en cada ficha el precio de ML junto al de las otras tiendas. Su robots.txt permite
+las fichas (`/p/...`) y prohíbe `/api/` (buscador y listados), así que se leen sólo fichas, armando la
+dirección `monitor-<marca>-<código>-27` (~60 % aparece así; el resto se fija a mano en
+`config/discovery.json → comparaya_slugs`). Se miran los modelos que cumplen o falta confirmar (hasta 80,
+una ficha cada 1,5 s) y se toman las ofertas **nuevas** de Mercado Libre y de tiendas cuyo dominio no
+leemos directo, sólo si el título tiene el código exacto (la ficha junta "versiones"). Aparecen como
+"Tienda (vía ComparaYa)"; las de ML marcadas "Internacional" llevan el aviso de importado.
+MejoresCompras sigue como link **Historial** al lado de cada **Ver en ML**.
 
 Los seguidos se escanean cada ~3 h (cada hora en eventos) y además suman lo que el descubrimiento
 (1 vez por día, cada ~3 h en eventos) vio en las demás tiendas.
@@ -302,7 +310,12 @@ cl. 7.6), no se crea otra cuenta o app para esquivar el bloqueo y no se usan pro
 apagado (`settings.meli_enabled` devuelve `False`, el escaneo saltea los links de ML y el adaptador
 no cae a la web).
 
-**Qué se hace en cambio.** Links **Ver en ML** y **Historial** (MejoresCompras, que dice usar la API
+**Precios de ML vía ComparaYa (desde el 24/11/2026).** El descubrimiento lee las fichas públicas de
+ComparaYa (ver sección 3), que muestra el precio de ML porque es afiliado. Nosotros no tocamos ML: leemos
+una página de ComparaYa que su robots.txt permite. Los precios de ML se actualizan una vez por día
+(lo que ComparaYa tenga) y aparecen en Seguidos como "Mercado Libre (vía ComparaYa)".
+
+**Qué se hace además.** Links **Ver en ML** y **Historial** (MejoresCompras, que dice usar la API
 oficial de ML) en cada seguido y modelo del descubrimiento; los mismos links en el resumen de Telegram
 durante eventos; carga manual **Lo vi a $** (3 días); aviso si el vendedor no tiene su página cubierta.
 

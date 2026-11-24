@@ -722,6 +722,34 @@ def _collect_vtex(store: str, url: str) -> list[Offer]:
     return out
 
 
+def _collect_comparaya(db, cfg: dict, prev: dict | None, offers: list[Offer], stats: list[dict],
+                       on_progress=None) -> list[Offer]:
+    """Mercado Libre y tiendas que no leemos, desde las fichas de ComparaYa de los modelos que
+    valen la pena (los que cumplen o falta confirmar en el descubrimiento anterior)."""
+    from urllib.parse import urlparse
+
+    from services import comparaya
+
+    if on_progress:
+        on_progress(0, 1, "Descubriendo · ComparaYa (Mercado Libre y otras tiendas)")
+    models = sorted((m for m in (prev or {}).get("results", [])
+                     if m["status"] in ("cumple", "a_confirmar", "oled_oferta") and m.get("brand")),
+                    key=lambda m: m["best"]["price"])
+    hosts = {comparaya.host(o.url) for o in offers}
+    hosts |= {comparaya.host(s["url"]) for s in cfg.get("sources", []) if s.get("url")}
+    from scrapers.stores.catalogs import LABELS
+    from scrapers.stores.vtex import VTEX_STORES
+
+    names = {comparaya._name(o.seller or o.store) for o in offers}
+    names |= {comparaya._name(re.sub(r"\s*\(vía [^)]*\)", "", o.seller or "")) for o in offers}
+    names |= {comparaya._name(v) for v in LABELS.values()} | {comparaya._name(k) for k in VTEX_STORES}
+    names |= {"venex", "fravega", "compragamer"}
+    got = comparaya.collect(db, [{"key": m["key"], "brand": m["brand"], "search": m["search"]} for m in models],
+                            {h for h in hosts if h and h != "comparaya.net"},
+                            cfg.get("comparaya_slugs"), stats, own_names={n for n in names if n})
+    return [Offer(o["store"], o["title"], o["price"], o["url"], o["seller"], o["list"], True) for o in got]
+
+
 from scrapers.stores.catalogs import PLATFORMS  # noqa: E402
 
 
@@ -871,11 +899,14 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
     cfg = load_json(settings.discovery_path, {})
     catalog = SpecCatalog(load_json(settings.specs_path, []))
     db = Database(settings.db_path)
+    prev = db.last_discovery()
     run_id = db.start_discovery(trigger)
     async with BrowserSession(settings.headless, settings.block_stylesheets,
                               settings.page_timeout_ms) as session:
         stats: list[dict] = []
         offers, errors = await collect(session, cfg.get("sources", []), on_progress, stats)
+    if cfg.get("comparaya", True):
+        offers += await asyncio.to_thread(_collect_comparaya, db, cfg, prev, offers, stats, on_progress)
     results = analyze(offers, cfg, catalog)
     # Lo que el título no dice (mate, VESA, peso...) se completa con el catálogo de ML
     pending = [(r.key, r.search, r.brand) for r in results if r.status == "a_confirmar"]

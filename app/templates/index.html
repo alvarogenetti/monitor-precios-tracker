@@ -353,7 +353,7 @@
                   {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
                   {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="strike">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
                 </td>
-                <td class="note">{% if o.stale %}<span class="warn">dato de hace {{ o.stale }} días: no cuenta</span> · {% endif %}{% if o.ml %}{% if s %}carga manual{{ ' · ' ~ s.seller if s.seller }} · vence a los 3 días · {% else %}sin acceso automático: revisalo a mano{% endif %}{% if not static %}
+                <td class="note">{% if o.stale %}<span class="warn">dato de hace {{ o.stale }} días: no cuenta</span> · {% endif %}{% if o.ml %}{% if s %}carga manual{{ ' · ' ~ s.seller if s.seller }} · vence a los 3 días · {% else %}sin lectura directa: el precio diario llega «vía ComparaYa» (más abajo, si lo tiene) o cargalo a mano{% endif %}{% if not static %}
                   <form class="inline-form" style="margin-top:4px" onsubmit="manualPrice(event, '{{ t.id }}', '{{ o.store }}')">Lo vi a $ <input name="price" type="number" min="1" step="1" required style="width:96px">
                     <input name="seller" placeholder="vendedor" style="width:100px"> <input name="url" type="url" placeholder="link (opcional)" style="width:130px">
                     <button class="btn sm">Cargar</button></form>{% if o.store == 'mercadolibre' and not (r.offers|selectattr('store', 'equalto', 'tiendabna')|list) %}
@@ -470,7 +470,7 @@
         <h3 style="margin-top:14px">Uso</h3><p>Seguidos: cada 3 h en cada tienda (cada hora en eventos). Descubrimiento: todo el mercado, una vez por día (cada ~3 h en eventos). {% if static %}Seguir, confirmar datos y descartar se hacen desde el dashboard de la PC (iniciar.ps1).{% else %}Abrí un monitor para confirmar datos, seguirlo o descartarlo.{% endif %}</p></div>
     </div>
     <div class="group"><h2>Dónde se busca</h2>
-      <p class="desc"><b>Mercado Libre se revisa a mano.</b> El 23/11/2026 ML bloqueó el acceso de desarrollador (no permite apps que sólo leen precios) y sus términos prohíben leer la web con un programa. Cada seguido tiene «Ver en ML» y, en la PC, «Lo vi a $» para cargar un precio: cuenta 3 días como una tienda más. Con los datos previos al bloqueo, ML nunca fue el más barato (mediana +31 % sobre la mejor otra tienda). Detalle en el README.</p>
+      <p class="desc"><b>Mercado Libre llega vía ComparaYa.</b> El 23/11/2026 ML bloqueó nuestro acceso de desarrollador y sus términos prohíben leer su web con un programa. Desde el 24/11 su precio llega una vez por día desde ComparaYa, un comparador afiliado a ML cuyas fichas públicas sí se pueden leer: aparece como «Mercado Libre (vía ComparaYa)». Además, cada seguido tiene «Ver en ML» y, en la PC, «Lo vi a $» para cargar un precio: cuenta 3 días como una tienda más. Con los datos previos al bloqueo, ML nunca fue el más barato (mediana +31 % sobre la mejor otra tienda). Detalle en el README.</p>
       {% if health %}
       <details class="panel" style="margin-bottom:12px"><summary><b>Estado de las tiendas</b> <span class="note">· {{ health|selectattr('error')|list|length }} con problemas en el último descubrimiento</span></summary>
         <table class="stores" style="margin-top:8px"><thead><tr><th>Tienda</th><th class="r">Ofertas</th><th>Última vez con datos</th><th>Último problema</th></tr></thead><tbody>

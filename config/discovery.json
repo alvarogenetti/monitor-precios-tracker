@@ -268,7 +268,8 @@
   ],
   "ignore_models": [],
   "import_sellers": [
-    "Glic"
+    "Glic",
+    "Internacional"
   ],
   "generic_brands": [
     "Arkham",
@@ -296,5 +297,8 @@
     "CX"
   ],
   "usb_c_bonus": "USB-C con carga >= 65 W: deseable (vale hasta ~$100.000 más), no obligatorio",
-  "_exclude_nota": "Palabras que descartan una oferta antes de analizarla. Outlet/usado/reacondicionado NO van acá: se muestran marcadas y no cuentan (requirements.accept_used)."
+  "_exclude_nota": "Palabras que descartan una oferta antes de analizarla. Outlet/usado/reacondicionado NO van acá: se muestran marcadas y no cuentan (requirements.accept_used).",
+  "comparaya": true,
+  "_comparaya_nota": "Lee las fichas de comparaya.net de los modelos que cumplen o falta confirmar: suma Mercado Libre y tiendas que no leemos directo. Si no encuentra la ficha de un modelo, fijala acá: comparaya_slugs {'CLAVE': 'monitor-marca-codigo-27'}.",
+  "comparaya_slugs": {}
 }

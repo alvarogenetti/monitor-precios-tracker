@@ -6,8 +6,9 @@ STORES = [
         ("Compra Gamer", "Catálogo completo que descarga la propia página (precio especial y de lista)", "GitHub"),
         ("HardGamers", "Comparador: ~41 tiendas (Maximus, Mexx, Full H4rd, Gezatek, TryHardware, Slot One, Logg, "
                        "Katech, SilverHard, Compufan, Hyper Gaming, MyM, XT-PC, Amonpul…)", "GitHub"),
-        ("Mercado Libre", "Sin acceso automático desde el 23/11/2026 (ML bloqueó la app de sólo lectura). "
-                          "Links «Ver en ML» y carga manual «Lo vi a $» (vale 3 días)", "A mano"),
+        ("Mercado Libre", "Su API nos bloqueó el 23/11/2026. Desde el 24/11 el precio llega una vez por día "
+                          "vía ComparaYa (afiliado de ML); además links «Ver en ML» y carga manual «Lo vi a $» "
+                          "(vale 3 días)", "GitHub + a mano"),
         ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo, Samsung Shop, "
                            "Diamond Computación y Provincia Compras: la más barata entre todas", "GitHub"),
         ("Frávega", "API de su buscador (incluye vendedores del marketplace)", "Tu PC"),
@@ -36,6 +37,8 @@ STORES = [
         ("Libre Opción", "Marketplace (Gears Store, STORE GS, BsAsPC...): su API de búsqueda", "GitHub"),
         ("Seguimiento Gamer", "Comparador de 23 tiendas (su listado público de monitores): respaldo si "
                               "falla el lector propio de una tienda, y link al historial de cada producto", "GitHub"),
+        ("ComparaYa", "Comparador de 251 tiendas: de las fichas de los modelos que cumplen se toman Mercado Libre "
+                      "y las tiendas que no leemos directo (sólo ofertas nuevas del código exacto)", "GitHub"),
         ("Diamond Computación, Provincia Compras", "Buscador VTEX (Provincia Compras es marketplace)", "GitHub"),
         ("Frávega", "Buscador: monitor 27 qhd / 2k", "Tu PC"),
     ]},
@@ -53,10 +56,9 @@ STORES = [
         ("Casa del Audio, Rodo, Sodimac, Easy, Castillo, Novogar...", "Se revisaron: no venden 27\" QHD", "—"),
         ("Compel, Fefotec, Incot, BitHard, Vccit, Ar-Hard, Integrados Argentinos, Authogar",
          "Se revisaron: no venden 27\" QHD", "—"),
-        ("BuscaHard, Precios GG, Historial de Precios, Precialo, ComparaYa", "Comparadores revisados: sus tiendas "
+        ("BuscaHard, Precios GG, Historial de Precios, Precialo", "Comparadores revisados: sus tiendas "
          "útiles se leen directo (BuscaHard bloquea bots de IA en robots.txt; Precios GG está vacío; Historial "
-         "cubre supermercados; Precialo es casi todo Mercado Libre y su robots.txt prohíbe el buscador; "
-         "ComparaYa carga los precios desde su API y su robots.txt la prohíbe)", "—"),
+         "cubre supermercados; Precialo es casi todo Mercado Libre, ya cubierto vía ComparaYa)", "—"),
         ("MercadoTrack, RadarLibre, Jina/Apify/Octoparse", "Leer ML a través de terceros: va contra la cláusula 12 de "
          "ML (uso automatizado). MejoresCompras sólo como link «Historial»", "—"),
     ]},
