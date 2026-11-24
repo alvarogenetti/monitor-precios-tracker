@@ -456,7 +456,7 @@ class Database:
 
     def last_run(self) -> dict | None:
         with self.connect() as con:
-            row = con.execute("SELECT * FROM scan_runs ORDER BY id DESC LIMIT 1").fetchone()
+            row = con.execute("SELECT * FROM scan_runs WHERE trigger != 'manual' ORDER BY id DESC LIMIT 1").fetchone()
         return dict(row) if row else None
 
     def recent_alerts(self, limit: int = 20) -> list[dict]:

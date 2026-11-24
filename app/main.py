@@ -22,6 +22,16 @@ from settings import settings, setup_logging
 log = logging.getLogger("app")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.filters["ars"] = fmt_ars
+
+ML_MANUAL_DAYS = 3        # una carga manual de ML vale 3 días
+
+
+def ml_search_url(name: str) -> str:
+    """Búsqueda de Mercado Libre para abrir en el navegador (sólo un link: no se lee nada)."""
+    return "https://listado.mercadolibre.com.ar/" + slugify(re.sub(r"\(.*?\)|/.*", " ", name or ""))
+
+
+templates.env.filters["ml_search"] = ml_search_url
 db = Database(settings.db_path)
 
 
@@ -47,6 +57,14 @@ app = FastAPI(title="Monitor de precios AR", lifespan=lifespan)
 
 
 # ------------------------------------------------------------------ datos del dashboard
+def _fresh_manual(snap: dict) -> bool:
+    from datetime import datetime, timedelta, timezone
+
+    if not (snap.get("promo") or "").startswith("carga manual"):
+        return False
+    return datetime.fromisoformat(snap["scanned_at"]) >= datetime.now(timezone.utc) - timedelta(days=ML_MANUAL_DAYS)
+
+
 def build_dashboard() -> list[dict]:
     targets = load_targets(settings.targets_path)
     latest = {(r["target_id"], r["url"]): r for r in db.latest_per_url()}
@@ -58,6 +76,11 @@ def build_dashboard() -> list[dict]:
             snap = latest.get((t.id, u.url))
             offers.append({"store": u.store, "url": u.url, "active": u.active, "note": u.note,
                            "snap": snap})
+        for o in offers:
+            if o["store"] == "mercadolibre":
+                o["ml"] = True
+                if o["snap"] and not _fresh_manual(o["snap"]):
+                    o["snap"] = None      # el precio viejo de la API (o una carga vencida) no cuenta
         valid = [o["snap"] for o in offers
                  if o["active"] and o["snap"] and not o["snap"]["error"]
                  and o["snap"]["price_cash"] is not None and o["snap"]["in_stock"] != 0]
@@ -481,6 +504,76 @@ def api_discover_track(body: TrackRequest):
     targets.append(t)
     save_targets(settings.targets_path, targets)
     return {"created": True, "target": t.model_dump()}
+
+
+class ManualPrice(BaseModel):
+    target_id: str
+    price: float = Field(gt=0)
+    url: str | None = None          # link a la publicación que viste
+    seller: str | None = None
+
+
+def known_sellers() -> set[str]:
+    """Tiendas que ya leemos por su cuenta (para avisar si un vendedor de ML no está cubierto)."""
+    from scrapers.stores.catalogs import LABELS
+    from scrapers.stores.vtex import VTEX_STORES
+
+    names = set(LABELS) | set(LABELS.values()) | {v[0] for v in VTEX_STORES.values()} | set(VTEX_STORES)
+    names |= {u.store for t in load_targets(settings.targets_path) for u in t.urls}
+    disc = db.last_discovery() or {}
+    names |= {o.get("seller") or "" for m in disc.get("results", []) for o in m.get("offers", [])}
+    return {re.sub(r"[^a-z0-9]", "", n.lower()) for n in names if n and n.lower() != "mercadolibre"}
+
+
+def seller_hint(seller: str | None) -> str | None:
+    s = re.sub(r"[^a-z0-9]", "", (seller or "").lower().replace("www", "").replace("comar", ""))
+    if len(s) < 3:
+        return None
+    if any(s in k or k in s for k in known_sellers() if len(k) >= 3):
+        return None
+    return (f"No seguimos la tienda propia de {seller}. Si tiene página propia, agregala: "
+            "suele ser más barata que en Mercado Libre.")
+
+
+@app.post("/api/manual-price")
+def api_manual_price(body: ManualPrice):
+    """"Lo vi en Mercado Libre a $X": entra al análisis como una oferta más durante 3 días."""
+    t = next((t for t in load_targets(settings.targets_path) if t.id == body.target_id), None)
+    if not t:
+        raise HTTPException(404, "No existe ese seguido")
+    ml = next((u for u in t.urls if u.store == "mercadolibre"), None)
+    if ml is None:
+        ml = TargetUrl(store="mercadolibre", url=ml_search_url(t.name), ci=False,
+                       note="Sólo links y carga manual (ver README)")
+        t.urls.append(ml)
+        targets = [x if x.id != t.id else t for x in load_targets(settings.targets_path)]
+        save_targets(settings.targets_path, targets)
+    from datetime import datetime, timezone
+
+    snap = {"store": "mercadolibre", "url": ml.url, "title": t.name, "seller": body.seller or None,
+            "product_url": (body.url or "").strip() or ml.url, "price_cash": body.price, "price_list": None,
+            "in_stock": True, "error": None, "promo": "carga manual",
+            "scanned_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    run_id = db.start_run("manual")
+    db.insert_snapshot(t.id, snap, run_id)
+    db.finish_run(run_id, 1, 0, 0)
+    _push_db_async()
+    return {"saved": True, "hint": seller_hint(body.seller)}
+
+
+def _push_db_async() -> None:
+    """Publica la base en la rama data en segundo plano (así GitHub Pages ve la carga manual)."""
+    import threading
+
+    def run():
+        try:
+            from services import datastore
+
+            datastore.push(settings.db_path, "carga manual de precio de Mercado Libre")
+        except Exception as e:  # noqa: BLE001
+            log.warning("No se pudo publicar la base: %s", e)
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 class ConfirmRequest(BaseModel):

@@ -65,7 +65,9 @@ class Settings:
 
     @property
     def meli_enabled(self) -> bool:
-        return bool(self.meli_client_id and self.meli_client_secret)
+        # Mercado Libre bloqueó el acceso de desarrollador el 23/11/2026 (app de sólo lectura).
+        # No se llama más a su API ni a su web: ML queda como links + carga manual (ver README).
+        return False
 
     @property
     def telegram_enabled(self) -> bool:

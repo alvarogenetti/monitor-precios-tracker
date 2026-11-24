@@ -35,6 +35,26 @@ def pre_event_block(db, rows) -> list[str]:
     return lines + [""]
 
 
+def ml_block(rows) -> list[str]:
+    """Durante un evento (y los 2 días previos): links a Mercado Libre para revisarlo a mano desde el
+    celular (ML no se lee automáticamente; ver README)."""
+    from app.main import ml_search_url
+    from services.events import current_or_next
+
+    ev, _ = current_or_next(within_days=2)
+    if not ev:
+        return []
+    out = [f"\n🛒 <b>{html.escape(ev['name'])}: revisá Mercado Libre a mano</b>"]
+    for r in rows:
+        t = r["target"]
+        if t.kind != "monitor":
+            continue
+        url = next((u.url for u in t.urls if u.store == "mercadolibre"), None) or ml_search_url(t.name)
+        out.append(f'• <a href="{html.escape(url, quote=True)}">{html.escape(t.name)}</a>')
+    out.append("Si ves algo bueno, cargalo en el dashboard (\"Lo vi a $\") y entra al análisis.")
+    return out
+
+
 def build_summary() -> str:
     from app.main import build_context, db
 
@@ -65,6 +85,7 @@ def build_summary() -> str:
         lines.append(f"\n🔎 Descubrimiento: {n} modelos cumplen todos tus requisitos")
         if disc.get("errors"):
             lines.append("⚠️ Tiendas con problemas: " + html.escape(", ".join(e.split(":")[0] for e in disc["errors"])))
+    lines += ml_block(rows)
     lines.append("🟢 oferta real ≥15 % · 🔵 precio normal · 🔴 caro (+10 % sobre el mercado)")
     lines.append(f'<a href="{PAGES_URL}">Ver dashboard</a>')
     return "\n".join(lines)

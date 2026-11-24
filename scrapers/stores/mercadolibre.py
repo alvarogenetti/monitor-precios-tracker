@@ -159,7 +159,8 @@ class MercadoLibreScraper(GenericScraper):
     async def scrape(self, url: str, target: "Target") -> ScrapeResult:
         client = meli_client()
         if client is None:
-            return await super().scrape(url, target)  # sin credenciales: web (suele bloquear)
+            # Sin API no se lee la web de ML (sus términos prohíben robots/scraping): sólo manual
+            return ScrapeResult(store=self.store, url=url, error="Mercado Libre: sólo links y carga manual")
         import asyncio
 
         try:

@@ -31,6 +31,11 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
   a Seguidos. Los no seguidos igual se vigilan: si aparece una oferta real, avisa.
 - **Alertas** e **Info** (requisitos obligatorios/deseables y en qué tiendas se busca).
 
+**Mercado Libre: a mano.** Desde el 23/11/2026 no se lee automáticamente (ver
+[sección 6](#6-mercado-libre-por-qué-es-manual)). En cada seguido, la fila de Mercado Libre tiene
+**Ver en ML** (abre la búsqueda en tu navegador) y **Lo vi a $** para cargar un precio que viste: entra
+al análisis como cualquier tienda durante 3 días. En eventos, el resumen de Telegram trae los links.
+
 **Confirmar o descartar.** Si un modelo dice "A confirmar: acabado mate", podés responder
 **¿Pantalla mate? Sí / No** (lo viste en la ficha, en una reseña...). Se guarda en
 `config/overrides.json`, se sube solo a GitHub y pisa cualquier otro dato. **Descartar** saca un
@@ -50,7 +55,8 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
 - Lo que el título no dice (mate, VESA, peso, brillo, Hz por HDMI, USB-C) sale de:
   1. **tus confirmaciones** (`config/overrides.json`),
   2. el **catálogo curado** de fichas técnicas (`config/specs.json`, con fuentes),
-  3. los **atributos del catálogo de Mercado Libre** y, si falta algo, el **texto de la ficha de
+  3. los **atributos del catálogo de Mercado Libre** (los guardados hasta el 23/11/2026; ya no se
+     consultan) y, si falta algo, el **texto de la ficha de
      la tienda** ("antirreflejo", "VESA 100x100"...; cacheados 30 días). Si uno de estos datos
      descalifica, queda "a verificar" en vez de descartar.
 - Un título sin el sufijo de la variante ("274QPF ... 320HZ") se une a la variante catalogada con
@@ -104,7 +110,8 @@ Tu PC (tarea programada "MonitorPrecios-local", cada 3 h a y media)
 - La base `data/prices.db` **no** está en `main`: vive en la rama `data` (así git no acumula una
   copia por escaneo). `python -m services.datastore pull|push` la sincroniza; si dos procesos
   publican a la vez, se fusionan las filas.
-- Secrets del repo: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ML_CLIENT_ID`, `ML_CLIENT_SECRET`.
+- Secrets del repo: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (`ML_CLIENT_ID` / `ML_CLIENT_SECRET`
+  quedaron sin uso).
 
 ### Tiendas y adaptadores (`scrapers/stores/`)
 
@@ -112,7 +119,7 @@ Tu PC (tarea programada "MonitorPrecios-local", cada 3 h a y media)
 |---|---|---|
 | `compragamer` | Compra Gamer | Intercepta el catálogo JSON que descarga la propia SPA (Playwright) |
 | `hardgamers` | ~41 tiendas vía HardGamers | Listado de búsqueda (Playwright) |
-| `mercadolibre` | Mercado Libre | **API oficial** con app propia: catálogo + publicación nueva más barata de vendedores con reputación |
+| `mercadolibre` | Mercado Libre | **Apagado** (acceso bloqueado por ML): no se llama a su API ni a su web. Sólo links y carga manual |
 | `vtex` (`fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo`, `samsung`, `diamond`, `provincia`) y `electro` (todas juntas) | Electro, Samsung Shop, Diamond Computación y Provincia Compras | Buscador JSON público del storefront VTEX (sin navegador) |
 | `catalogs` (`dell`, `megatone`, `mallweb` + plataformas) | Dell AR, Megatone, Mallweb y las de abajo | Listado de monitores leído del HTML (descubrimiento). Tiendanube: cualquier tienda con `"platform": "tiendanube"` y su URL de búsqueda; toma el precio por transferencia |
 | `catalogs` · `"platform"` | WooCommerce (Comeros, ISInet, Aura Gamer, Espaciotek, Zonetech, Hardcore, DeCaba), Tiendanube (Nickhard, Shopgamer, Dualkey), Qloud (Electrotics, Gerbio, PC Registrada), PrestaShop (Armytech), TiendaNegocio (Otecno), Shopify | Lector genérico por plataforma: sumar una tienda es agregar `{"store", "platform", "url"}` en `config/discovery.json` |
@@ -128,14 +135,14 @@ desde GitHub) se descartan o se escanean desde la PC. Detalle en la pestaña **I
 ```powershell
 git clone https://github.com/alvarogenetti/monitor-precios-tracker
 cd monitor-precios-tracker
-copy .env.example .env      # completar Telegram y Mercado Libre
+copy .env.example .env      # completar Telegram
 .\iniciar.ps1               # crea el entorno, instala Chromium, baja la base y abre el dashboard
 ```
 
 **Telegram:** hablale a @BotFather → `/newbot` → token en `TELEGRAM_BOT_TOKEN`; mandale un mensaje
 al bot y tomá tu `chat.id` de `https://api.telegram.org/bot<TOKEN>/getUpdates`.
 
-**Mercado Libre:** creá una app en https://developers.mercadolibre.com.ar/devcenter (Redirect URI:
+**Mercado Libre (histórico, ya no se usa):** creá una app en https://developers.mercadolibre.com.ar/devcenter (Redirect URI:
 `https://github.com/alvarogenetti/monitor-precios-tracker`) y activá los **permisos funcionales**
 de lectura de publicaciones/catálogo (sin eso la API responde 403). App ID y Secret Key van en
 `ML_CLIENT_ID` / `ML_CLIENT_SECRET`. Probá con `python scan.py --meli-check`.
@@ -169,7 +176,7 @@ python scan.py --once --only-local    # sólo los links "ci": false (Frávega, V
 python scan.py --discover             # descubrimiento
 python scan.py --summary              # resumen diario por Telegram
 python scan.py --url <URL> --keywords X   # probar una URL sin guardar nada
-python scan.py --meli-check           # probar la API de Mercado Libre
+python scan.py --meli-check           # (histórico) probar la API de Mercado Libre
 python -m app.site site               # generar el dashboard estático
 python -m services.datastore pull     # bajar la base de la rama data
 ```
@@ -206,3 +213,44 @@ iniciar.ps1     dashboard local · escaneo-local.ps1: tarea programada
 - El buscador del catálogo de ML es impreciso; algunos modelos no aparecen.
 - Los cupones que se cargan en el checkout no se ven.
 - Frávega y Venex dependen de que la PC esté prendida.
+
+---
+
+## 6. Mercado Libre: por qué es manual
+
+**Qué pasó.** Hasta el 23/11/2026 los precios de ML salían de su API oficial, con una app de
+desarrollador propia. Ese día la API empezó a responder `403` a todo lo que da precios
+(`/products/{id}/items`, `/items`, `/sites/MLA/search`). La app desapareció del
+[devcenter](https://developers.mercadolibre.com.ar/devcenter) y el botón de crear una nueva dice
+*"No tenés permiso para crear aplicaciones. Contactá al equipo de OpenPlatform"*: es un bloqueo de
+la cuenta de desarrollador, no un error técnico.
+
+**Por qué (lo más probable).** La página
+[Bloqueo de aplicaciones](https://developers.mercadolibre.com.ar/es_ar/bloqueo-de-aplicaciones) lista el
+motivo `INTEGRATORS_DATA_INFRACTION`: *"cuando se utilicen únicamente datos de lectura, sin consumo de
+APIs que generen valor"*. Es nuestro caso: la app sólo leía precios, no publicaba ni vendía. Los
+[términos](https://developers.mercadolibre.com.ar/es-ar-terminos-y-condiciones) dicen además que la
+API es para facilitar el uso del sitio a los usuarios de la app (cl. 2), que el contenido no puede
+publicarse fuera de la app (7.2) y que sacar estadísticas de precios requiere autorización (5.4).
+No se pidió la rehabilitación: para un uso sólo de lectura no la van a dar.
+
+**Qué no se hace.** No se lee la web de ML con un programa (los términos prohíben robots y scraping,
+cl. 7.6), no se crea otra cuenta o app para esquivar el bloqueo y no se usan proxies. El código quedó
+apagado (`settings.meli_enabled` devuelve `False`, el escaneo saltea los links de ML y el adaptador
+no cae a la web).
+
+**Qué se hace en cambio.**
+
+1. **Links**: cada seguido y cada modelo del descubrimiento tiene **Ver en ML** (abre la búsqueda en
+   tu navegador). Durante un evento y los 2 días previos, el resumen de Telegram trae esos links.
+2. **Carga manual**: en el dashboard local, la fila de Mercado Libre tiene **Lo vi a $ · vendedor ·
+   link**. Se guarda como un precio más (`promo = "carga manual"`), cuenta para la mejor oferta, el
+   descuento real y el historial durante **3 días**, y se publica solo en la rama `data`.
+3. **Vendedores**: si cargás un precio de un vendedor que no leemos por su página propia, el
+   dashboard avisa para sumarla (en general es más barata que en ML).
+
+**Cuánto se pierde.** Con los datos de la API del 20 al 23/11/2026 (4 monitores, 71 corridas), ML
+**nunca** fue la opción más barata: en la mediana estaba **31 % arriba** de la mejor otra tienda
+(MSI 274QF X24 +15 %, Gigabyte GS27QA +21 %, KTC M27T6S +31 %). Lo que puede escaparse son ofertas
+puntuales de ML (relámpago, tiendas oficiales, eventos): para eso están los links y la carga manual.
+

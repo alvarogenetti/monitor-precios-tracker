@@ -6,7 +6,8 @@ STORES = [
         ("Compra Gamer", "Catálogo completo que descarga la propia página (precio especial y de lista)", "GitHub"),
         ("HardGamers", "Comparador: ~41 tiendas (Maximus, Mexx, Full H4rd, Gezatek, TryHardware, Slot One, Logg, "
                        "Katech, SilverHard, Compufan, Hyper Gaming, MyM, XT-PC, Amonpul…)", "GitHub"),
-        ("Mercado Libre", "API oficial: publicación nueva más barata de vendedores con reputación", "GitHub"),
+        ("Mercado Libre", "Sin acceso automático desde el 23/11/2026 (ML bloqueó la app de sólo lectura). "
+                          "Links «Ver en ML» y carga manual «Lo vi a $» (vale 3 días)", "A mano"),
         ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop: "
                            "la más barata entre todas", "GitHub"),
         ("Frávega", "API de su buscador (incluye vendedores del marketplace)", "Tu PC"),

@@ -173,7 +173,8 @@ async def run_scan(trigger: str = "cli", target_ids: list[str] | None = None,
     if target_ids:
         targets = [t for t in targets if t.id in target_ids]
     in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
-    jobs = [(t, u) for t in targets for u in t.urls if u.active and (u.ci or not in_ci)]
+    jobs = [(t, u) for t in targets for u in t.urls if u.active and (u.ci or not in_ci)
+            and u.store != "mercadolibre"]   # ML: sólo links y carga manual (ver README)
     if only_local:  # escaneo-local.ps1: sólo lo que GitHub Actions no puede leer
         jobs = [(t, u) for t, u in jobs if not u.ci]
     run_id = db.start_run(trigger)
