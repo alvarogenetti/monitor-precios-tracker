@@ -177,6 +177,8 @@ class ScanState:
     current: str | None = None
     last_summary: dict | None = None
     error: str | None = None
+    sync: str | None = None         # subida a GitHub: subiendo | ok | error: ...
+    sync_at: str | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def as_dict(self) -> dict:
@@ -282,6 +284,8 @@ def run_scan_blocking(trigger: str, target_ids: list[str] | None = None,
 
     loop = asyncio.ProactorEventLoop() if sys.platform == "win32" else asyncio.new_event_loop()
     try:
+        with SYNC_LOCK:                # espera si hay una subida a GitHub en curso
+            pass
         if job == "discover":
             from services.discovery import run_discovery
 
@@ -298,6 +302,31 @@ def run_scan_blocking(trigger: str, target_ids: list[str] | None = None,
     finally:
         loop.close()
         STATE.running, STATE.finished_at, STATE.current = False, utcnow(), None
+        if os.environ.get("GITHUB_ACTIONS") != "true":   # en tu PC: subir lo escaneado a la rama data
+            publish_db(f"{'descubrimiento' if job == 'discover' else 'escaneo'} local ({trigger})")
+
+
+# Un escaneo y una subida no tocan la base a la vez (la subida puede reescribirla al fusionar).
+SYNC_LOCK = threading.Lock()
+
+
+def publish_db(message: str) -> None:
+    """Sube la base a la rama data en segundo plano. El thread NO es daemon: si cerrás el dashboard
+    con Ctrl+C, Python espera a que termine la subida. Si igual se corta (cerrás la ventana), las filas
+    quedan en la base local y `datastore pull` (al abrir iniciar.ps1) las fusiona y las sube."""
+    def run():
+        with SYNC_LOCK:
+            STATE.sync = "subiendo"
+            try:
+                from services import datastore
+
+                datastore.push(settings.db_path, message)
+                STATE.sync, STATE.sync_at = "ok", utcnow()
+            except Exception as e:  # noqa: BLE001
+                log.warning("No se pudo subir la base a GitHub: %s", e)
+                STATE.sync, STATE.sync_at = f"error: {e}", utcnow()
+
+    threading.Thread(target=run, name="publish-db").start()
 
 
 def start_scan_thread(trigger: str, target_ids: list[str] | None = None,

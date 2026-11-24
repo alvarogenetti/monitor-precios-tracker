@@ -70,17 +70,24 @@ def pull(db: Path) -> str | None:
     with tempfile.TemporaryDirectory() as tmp:
         remote = Path(tmp) / FILE
         sha = fetch_db(remote)
+        pending = False
         if sha:
             if db.exists() and db.stat().st_size:
                 try:
                     n = Database(remote).merge_from(db)
                     if n:
                         log.info("Se conservaron %d filas locales sin publicar", n)
+                        pending = True
                 except Exception as e:  # noqa: BLE001 — base local corrupta/vieja: manda la remota
                     log.warning("No se pudo fusionar la base local: %s", e)
             db.write_bytes(remote.read_bytes())
     _sha_file(db).write_text(sha or "", encoding="utf-8")
     log.info("Base bajada de la rama %s (%s)", BRANCH, sha[:7] if sha else "rama nueva")
+    if pending:     # quedaron escaneos de una sesión anterior sin subir (se cerró antes de tiempo): subirlos ya
+        try:
+            return push(db, "filas locales que habían quedado sin subir")
+        except Exception as e:  # noqa: BLE001
+            log.warning("No se pudieron subir las filas locales pendientes: %s", e)
     return sha
 
 

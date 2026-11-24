@@ -655,12 +655,19 @@ function renderState(st){
   if (st.running){
     bar.style.width = (st.total ? Math.round(st.done / st.total * 100) : 3) + '%';
     statusEl.textContent = `${st.job === 'discover' ? 'Descubriendo' : 'Escaneando'} ${st.done}/${st.total || '?'}`;
-  } else statusEl.textContent = st.error ? 'Error: ' + st.error : '';
+  } else if (st.error) statusEl.textContent = 'Error: ' + st.error;
+  else if (st.sync === 'subiendo') statusEl.textContent = 'Subiendo a GitHub… (no cierres todavía)';
+  else if (st.sync === 'ok') statusEl.textContent = '✓ Subido a GitHub ' + new Date(st.sync_at).toLocaleTimeString('es-AR', {hour: '2-digit', minute: '2-digit'});
+  else if (st.sync) statusEl.textContent = 'No se pudo subir a GitHub (se reintenta al próximo escaneo o al abrir): ' + st.sync.slice(7);
+  else statusEl.textContent = '';
 }
 async function poll(){
   const {data} = await api('GET', '/api/status'); renderState(data.state);
-  if (data.state.running) wasRunning = true; else { clearInterval(polling); polling = null; if (wasRunning) location.reload(); }
+  if (data.state.running) wasRunning = true;
+  else if (data.state.sync === 'subiendo'){ if (!polling) polling = setInterval(poll, 1500); }
+  else { clearInterval(polling); polling = null; if (wasRunning){ wasRunning = false; location.reload(); } }
 }
+poll();
 async function startJob(url){
   const {status} = await api('POST', url);
   if (status === 409) statusEl.textContent = 'Ya hay un escaneo en curso';

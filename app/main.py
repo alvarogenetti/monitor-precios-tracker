@@ -647,17 +647,9 @@ def api_manual_price(body: ManualPrice):
 
 def _push_db_async() -> None:
     """Publica la base en la rama data en segundo plano (así GitHub Pages ve la carga manual)."""
-    import threading
+    from services.tracker import publish_db
 
-    def run():
-        try:
-            from services import datastore
-
-            datastore.push(settings.db_path, "carga manual de precio")
-        except Exception as e:  # noqa: BLE001
-            log.warning("No se pudo publicar la base: %s", e)
-
-    threading.Thread(target=run, daemon=True).start()
+    publish_db("carga manual de precio")
 
 
 class ConfirmRequest(BaseModel):
