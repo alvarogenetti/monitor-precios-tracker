@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Instalar dependencias (sin navegador: los tests no usan red)
+      - name: "Instalar dependencias (sin navegador: los tests no usan red)"
         run: pip install -r requirements.txt pytest
       - name: Tests
         run: python -m pytest -q
