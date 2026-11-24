@@ -11,7 +11,7 @@ URL = "https://tienda/x"
 
 
 def _ev(days_from_today: int, length: int = 3) -> list[dict]:
-    start = date.today() + timedelta(days=days_from_today)
+    start = datetime.now(events.AR).date() + timedelta(days=days_from_today)   # fecha de Argentina, como el código
     return [{"name": "Black Friday", "from": start.isoformat(), "to": (start + timedelta(days=length)).isoformat()}]
 
 
