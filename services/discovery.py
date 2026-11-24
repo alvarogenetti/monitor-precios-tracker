@@ -701,6 +701,9 @@ def _collect_vtex(store: str, url: str) -> list[Offer]:
     return out
 
 
+from scrapers.stores.catalogs import PLATFORMS  # noqa: E402
+
+
 async def collect(session: BrowserSession, sources: list[dict],
                   on_progress: Callable[[int, int, str], None] | None = None) -> tuple[list[Offer], list[str]]:
     offers: list[Offer] = []
@@ -715,8 +718,7 @@ async def collect(session: BrowserSession, sources: list[dict],
         try:
             if src["store"] == "compragamer":
                 got = await _collect_compragamer(session, src["url"])
-            elif src["store"] in ("dell", "megatone", "mallweb") or src.get("platform") in (
-                    "tiendanube", "woocommerce", "shopify"):
+            elif src["store"] in ("dell", "megatone", "mallweb") or src.get("platform") in PLATFORMS:
                 got = await asyncio.to_thread(_collect_catalog, src["store"], src["url"], src.get("platform"))
             elif src["store"] in VTEX_STORES:
                 got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])

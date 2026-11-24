@@ -43,3 +43,23 @@ def test_parse_woocommerce_and_shopify():
             {"title": "Mouse", "handle": "m", "variants": [{"price": "1000", "available": True}]}]
     got = parse_shopify(shop, "https://s.com.ar", "s", "S")
     assert len(got) == 1 and got[0]["price"] == 399999.0 and got[0]["url"] == "https://s.com.ar/products/gs27qa"
+
+
+def test_parse_qloud_prestashop_tiendanegocio():
+    from scrapers.stores.catalogs import parse_prestashop, parse_qloud, parse_tiendanegocio
+
+    q = '''<div class="col-md-3 listado" data-marca="ARKHAM" data-id="1" data-nombre="MONITOR 27 ARKHAM QHD" data-precio="381766">
+      <a href="https://gerbio.com.ar/monitores/monitor-27-arkham-1.html">x</a></div>'''
+    assert parse_qloud(q, "gerbio", "Gerbio")[0]["price"] == 381766
+    ps = ('dataLayer.push({"items":[{"item_name":"Monitor Gamer Asrock 27\\" Pg27qfw2a Qhd","item_id":"6605",'
+          '"price":"771902.56","price_tax_exc":"1","quantity":12},{"item_name":"Agotado","item_id":"7",'
+          '"price":"1000","quantity":0}]})')
+    got = parse_prestashop(ps, "https://www.armytech.com.ar", "armytech", "Armytech")
+    assert len(got) == 1 and got[0]["title"] == 'Monitor Gamer Asrock 27" Pg27qfw2a Qhd'
+    assert got[0]["url"].endswith("id_product=6605")
+    tn = ('<script id="1-state" type="application/json">{&q;x&q;:{&q;products&q;:[{&q;title&q;:&q;Monitor ARKHAM 27 QHD&q;,'
+          '&q;price&q;:430562,&q;promo&q;:417509,&q;stock&q;:2,&q;status&q;:1,&q;hash&q;:&q;monitor-arkham&q;,'
+          '&q;discount_min_price&q;:375758.1}]}}</script>')
+    got = parse_tiendanegocio(tn, "https://otecno.com.ar", "otecno", "Otecno")
+    assert got == [{"store": "otecno", "title": "Monitor ARKHAM 27 QHD", "price": 375758.1, "list": 417509.0,
+                    "seller": "Otecno", "url": "https://otecno.com.ar/producto/monitor-arkham"}]

@@ -39,9 +39,12 @@ VTEX_STORES = {
     "naldo": ("Naldo", "www.naldo.com.ar"),
     "jumbo": ("Jumbo", "www.jumbo.com.ar"),
     "samsung": ("Samsung Shop", "shop.samsung.com/ar"),
+    "diamond": ("Diamond Computación", "diamondcomputacion.com.ar"),
+    "provincia": ("Provincia Compras", "www.provinciacompras.com.ar"),
 }
 # "electro" agrupa estas (Frávega va aparte porque bloquea las IPs de GitHub Actions)
-ELECTRO_STORES = ["oncity", "cetrogar", "carrefour", "pardo", "coppel", "naldo", "jumbo", "samsung"]
+ELECTRO_STORES = ["oncity", "cetrogar", "carrefour", "pardo", "coppel", "naldo", "jumbo", "samsung",
+                  "diamond", "provincia"]
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/131.0 Safari/537.36")
 

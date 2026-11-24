@@ -32,7 +32,11 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 DELL_URL = "https://www.dell.com/es-ar/shop/computer-monitors/ar/computer-monitors?page={page}"
 MEGATONE_URLS = ["https://www.megatone.net/listado/tecnologia/informatica/monitores/",
                  "https://www.megatone.net/listado/tecnologia/videojuegos/monitor-gamer/"]
-LABELS = {"dell": "Dell", "megatone": "Megatone", "nickhard": "Nickhard", "mallweb": "Mallweb"}
+LABELS = {"dell": "Dell", "megatone": "Megatone", "nickhard": "Nickhard", "mallweb": "Mallweb",
+          "comeros": "Comeros", "isinet": "ISInet", "auragamer": "Aura Gamer", "espaciotek": "Espaciotek",
+          "zonetech": "Zonetech", "hardcore": "Hardcore Computación", "decaba": "DeCaba",
+          "shopgamer": "Shopgamer", "dualkey": "Dualkey", "electrotics": "Electrotics", "gerbio": "Gerbio",
+          "pcregistrada": "PC Registrada", "armytech": "Armytech", "otecno": "Otecno"}
 
 
 def _client() -> httpx.Client:
@@ -256,13 +260,105 @@ def fetch_shopify(client: httpx.Client, url: str, store: str, pages: int = 8) ->
     return out
 
 
-PLATFORMS = ("tiendanube", "woocommerce", "shopify")
+# ------------------------------------------------------------------ Qloud / GlobalDrop (Microglobal)
+def parse_qloud(page_html: str, store: str, label: str) -> list[dict]:
+    """Tarjetas `<div ... data-nombre="..." data-precio="...">` con el link al producto adentro."""
+    out = []
+    parts = re.split(r'(?=<div[^>]*\bdata-nombre=")', page_html)[1:]
+    for chunk in parts:
+        name = re.search(r'data-nombre="([^"]+)"', chunk)
+        price = re.search(r'data-precio="(\d+(?:\.\d+)?)"', chunk)
+        url = re.search(r'href="(https?://[^"]+\.html)"', chunk)
+        if not (name and price and url) or re.search(r"(?i)sin stock|agotado", chunk[:4000]):
+            continue
+        p = float(price.group(1))
+        if is_plausible(p):
+            out.append({"store": store, "title": htmllib.unescape(name.group(1)), "price": p,
+                        "list": None, "seller": label, "url": url.group(1)})
+    return out
+
+
+def fetch_qloud(client: httpx.Client, url: str, store: str) -> list[dict]:
+    r = client.get(url)
+    return parse_qloud(r.text, store, LABELS.get(store, store.capitalize())) if r.status_code == 200 else []
+
+
+# ------------------------------------------------------------------ PrestaShop (dataLayer de GA4)
+def parse_prestashop(page_html: str, base: str, store: str, label: str) -> list[dict]:
+    """Los resultados de búsqueda vienen en el dataLayer (item_name, item_id, price, quantity)."""
+    out, seen = [], set()
+    for m in re.finditer(r'\{"item_name":"((?:[^"\\]|\\.)*)","item_id":"(\d+)","price":"([\d.]+)"(.*?)\}', page_html):
+        name, pid, price, rest = m.groups()
+        q = re.search(r'"quantity":(\d+)', rest)
+        if pid in seen or (q and int(q.group(1)) <= 0):
+            continue
+        seen.add(pid)
+        p = float(price)
+        if is_plausible(p):
+            out.append({"store": store, "title": json.loads(f'"{name}"'), "price": p, "list": None,
+                        "seller": label, "url": f"{base}/index.php?controller=product&id_product={pid}"})
+    return out
+
+
+def fetch_prestashop(client: httpx.Client, url: str, store: str, pages: int = 4) -> list[dict]:
+    base = "/".join(url.split("/")[:3])
+    label = LABELS.get(store, store.capitalize())
+    out: list[dict] = []
+    for page in range(1, pages + 1):
+        r = client.get(url if page == 1 else f"{url}&page={page}")
+        if r.status_code != 200:
+            break
+        got = [x for x in parse_prestashop(r.text, base, store, label) if x["url"] not in {o["url"] for o in out}]
+        if not got:
+            break
+        out += got
+    return out
+
+
+# ------------------------------------------------------------------ TiendaNegocio (estado de Angular)
+def parse_tiendanegocio(page_html: str, base: str, store: str, label: str) -> list[dict]:
+    m = re.search(r'<script[^>]*id="[^"]*-state"[^>]*>(.*?)</script>', page_html, re.S)
+    if not m:
+        return []
+    try:
+        state = json.loads(m.group(1).replace("&q;", '"').replace("&a;", "&").replace("&l;", "<")
+                           .replace("&g;", ">").replace("&s;", "'"))
+    except ValueError:
+        return []
+    out = []
+    for key, val in state.items():
+        prods = val.get("products") if isinstance(val, dict) else None
+        for p in prods or []:
+            if not p.get("status") or (p.get("stock") is not None and p["stock"] <= 0):
+                continue
+            lst = p.get("promo") or p.get("price")
+            cash = p.get("discount_min_price") or lst
+            if is_plausible(cash):
+                out.append({"store": store, "title": p.get("title") or "", "price": float(cash),
+                            "list": float(lst) if lst and lst > cash else None, "seller": label,
+                            "url": f"{base}/producto/{p.get('hash')}"})
+    return out
+
+
+def fetch_tiendanegocio(client: httpx.Client, url: str, store: str) -> list[dict]:
+    r = client.get(url)
+    base = "/".join(url.split("/")[:3])
+    return parse_tiendanegocio(r.text, base, store, LABELS.get(store, store.capitalize())) if r.status_code == 200 else []
+
+
+PLATFORMS = ("tiendanube", "woocommerce", "shopify", "qloud", "prestashop", "tiendanegocio")
 
 
 def fetch(store: str, url: str | None = None, platform: str | None = None) -> list[dict]:
     with _client() as c:
         if platform == "woocommerce":
             return fetch_woocommerce(c, url, store)
+        if platform == "qloud":
+            return fetch_qloud(c, url, store)
+        if platform == "prestashop":
+            return fetch_prestashop(c, url, store)
+        if platform == "tiendanegocio":
+            return fetch_tiendanegocio(c, url, store)
         if platform == "shopify":
             return fetch_shopify(c, url, store)
         if platform == "tiendanube":

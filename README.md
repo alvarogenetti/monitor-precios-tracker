@@ -1,6 +1,6 @@
 # Monitor de precios de monitores (Argentina)
 
-Sigue precio y stock de monitores **27" QHD IPS mate** en ~60 tiendas argentinas, detecta
+Sigue precio y stock de monitores **27" QHD IPS mate** en ~75 tiendas argentinas, detecta
 **ofertas reales** (descuento contra el precio de mercado, no contra el "precio de lista") y avisa
 por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 
@@ -53,6 +53,9 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
      descalifica, queda "a verificar" en vez de descartar.
 - Un título sin el sufijo de la variante ("274QPF ... 320HZ") se une a la variante catalogada con
   esos Hz ("274QPF X32"), así el mismo monitor no aparece dos veces.
+- **Nombre de cada monitor = Marca + Modelo** (`MSI MAG 274QPF X32`, `ViewSonic VX2718`), sin Hz ni
+  frases de marketing; sólo si dos modelos distintos quedan iguales se agregan los Hz. El **ID** es el
+  código normalizado (`274QPFX32`) y se ve en el detalle.
 - Estados: ✅ cumple todo · ❔ a confirmar · 🟣 OLED en oferta · ⛔ no cumple.
 - Marcas sin reseñas (`generic_brands`): sólo avisan ofertas ≥ 30 %.
 
@@ -108,8 +111,9 @@ Tu PC (tarea programada "MonitorPrecios-local", cada 3 h a y media)
 | `compragamer` | Compra Gamer | Intercepta el catálogo JSON que descarga la propia SPA (Playwright) |
 | `hardgamers` | ~41 tiendas vía HardGamers | Listado de búsqueda (Playwright) |
 | `mercadolibre` | Mercado Libre | **API oficial** con app propia: catálogo + publicación nueva más barata de vendedores con reputación |
-| `vtex` (`fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo`, `samsung`) y `electro` (todas juntas) | Electro y Samsung Shop | Buscador JSON público del storefront VTEX (sin navegador) |
-| `catalogs` (`dell`, `megatone`, `mallweb`, Tiendanube) | Dell AR, Megatone, Mallweb, Nickhard | Listado de monitores leído del HTML (descubrimiento). Tiendanube: cualquier tienda con `"platform": "tiendanube"` y su URL de búsqueda; toma el precio por transferencia |
+| `vtex` (`fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo`, `samsung`, `diamond`, `provincia`) y `electro` (todas juntas) | Electro, Samsung Shop, Diamond Computación y Provincia Compras | Buscador JSON público del storefront VTEX (sin navegador) |
+| `catalogs` (`dell`, `megatone`, `mallweb` + plataformas) | Dell AR, Megatone, Mallweb y las de abajo | Listado de monitores leído del HTML (descubrimiento). Tiendanube: cualquier tienda con `"platform": "tiendanube"` y su URL de búsqueda; toma el precio por transferencia |
+| `catalogs` · `"platform"` | WooCommerce (Comeros, ISInet, Aura Gamer, Espaciotek, Zonetech, Hardcore, DeCaba), Tiendanube (Nickhard, Shopgamer, Dualkey), Qloud (Electrotics, Gerbio, PC Registrada), PrestaShop (Armytech), TiendaNegocio (Otecno), Shopify | Lector genérico por plataforma: sumar una tienda es agregar `{"store", "platform", "url"}` en `config/discovery.json` |
 | `generic` | Cualquier ficha (Maximus, Venex...) | JSON-LD, meta tags y heurística de precios |
 
 No se evade ningún control anti-bot: las tiendas que bloquean (ASUS con captcha, Frávega/Venex

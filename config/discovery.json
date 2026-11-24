@@ -105,6 +105,84 @@
     {
       "store": "mallweb",
       "url": "https://www.mallweb.com.ar/categoria/monitores"
+    },
+    {
+      "store": "comeros",
+      "platform": "woocommerce",
+      "url": "https://www.comeros.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "isinet",
+      "platform": "woocommerce",
+      "url": "https://isinet.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "auragamer",
+      "platform": "woocommerce",
+      "url": "https://auragamer.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "espaciotek",
+      "platform": "woocommerce",
+      "url": "https://espaciotek.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "zonetech",
+      "platform": "woocommerce",
+      "url": "https://zonetech.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "hardcore",
+      "platform": "woocommerce",
+      "url": "https://hardcorecomputacion.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "decaba",
+      "platform": "woocommerce",
+      "url": "https://decaba.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "shopgamer",
+      "platform": "tiendanube",
+      "url": "https://www.shopgamer.com.ar/search/?q=monitor"
+    },
+    {
+      "store": "dualkey",
+      "platform": "tiendanube",
+      "url": "https://dualkey.com.ar/search/?q=monitor"
+    },
+    {
+      "store": "electrotics",
+      "platform": "qloud",
+      "url": "https://electrotics.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "gerbio",
+      "platform": "qloud",
+      "url": "https://gerbio.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "pcregistrada",
+      "platform": "qloud",
+      "url": "https://pcregistrada.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "armytech",
+      "platform": "prestashop",
+      "url": "https://www.armytech.com.ar/busqueda?controller=search&s=monitor"
+    },
+    {
+      "store": "otecno",
+      "platform": "tiendanegocio",
+      "url": "https://otecno.com.ar/productos/buscar?keywords=monitor+27"
+    },
+    {
+      "store": "diamond",
+      "url": "https://diamondcomputacion.com.ar/?q=monitor 27"
+    },
+    {
+      "store": "provincia",
+      "url": "https://www.provinciacompras.com.ar/?q=monitor 27 qhd"
     }
   ],
   "ignore_models": [],
