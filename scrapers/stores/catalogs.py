@@ -182,8 +182,89 @@ def fetch_mallweb(client: httpx.Client) -> list[dict]:
     return parse_mallweb(r.text) if r.status_code == 200 else []
 
 
+# ------------------------------------------------------------------ WooCommerce (Store API pública)
+def parse_woocommerce(items: list[dict], store: str, label: str) -> list[dict]:
+    out = []
+    for p in items:
+        if p.get("is_in_stock") is False or p.get("is_purchasable") is False:
+            continue
+        pr = p.get("prices") or {}
+        div = 10 ** int(pr.get("currency_minor_unit") or 0)
+        try:
+            price = int(pr.get("price") or 0) / div
+            regular = int(pr.get("regular_price") or 0) / div
+        except ValueError:
+            continue
+        if not is_plausible(price):
+            continue
+        out.append({"store": store, "title": htmllib.unescape(p.get("name") or ""), "price": price,
+                    "list": regular if regular > price else None, "seller": label,
+                    "url": p.get("permalink") or ""})
+    return out
+
+
+def fetch_woocommerce(client: httpx.Client, url: str, store: str, pages: int = 4) -> list[dict]:
+    """url = https://tienda/wp-json/wc/store/v1/products?search=monitor%2027 (se pagina con &page=N)."""
+    label = LABELS.get(store, store.capitalize())
+    out: list[dict] = []
+    sep = "&" if "?" in url else "?"
+    for page in range(1, pages + 1):
+        r = client.get(f"{url}{sep}per_page=100&page={page}")
+        if r.status_code != 200:
+            break
+        items = r.json()
+        if not items:
+            break
+        out += parse_woocommerce(items, store, label)
+        if len(items) < 100:
+            break
+    return out
+
+
+# ------------------------------------------------------------------ Shopify (products.json público)
+def parse_shopify(products: list[dict], base: str, store: str, label: str, word: str = "monitor") -> list[dict]:
+    out = []
+    for p in products:
+        title = p.get("title") or ""
+        if word not in title.lower():
+            continue
+        avail = [v for v in p.get("variants") or [] if v.get("available", True)]
+        if not avail:
+            continue
+        v = min(avail, key=lambda v: float(v.get("price") or 1e18))
+        price, cmp = float(v.get("price") or 0), float(v.get("compare_at_price") or 0)
+        if is_plausible(price):
+            out.append({"store": store, "title": title, "price": price,
+                        "list": cmp if cmp > price else None, "seller": label,
+                        "url": f"{base}/products/{p.get('handle')}"})
+    return out
+
+
+def fetch_shopify(client: httpx.Client, url: str, store: str, pages: int = 8) -> list[dict]:
+    """url = https://tienda (o cualquier página): recorre /products.json y se queda con los monitores."""
+    base = "/".join(url.split("/")[:3])
+    label = LABELS.get(store, store.capitalize())
+    out: list[dict] = []
+    for page in range(1, pages + 1):
+        r = client.get(f"{base}/products.json?limit=250&page={page}")
+        if r.status_code != 200:
+            break
+        prods = r.json().get("products") or []
+        if not prods:
+            break
+        out += parse_shopify(prods, base, store, label)
+    return out
+
+
+PLATFORMS = ("tiendanube", "woocommerce", "shopify")
+
+
 def fetch(store: str, url: str | None = None, platform: str | None = None) -> list[dict]:
     with _client() as c:
+        if platform == "woocommerce":
+            return fetch_woocommerce(c, url, store)
+        if platform == "shopify":
+            return fetch_shopify(c, url, store)
         if platform == "tiendanube":
             return fetch_tiendanube(c, url, store)
         if store == "mallweb":

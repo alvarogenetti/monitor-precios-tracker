@@ -2,7 +2,7 @@
   "targets": [
     {
       "id": "asrock-pg27qft2a",
-      "name": "ASRock Phantom Gaming PG27QFT2A",
+      "name": "ASRock PG27QFT2A",
       "target_price": 335000.0,
       "price_high": 375000.0,
       "notes": "Opción A del research. Rango: transferencia $339-342k en Compra Gamer (nov-2026); en cuotas ~$378k.",
@@ -44,7 +44,7 @@
     },
     {
       "id": "asrock-pg27qft1b",
-      "name": "ASRock Phantom Gaming PG27QFT1B",
+      "name": "ASRock PG27QFT1B",
       "target_price": 305000.0,
       "price_high": 345000.0,
       "notes": "Hermano del PG27QFT2A sin antena Wi-Fi: IPS QHD 180 Hz, anti-glare, 400 nits, VESA 100x100, ~5,8 kg. Encontrado a $321k en Compra Gamer (nov-2026).",
@@ -135,7 +135,7 @@
     },
     {
       "id": "msi-mag-274qf-x24",
-      "name": "MSI MAG 275QF / 274QF X24",
+      "name": "MSI MAG 275QF / MAG 274QF X24",
       "target_price": 355000.0,
       "price_high": 400000.0,
       "notes": "Sigue los dos modelos (keyword 275QF|274QF). 275QF: $370-393k; 274QF X24 (240 Hz): $383-448k (nov-2026).",
@@ -188,7 +188,7 @@
     },
     {
       "id": "lg-27gs75q-b",
-      "name": "LG UltraGear 27GS75Q-B",
+      "name": "LG 27GS75Q-B",
       "target_price": 410000.0,
       "price_high": 560000.0,
       "notes": "Rango: $529-582k en distribuidores locales (nov-2026). $410k sería una oferta fuerte.",
@@ -230,7 +230,7 @@
     },
     {
       "id": "benq-ew270q",
-      "name": "BenQ EW270Q (USB-C 65W)",
+      "name": "BenQ EW270Q",
       "target_price": 480000.0,
       "price_high": 700000.0,
       "notes": "Único con USB-C de la lista. Frávega (vendedor Glic) $679k (nov-2026); no aparece en HardGamers ni Compra Gamer.",
@@ -272,7 +272,7 @@
     },
     {
       "id": "samsung-odyssey-g5-s27fg500el",
-      "name": "Samsung Odyssey G5 S27FG500EL (IPS plano)",
+      "name": "Samsung S27FG500EL",
       "target_price": 380000.0,
       "price_high": 470000.0,
       "notes": "IPS QHD 180 Hz plano de marca grande. Ojo: no confundir con el G5 curvo VA ni con el OLED S27FG500SL. Compra Gamer $427k (nov-2026). Confirmar VESA y peso.",
@@ -314,7 +314,7 @@
     },
     {
       "id": "ktc-m27t6s",
-      "name": "KTC M27T6S Mini-LED (1152 zonas)",
+      "name": "KTC M27T6S",
       "target_price": 450000.0,
       "price_high": 560000.0,
       "notes": "Alternativa a la opción C: Fast IPS QHD 200 Hz, Mini-LED 1152 zonas, HDR1000, a ~$494k vs ~$667k del Xiaomi G Pro 27i. Buenas reseñas (Tom's Hardware, PC Gamer). Confirmar acabado mate y VESA antes de comprar; apagar local dimming para programar.",
@@ -356,7 +356,7 @@
     },
     {
       "id": "dell-s2725dc",
-      "name": "Dell 27 Plus S2725DC (USB-C 65W)",
+      "name": "Dell S2725DC",
       "target_price": 600000,
       "price_high": 850000,
       "market_price": 779000,
@@ -397,7 +397,7 @@
     },
     {
       "id": "ironstek-fl04a",
-      "name": "Brazo Ironstek FL04A-LTA (monitor + notebook)",
+      "name": "Ironstek FL04A-LTA",
       "kind": "accesorio",
       "segment": "accesorios",
       "why": "Dos brazos a gas independientes (monitor y bandeja de notebook) en vez del caño fijo de casi todos los dobles: ajuste de altura 41 cm, extensión 49 cm, 2-8 kg por brazo, VESA 75/100, bandeja 29,5x26,5 cm. No encontré otro de este estilo en Argentina.",

@@ -200,3 +200,16 @@ def test_suspicious_pairs_same_hz_only():
             self.key, self.facts = key, {"hz": hz, "curved": curved}
     assert suspicious_pairs([R("274QPFX32", 320), R("274QP", 240)]) == []
     assert suspicious_pairs([R("ABC123", 180), R("ABC123W", 180)]) == [("ABC123", "ABC123W")]
+
+
+def test_canonical_names_brand_and_model_only():
+    from services.discovery import canonical_name
+
+    assert canonical_name({"name": "MSI MAG 274QPF X32"}, "MSI", "274QPFX32", "x", 320) == "MSI MAG 274QPF X32"
+    assert canonical_name(None, "VIEWSONIC", "VX2718", "VX2718", 180) == "ViewSonic VX2718"
+    assert canonical_name(None, "SAMSUNG", "SAMSUNG~165HZ", "Samsung", 165) == "Samsung 165 Hz (sin código de modelo)"
+    res = analyze(offers(
+        ("hardgamers", 'MONITOR GAMER 27" VIEWSONIC CURVO 180HZ 1MS VX2718-2KPC-MHD QHD', 345949, "A"),
+        ("hardgamers", "MONITOR ASROCK PG27QFT1B 27 QHD IPS 180HZ", 438290, "B"),
+    ), CFG, SPECS, overrides={})
+    assert sorted(r.name for r in res) == ["ASRock PG27QFT1B", "ViewSonic VX2718"]

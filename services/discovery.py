@@ -83,6 +83,10 @@ class SpecCatalog:
         t = norm(title)
         return next((e for k, e in self._keys if k in t), None)
 
+    def by_key(self, key: str) -> dict | None:
+        k = norm(key)
+        return next((e for kk, e in self._keys if kk == k), None)
+
     def match_brand_hz(self, title: str) -> dict | None:
         """Para títulos SIN código de modelo ("MONITOR VALKYRIE 27 QHD 200HZ IPS"): si hay una sola
         entrada de esa marca con esos Hz, y el título no contradice el panel, es ese modelo."""
@@ -166,6 +170,46 @@ NOT_MODEL_RE = re.compile(
 def brand_of(title: str) -> str | None:
     t = f" {title.upper()} "
     return next((b for b in BRANDS if f" {b} " in t or f" {b}-" in t), None)
+
+
+# Cómo se escribe cada marca en los nombres (lo que no está acá va en Title Case)
+BRAND_CASE = {"ASROCK": "ASRock", "MSI": "MSI", "LG": "LG", "BENQ": "BenQ", "AOC": "AOC", "HP": "HP",
+              "KTC": "KTC", "TCL": "TCL", "BGH": "BGH", "NZXT": "NZXT", "ASUS": "ASUS",
+              "X-MICRO": "X-Micro", "XMICRO": "X-Micro", "E-VIEW": "E-View", "VIEWSONIC": "ViewSonic",
+              "AORUS": "Aorus", "LEVEL UP": "Level Up", "COOLER MASTER": "Cooler Master"}
+
+
+def brand_label(brand: str | None) -> str:
+    return BRAND_CASE.get((brand or "").upper(), (brand or "").title())
+
+
+def canonical_name(spec: dict | None, brand: str | None, key: str, search: str, hz: int | None,
+                   title: str = "") -> str:
+    """Nombre único de cada monitor: "Marca Modelo" (MSI MAG 274QPF X32, ViewSonic VX2718), sin
+    Hz, pulgadas ni frases de marketing. El catálogo curado manda; si no, marca + código del título.
+    Si el título no trae código, marca + Hz (es lo único que lo distingue)."""
+    if spec and spec.get("name"):
+        return spec["name"]
+    b = brand_label(brand)
+    if "~" in key:
+        if not b:   # ni marca ni código: el título limpio es lo único que lo identifica
+            t = re.sub(r"\[.*?\]|\(.*?\)", " ", title)
+            t = re.sub(r"(?i)^\s*(monitor\s+)?(gamer\s+|gaming\s+)?", "", t)
+            return re.sub(r"\s+", " ", t).strip()[:60] or "Sin marca"
+        return f"{b} {hz} Hz (sin código de modelo)" if hz else f"{b} (sin código de modelo)"
+    return f"{b} {search}".strip()
+
+
+def unique_names(results: list) -> None:
+    """Si dos modelos distintos quedan con el mismo nombre, se agregan los Hz para distinguirlos."""
+    by: dict[str, list] = {}
+    for r in results:
+        by.setdefault(r.name, []).append(r)
+    for same in by.values():
+        if len(same) > 1:
+            for r in same:
+                if r.facts.get("hz"):
+                    r.name = f"{r.name} · {r.facts['hz']} Hz"
 
 
 def _is_code(core: str) -> bool:
@@ -396,7 +440,7 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     else:
         status = "cumple"
 
-    name = (s.get("name") or re.sub(r"\s+", " ", best.title)).strip()
+    name = canonical_name(s, brand_of(best.title), key, search, facts.hz, best.title)
     stores = {o.seller or o.store for o in offers}
     return ModelResult(
         key=key, search=search, name=name, brand=brand_of(best.title), status=status,
@@ -458,7 +502,7 @@ def reevaluate(m: dict, cfg: dict, catalog: SpecCatalog, ml_spec: dict | None,
               for o in m.get("offers") or []]
     if not offers:
         return m
-    spec = catalog.match(offers[0].title) or (m.get("spec") if (m.get("spec") or {}).get("model_key") else None)
+    spec = catalog.match(offers[0].title) or catalog.by_key(m["key"])         or (m.get("spec") if (m.get("spec") or {}).get("model_key") else None)
     if not spec:
         _, _, spec = model_key(offers[0].title, title_facts(offers[0].title), catalog)
     spec = apply_override(merge(spec, ml_spec), override)
@@ -574,6 +618,7 @@ def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
                         apply_override(merge(specs[k], extra_specs.get(k)), overrides.get(k)), cfg)
                for k, g in groups.items()]
     results.sort(key=lambda r: (STATUS_ORDER[r.status], r.best["price"]))
+    unique_names(results)
     return results
 
 
@@ -670,7 +715,8 @@ async def collect(session: BrowserSession, sources: list[dict],
         try:
             if src["store"] == "compragamer":
                 got = await _collect_compragamer(session, src["url"])
-            elif src["store"] in ("dell", "megatone", "mallweb") or src.get("platform") == "tiendanube":
+            elif src["store"] in ("dell", "megatone", "mallweb") or src.get("platform") in (
+                    "tiendanube", "woocommerce", "shopify"):
                 got = await asyncio.to_thread(_collect_catalog, src["store"], src["url"], src.get("platform"))
             elif src["store"] in VTEX_STORES:
                 got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])

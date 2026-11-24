@@ -310,6 +310,7 @@
             {% if r.ev_ref and r.ev_ref.ref %}<span>Antes de {{ r.ev_name }} <b class="num">{{ r.ev_ref.ref|ars }}</b></span>{% endif %}
             {% if r.stats %}<span>Máximo <b class="num">{{ r.stats.max|ars }}</b></span>{% endif %}
             <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
+            {% if ev.key %}<span class="muted" title="Identificador del modelo (código normalizado)">ID {{ ev.key }}</span>{% endif %}
           </div>
           <div class="chart"></div>
           {{ reqs(ev.checks) }}
@@ -391,6 +392,7 @@
               <a class="link" target="_blank" rel="noopener" href="{{ m.best.url }}">Ver la oferta</a>
               <span>Mercado <b class="num">{{ m.ref|ars if m.ref else '—' }}</b></span>
               {% if m.min_price %}<span>Mínimo visto <b class="num">{{ m.min_price|ars }}</b></span>{% endif %}
+              <span class="muted" title="Identificador del modelo (código normalizado)">ID {{ m.key }}</span>
               {% if not static and not m.tracked and m.status != 'descartado' %}<button class="btn sm" style="margin-left:auto" onclick="trackModel({{ m.key|tojson|forceescape }})">Seguir</button>{% endif %}
             </div>
             {% if (m.series or [])|length > 1 %}<div class="chart"></div>{% endif %}

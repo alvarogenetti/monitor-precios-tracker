@@ -26,3 +26,20 @@ def test_parse_mallweb_cash_price():
     got = parse_mallweb(page)
     assert got[0]["price"] == 606104 and got[0]["url"] == "https://www.mallweb.com.ar/producto/24989"
     assert got[0]["title"].startswith('Monitor Gamer Msi 27"')
+
+
+def test_parse_woocommerce_and_shopify():
+    from scrapers.stores.catalogs import parse_shopify, parse_woocommerce
+
+    woo = [{"name": "Monitor LG 27GS75Q-B", "permalink": "https://t/p/1", "is_in_stock": True,
+            "prices": {"price": "45000000", "regular_price": "50000000", "currency_minor_unit": 2}},
+           {"name": "Agotado", "permalink": "https://t/p/2", "is_in_stock": False,
+            "prices": {"price": "1", "regular_price": "1", "currency_minor_unit": 0}}]
+    got = parse_woocommerce(woo, "t", "T")
+    assert got == [{"store": "t", "title": "Monitor LG 27GS75Q-B", "price": 450000.0, "list": 500000.0,
+                    "seller": "T", "url": "https://t/p/1"}]
+    shop = [{"title": "Monitor Gigabyte GS27QA", "handle": "gs27qa",
+             "variants": [{"price": "399999.00", "compare_at_price": None, "available": True}]},
+            {"title": "Mouse", "handle": "m", "variants": [{"price": "1000", "available": True}]}]
+    got = parse_shopify(shop, "https://s.com.ar", "s", "S")
+    assert len(got) == 1 and got[0]["price"] == 399999.0 and got[0]["url"] == "https://s.com.ar/products/gs27qa"

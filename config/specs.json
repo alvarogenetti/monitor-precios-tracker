@@ -1,7 +1,7 @@
 [
  {
   "model_key": "PG27QFT2A",
-  "name": "ASRock Phantom Gaming PG27QFT2A",
+  "name": "ASRock PG27QFT2A",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -22,11 +22,12 @@
   ],
   "confidence": "medium",
   "notes": "Superficie mate (ocinside). HDMI 2.0 limitado a 144 Hz; 180 Hz sólo por DP. 7,7 kg con base (base con antena Wi-Fi). Las fuentes no coinciden en la versión de DP (1.2 vs 1.4) ni en la cantidad de HDMI (1 según ocinside, 2x HDMI 2.0 según tiendas). El sitio del fabricante bloqueó la consulta automática.",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "Phantom Gaming"
  },
  {
   "model_key": "PG27QFT1B",
-  "name": "ASRock Phantom Gaming PG27QFT1B",
+  "name": "ASRock PG27QFT1B",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -46,7 +47,8 @@
   ],
   "confidence": "high",
   "notes": "Ficha de ASRock: superficie antirreflejo, HDMI 2.0 de 48-144 Hz, DP de 48-180 Hz, parlantes 2x2 W, base sólo con inclinación. 5,8 kg con base. Fuente interna (viene cable de alimentación, '1*US Power Cord' según región), pero no informa el voltaje.",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "Phantom Gaming"
  },
  {
   "model_key": "GS27QA",
@@ -76,7 +78,7 @@
  },
  {
   "model_key": "275QF",
-  "name": "MSI MAG 275QF (also E20 / E21 variants)",
+  "name": "MSI MAG 275QF",
   "panel": "Rapid IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -99,7 +101,7 @@
    "https://storage-asset.msi.com/datasheet/monitor/global/MAG-275QF-E21.pdf"
   ],
   "confidence": "high",
-  "notes": "275QF base: DP 1.4 (HBR2) 180 Hz, 2x HDMI 2.0b a 144 Hz, antirreflejo, 3,95 kg con base. Variante E20: 200 Hz por DP 1.4a (HBR3), HDMI sigue en 144 Hz, mismo panel de 3,57 kg. Variante E21: 210 Hz (OC), DisplayHDR 400, 4,4 kg. MSI informa 'Less Blue Light' (por software); no dice flicker-free. Fuente interna.",
+  "notes": "275QF base: DP 1.4 (HBR2) 180 Hz, 2x HDMI 2.0b a 144 Hz, antirreflejo, 3,95 kg con base. Variante E20: 200 Hz por DP 1.4a (HBR3), HDMI sigue en 144 Hz, mismo panel de 3,57 kg. Variante E21: 210 Hz (OC), DisplayHDR 400, 4,4 kg. MSI informa 'Less Blue Light' (por software); no dice flicker-free. Fuente interna. Nombre comercial: MSI MAG 275QF (also E20 / E21 variants).",
   "verified_at": "2026-11"
  },
  {
@@ -130,7 +132,7 @@
  },
  {
   "model_key": "27GS75Q",
-  "name": "LG UltraGear 27GS75Q-B",
+  "name": "LG 27GS75Q-B",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -153,7 +155,8 @@
   ],
   "confidence": "medium",
   "notes": "Superficie antirreflejo (mate) según la página oficial de LG (Malasia) y pcmonitors.info. 180 Hz nativo, 200 Hz con OC sólo por DP. LG no informa versión ni Hz máximos de HDMI. Flicker Safe + Modo lectura. Fuente externa de 40 W (19 V), AC 100-240 V. Que es plano se deduce (no informa curvatura).",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "UltraGear"
  },
  {
   "model_key": "EW270Q",
@@ -182,7 +185,7 @@
  },
  {
   "model_key": "S27FG500EL",
-  "name": "Samsung Odyssey G5 G50F S27FG500EL (LS27FG500ELXZB)",
+  "name": "Samsung S27FG500EL",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -202,12 +205,13 @@
    "https://pcmonitors.info/samsung/samsung-odyssey-g50f-g5-180hz-qhd-ips/"
   ],
   "confidence": "medium",
-  "notes": "Datos del modelo hermano LS27FG500ENXZA (Canadá); no hay página para el sufijo ELXZB. Fast IPS, plano. 1x HDMI 2.0 + 1x DP 1.2; no informa Hz por entrada (HDMI 2.0 probablemente 144 Hz). Mate antirreflejo según pcmonitors. Fuente externa de 48 W. Eye Saver Mode.",
-  "verified_at": "2026-11"
+  "notes": "Datos del modelo hermano LS27FG500ENXZA (Canadá); no hay página para el sufijo ELXZB. Fast IPS, plano. 1x HDMI 2.0 + 1x DP 1.2; no informa Hz por entrada (HDMI 2.0 probablemente 144 Hz). Mate antirreflejo según pcmonitors. Fuente externa de 48 W. Eye Saver Mode. Nombre comercial: Samsung Odyssey G5 G50F S27FG500EL (LS27FG500ELXZB).",
+  "verified_at": "2026-11",
+  "series": "Odyssey G5 (G50F)"
  },
  {
   "model_key": "M27T6S",
-  "name": "KTC M27T6S (Mini-LED)",
+  "name": "KTC M27T6S",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -228,8 +232,9 @@
    "https://www.tomshardware.com/monitors/gaming-monitors/ktc-m27t6s-27-inch-qhd-mini-led-gaming-monitor-review"
   ],
   "confidence": "medium",
-  "notes": "Mini-LED de 1152 zonas, DisplayHDR 1000; 200 Hz (210 Hz OC). HDMI 2.0 limitado a 144 Hz en QHD. Superficie mate de bajo haze. Flicker-free salvo con el modo MPRT activo. Fuente interna (DisplayNinja); el soporte de KTC indica 100-240 V. Sin dato oficial de brillo SDR (medido ~626 nits). Sin peso sin base (las publicaciones dicen 6,55-7 kg, sin aclarar). Que es plano se deduce.",
-  "verified_at": "2026-11"
+  "notes": "Mini-LED de 1152 zonas, DisplayHDR 1000; 200 Hz (210 Hz OC). HDMI 2.0 limitado a 144 Hz en QHD. Superficie mate de bajo haze. Flicker-free salvo con el modo MPRT activo. Fuente interna (DisplayNinja); el soporte de KTC indica 100-240 V. Sin dato oficial de brillo SDR (medido ~626 nits). Sin peso sin base (las publicaciones dicen 6,55-7 kg, sin aclarar). Que es plano se deduce. Nombre comercial: KTC M27T6S (Mini-LED).",
+  "verified_at": "2026-11",
+  "series": "Mini-LED"
  },
  {
   "model_key": "27GT670",
@@ -258,7 +263,7 @@
  },
  {
   "model_key": "ARK27210QI8",
-  "name": "Arkham ARK27210QI8P (210 Hz) / ARK27210QI8",
+  "name": "Arkham ARK27210QI8",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -279,13 +284,13 @@
    "https://fullh4rd.com.ar/prod/32921"
   ],
   "confidence": "low",
-  "notes": "Datos de la versión P (base con altura y pivot), de fichas de tiendas argentinas (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 210 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 6,1 kg con base, fuente externa. El ARK27210QI8 sin P es distinto según FullH4rd: Fast IPS 300 nits, 2x HDMI 2.1 (igual 144 Hz), VESA 100x100, base sólo inclinación, fuente externa 12 V/4 A (100-240 V); sin peso.",
+  "notes": "Datos de la versión P (base con altura y pivot), de fichas de tiendas argentinas (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 210 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 6,1 kg con base, fuente externa. El ARK27210QI8 sin P es distinto según FullH4rd: Fast IPS 300 nits, 2x HDMI 2.1 (igual 144 Hz), VESA 100x100, base sólo inclinación, fuente externa 12 V/4 A (100-240 V); sin peso. Nombre comercial: Arkham ARK27210QI8P (210 Hz) / ARK27210QI8.",
   "search": "ARK27210",
   "verified_at": "2026-11"
  },
  {
   "model_key": "HAWKEYE",
-  "name": "Raptor Hawk Eye 27\" QHD 200Hz (RAP-MON-27QHD-200IPS)",
+  "name": "Raptor Hawk Eye",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -305,7 +310,7 @@
    "https://cdn.sanity.io/files/ssso0is3/production/af3d2936f0c7fa0dceecaa8fd4150841d5095020.pdf"
   ],
   "confidence": "medium",
-  "notes": "Del manual oficial de Raptor: plano, 300 cd/m², 2x HDMI 2.0 + 2x DP 1.2, fuente externa, base fija con inclinación, VESA 100x100 en el plano, ≤30 W. HDMI 2.0 probablemente limita a 144 Hz (no lo dice). No confundir con la variante FHD RAP-MON-27FHD-200IPS. Sin datos de peso, superficie ni cuidado visual.",
+  "notes": "Del manual oficial de Raptor: plano, 300 cd/m², 2x HDMI 2.0 + 2x DP 1.2, fuente externa, base fija con inclinación, VESA 100x100 en el plano, ≤30 W. HDMI 2.0 probablemente limita a 144 Hz (no lo dice). No confundir con la variante FHD RAP-MON-27FHD-200IPS. Sin datos de peso, superficie ni cuidado visual. Nombre comercial: Raptor Hawk Eye 27\" QHD 200Hz (RAP-MON-27QHD-200IPS).",
   "search": "Hawk Eye",
   "verified_at": "2026-11"
  },
@@ -388,7 +393,7 @@
  },
  {
   "model_key": "VX2728J",
-  "name": "ViewSonic VX2728J-2K",
+  "name": "ViewSonic VX2728J",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -412,7 +417,7 @@
  },
  {
   "model_key": "VG27AQL5A",
-  "name": "ASUS TUF Gaming VG27AQL5A",
+  "name": "ASUS VG27AQL5A",
   "panel": "Fast IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -432,11 +437,12 @@
   ],
   "confidence": "high",
   "notes": "210 Hz (OC) por DP 1.4; 2x HDMI 2.0 limitados a 144 Hz. El USB-C es sólo de servicio (sin video ni carga). Base con altura, giro y pivot. Fuente interna. Que es plano se deduce.",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "TUF Gaming"
  },
  {
   "model_key": "VG27AQL3A",
-  "name": "ASUS TUF Gaming VG27AQL3A",
+  "name": "ASUS VG27AQL3A",
   "panel": "Fast IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -456,7 +462,8 @@
   ],
   "confidence": "high",
   "notes": "2x HDMI 2.0 de 48-144 Hz, DP de 48-180 Hz. Hub 2x USB-A, sin USB-C. ~6,9 kg con base (Guru3D). Fuente interna. Que es plano se deduce.",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "TUF Gaming"
  },
  {
   "model_key": "GS27QX",
@@ -510,7 +517,7 @@
  },
  {
   "model_key": "27GS85Q",
-  "name": "LG UltraGear 27GS85Q-B",
+  "name": "LG 27GS85Q-B",
   "panel": "Nano IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -531,11 +538,12 @@
   ],
   "confidence": "medium",
   "notes": "180 Hz nativo, 200 Hz OC por DP 1.4. HDMI hasta 144 Hz (Coolblue). Antirreflejo según tiendas (la página de LG no lo dice). DisplayHDR 400. Hub USB 3.0 (1 subida / 2 bajada), sin USB-C. Fuente externa de 65 W (19 V), AC 100-240 V. Que es plano se deduce.",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "UltraGear"
  },
  {
   "model_key": "M27Q2",
-  "name": "Gigabyte M27Q2 QD ICE",
+  "name": "Gigabyte M27Q2",
   "panel": "SS IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -557,7 +565,8 @@
   "confidence": "medium",
   "notes": "SS IPS quantum dot, 200 Hz (210 Hz OC), DisplayHDR 400. 2x HDMI 2.0 + 1x DP 1.4 + USB-C (DP Alt, carga 18 W; 'dinámico 65 W' en algunas páginas regionales), KVM. No informa Hz por HDMI (probablemente 144 Hz). Superficie non-glare. Fuente interna AC 100-240 V. 5,91 kg con base. Datos de extractos de búsqueda (el sitio de Gigabyte bloqueó la consulta directa).",
   "search": "M27Q2",
-  "verified_at": "2026-11"
+  "verified_at": "2026-11",
+  "series": "QD ICE"
  },
  {
   "model_key": "274QPFX32",
@@ -587,7 +596,7 @@
  },
  {
   "model_key": "ARK27275QI8",
-  "name": "Arkham ARK27275QI8P (275 Hz)",
+  "name": "Arkham ARK27275QI8",
   "panel": "Fast IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -606,7 +615,7 @@
    "https://sharecomputacion.com/producto/monitor-27-arkham-275hz-fast-ips-qhd-0-5ms-hdmi-dp/"
   ],
   "confidence": "low",
-  "notes": "Ficha de una sola tienda argentina (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 275 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 5,7 kg con base, fuente externa 12 V/4 A (no informa voltaje de entrada), base con altura, giro y pivot.",
+  "notes": "Ficha de una sola tienda argentina (sin página del fabricante): mate 3H haze 25 %, 2x DP 1.4 a 275 Hz, 2x HDMI 2.0 a 144 Hz, VESA 75x75, 5,7 kg con base, fuente externa 12 V/4 A (no informa voltaje de entrada), base con altura, giro y pivot. Nombre comercial: Arkham ARK27275QI8P (275 Hz).",
   "search": "ARK27275",
   "verified_at": "2026-11"
  },
@@ -641,7 +650,7 @@
    "P27QDA"
   ],
   "search": "A27Qi",
-  "name": "Xiaomi 2K Monitor A27Qi (2026)",
+  "name": "Xiaomi A27Qi",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -662,12 +671,13 @@
    "https://www.mi.com/global/product/xiaomi-2k-monitor-a27qi-2026/specs/",
    "https://www.displayspecifications.com/en/model/089c4219"
   ],
-  "notes": "Versión 2026 (P27QDA-RAGL): 120 Hz; la versión anterior era de 100 Hz (verificar cuál vende la tienda). VESA 75x75, 3,9 kg con base, 6 ms. Mate según el catálogo de Mercado Libre."
+  "notes": "Versión 2026 (P27QDA-RAGL): 120 Hz; la versión anterior era de 100 Hz (verificar cuál vende la tienda). VESA 75x75, 3,9 kg con base, 6 ms. Mate según el catálogo de Mercado Libre. Nombre comercial: Xiaomi 2K Monitor A27Qi (2026).",
+  "series": "2K Monitor (2026)"
  },
  {
   "model_key": "S2725DC",
   "search": "S2725DC",
-  "name": "Dell 27 Plus S2725DC (USB-C 65 W)",
+  "name": "Dell S2725DC",
   "panel": "IPS",
   "flat": true,
   "resolution": "2560x1440",
@@ -687,6 +697,7 @@
   "sources": [
    "https://www.dell.com/es-ar"
   ],
-  "notes": "Opción B del research: USB-C con 65 W + DP Alt, contraste 1500:1, TÜV 4 estrellas, ComfortView Plus. 144 Hz por HDMI, DP y USB-C. Blanco. Mate según el catálogo de ML."
+  "notes": "Opción B del research: USB-C con 65 W + DP Alt, contraste 1500:1, TÜV 4 estrellas, ComfortView Plus. 144 Hz por HDMI, DP y USB-C. Blanco. Mate según el catálogo de ML. Nombre comercial: Dell 27 Plus S2725DC (USB-C 65 W).",
+  "series": "27 Plus"
  }
 ]
