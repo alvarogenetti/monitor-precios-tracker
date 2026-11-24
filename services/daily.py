@@ -2,7 +2,7 @@
 las 12 UTC (9 de Argentina). No depende de que el cron caiga a una hora exacta.
 
 Durante un evento (Black Friday, Cyber Monday...) el descubrimiento corre además cada ~3 h (sin
-resumen): las ~75 tiendas cambian precios varias veces por día y los seguidos usan esos precios.
+resumen): las ~90 tiendas cambian precios varias veces por día y los seguidos usan esos precios.
 
     python -m services.daily due [ruta/prices.db]           # resumen diario: 0 = toca, 1 = ya se hizo
     python -m services.daily discover-due [ruta/prices.db]  # descubrimiento extra de evento: 0 = toca

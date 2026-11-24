@@ -33,6 +33,18 @@ def ml_search_url(name: str) -> str:
 
 templates.env.filters["ml_search"] = ml_search_url
 
+
+def ml_history_url(code: str) -> str:
+    """Historial de precios de ML en MejoresCompras (sólo un link para abrir a mano; según su sitio
+    usa la API oficial de ML). Se busca por el código del modelo."""
+    from urllib.parse import quote
+
+    toks = [t for t in re.split(r"[\s|]+", code or "") if sum(c.isdigit() for c in t) >= 2]
+    return "https://mejorescompras.com.ar/buscar?q=" + quote(toks[0] if toks else (code or "").strip())
+
+
+templates.env.filters["ml_history"] = ml_history_url
+
 # Tiendas que no se leen automáticamente (bloqueo/antibot): link para mirar + carga manual "Lo vi a $"
 MANUAL_STORES = {
     "mercadolibre": ("Mercado Libre", ml_search_url),
@@ -169,7 +181,7 @@ def series_stats(prices: list[float]) -> dict | None:
 def merge_discovery_offers(rows: list[dict], models: list[dict], finished_at: str | None,
                            max_age_h: float = 30) -> None:
     """Suma a cada seguido las ofertas que el descubrimiento encontró para ese mismo modelo en las
-    otras ~75 tiendas (si el descubrimiento es reciente). Si alguna es más barata, pasa a ser la mejor
+    otras ~90 tiendas (si el descubrimiento es reciente). Si alguna es más barata, pasa a ser la mejor
     oferta de la fila (precio, descuento real, banda), marcada como vista en Descubrimiento."""
     from datetime import datetime, timezone
 

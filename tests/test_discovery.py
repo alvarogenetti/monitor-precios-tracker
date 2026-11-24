@@ -213,3 +213,21 @@ def test_canonical_names_brand_and_model_only():
         ("hardgamers", "MONITOR ASROCK PG27QFT1B 27 QHD IPS 180HZ", 438290, "B"),
     ), CFG, SPECS, overrides={})
     assert sorted(r.name for r in res) == ["ASRock PG27QFT1B", "ViewSonic VX2718"]
+
+
+def test_sufijo_de_4_letras_es_la_misma_variante():
+    from services.discovery import _merge_variants
+
+    groups = {"ARK27340": [Offer("x", "MONITOR ARKHAM ARK27340 27 QHD 340HZ", 1, "")],
+              "ARK27340QI8P": [Offer("x", "MONITOR ARKHAM ARK27340QI8P 27 QHD 340HZ", 1, "")]}
+    _merge_variants(groups, {k: k for k in groups}, {})
+    assert list(groups) == ["ARK27340QI8P"] and len(groups["ARK27340QI8P"]) == 2
+
+
+def test_oled_no_se_une_con_ips_aunque_compartan_prefijo():
+    from services.discovery import _merge_variants
+
+    groups = {"274QP": [Offer("x", "MONITOR MSI MAG 274QP QD-OLED 27 WQHD 240HZ", 1, "")],
+              "274QPFX24": [Offer("x", "MONITOR MSI MAG 274QPF X24 27 RAPID IPS WQHD 240HZ", 1, "")]}
+    _merge_variants(groups, {k: k for k in groups}, {})
+    assert sorted(groups) == ["274QP", "274QPFX24"]

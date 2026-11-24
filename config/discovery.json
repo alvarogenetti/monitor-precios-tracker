@@ -187,6 +187,86 @@
     {
       "store": "provincia",
       "url": "https://www.provinciacompras.com.ar/?q=monitor 27 qhd"
+    },
+    {
+      "store": "redsur",
+      "platform": "qloud",
+      "url": "https://redsurinsumos.com/buscar/?q=monitor+27"
+    },
+    {
+      "store": "ultracomputacion",
+      "platform": "qloud",
+      "url": "https://ultracomputacion.com/buscar/?q=monitor+27"
+    },
+    {
+      "store": "citygadgets",
+      "platform": "qloud",
+      "url": "https://citygadgets.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "novaonline",
+      "platform": "qloud",
+      "url": "https://novaonline.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "clanco",
+      "platform": "qloud",
+      "url": "https://clanco.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "710tech",
+      "platform": "qloud",
+      "url": "https://710tech.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "pcstore",
+      "platform": "qloud",
+      "url": "https://pcstorecomputacion.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "supportoficial",
+      "platform": "qloud",
+      "url": "https://supportoficial.com/buscar/?q=monitor+27"
+    },
+    {
+      "store": "bestinformatica",
+      "platform": "qloud",
+      "url": "https://bestinformatica.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "huntergaming",
+      "platform": "qloud",
+      "url": "https://huntergaming.com.ar/buscar/?q=monitor+27"
+    },
+    {
+      "store": "ngtechnologies",
+      "platform": "tiendanube",
+      "url": "https://www.ngtechnologies.com.ar/search/?q=monitor+27"
+    },
+    {
+      "store": "westsolution",
+      "platform": "tiendanube",
+      "url": "https://westsolution.com.ar/search/?q=monitor+27"
+    },
+    {
+      "store": "hardloots",
+      "platform": "woocommerce",
+      "url": "https://hardloots.com.ar/wp-json/wc/store/v1/products?search=monitor%2027"
+    },
+    {
+      "store": "astrohard",
+      "platform": "woocommerce",
+      "url": "https://astrohard.com.ar/wp-json/wc/store/v1/products?search=monitor"
+    },
+    {
+      "store": "libreopcion",
+      "platform": "libreopcion",
+      "url": "https://omega-api4.libreopcion.com.ar/v4/search?search=monitor%2027"
+    },
+    {
+      "store": "seguimientogamer",
+      "platform": "seguimientogamer",
+      "url": "https://seguimientogamer.com.ar/datos/listados/categoria-monitores.json"
     }
   ],
   "ignore_models": [],

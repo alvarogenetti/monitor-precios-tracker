@@ -112,7 +112,8 @@ class SpecCatalog:
 
 
 # Largo máximo del sufijo de variante (X24, X32, E2, M...) para unificar títulos que lo omiten
-SUFFIX_MAX = 3
+SUFFIX_MAX = 3   # X24, X32, E2...
+MERGE_SUFFIX_MAX = 4   # dentro de un mismo descubrimiento, si además coincide el panel (ARK27340 / ARK27340QI8P)
 
 
 # ------------------------------------------------------------------ hechos desde el título
@@ -521,14 +522,18 @@ def _merge_variants(groups: dict[str, list], searches: dict[str, str], specs: di
     def hz(k: str) -> int | None:
         return _majority([title_facts(o.title).hz for o in groups[k]])
 
+    def panel(k: str) -> str | None:
+        return _majority([title_facts(o.title).panel for o in groups[k]])
+
     for k in sorted(groups, key=len):
         if k not in groups or "~" in k or len(k) < 4:
             continue
         h = hz(k)
         if not h:
             continue
-        cands = [c for c in groups if c != k and "~" not in c and c.startswith(k)
-                 and 0 < len(c) - len(k) <= SUFFIX_MAX and hz(c) == h]
+        cands = [c for c in groups if c != k and "~" not in c and c.startswith(k) and hz(c) == h
+                 and (0 < len(c) - len(k) <= SUFFIX_MAX
+                      or (len(c) - len(k) <= MERGE_SUFFIX_MAX and panel(c) == panel(k)))]
         if len(cands) == 1:
             c = cands[0]
             groups[c].extend(groups.pop(k))

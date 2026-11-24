@@ -1,6 +1,6 @@
 # Monitor de precios de monitores (Argentina)
 
-Sigue precio y stock de monitores **27" QHD IPS mate** en ~75 tiendas argentinas, detecta
+Sigue precio y stock de monitores **27" QHD IPS mate** en ~90 tiendas argentinas, detecta
 **ofertas reales** (descuento contra el precio de mercado, no contra el "precio de lista"), recomienda
 qué comprar y avisa por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 
@@ -131,13 +131,20 @@ de hoy") y también "Qué compraría hoy".
 | Catálogo JSON de la propia SPA (Playwright) | Compra Gamer | Seguidos + descubrimiento |
 | Comparador (Playwright) | ~41 tiendas vía HardGamers (Maximus, Mexx, Full H4rd, Gezatek, TryHardware, Slot One, Logg...) | Seguidos + descubrimiento |
 | Buscador VTEX (JSON) | Frávega (desde la PC), On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo, Samsung Shop, Diamond Computación, Provincia Compras | Seguidos + descubrimiento |
-| WooCommerce (API pública) | Comeros, ISInet, Aura Gamer, Espaciotek, Zonetech, Hardcore Computación, DeCaba | Descubrimiento |
-| Tiendanube (búsqueda, precio por transferencia) | Nickhard, Shopgamer, Dualkey | Descubrimiento |
-| Qloud (búsqueda) | Electrotics, Gerbio, PC Registrada | Descubrimiento |
+| WooCommerce (API pública) | Comeros, ISInet, Aura Gamer, Espaciotek, Zonetech, Hardcore Computación, DeCaba, HardLoots, Astro Hard | Descubrimiento |
+| Marketplace (API de búsqueda) | Libre Opción (Gears Store, STORE GS, BsAsPC, BitBayres, Hunnox) | Descubrimiento |
+| Comparador (JSON público) | Seguimiento Gamer (23 tiendas, casi todas ya cubiertas: sirve de respaldo y su ficha tiene historial) | Descubrimiento |
+| Tiendanube (búsqueda, precio por transferencia) | Nickhard, Shopgamer, Dualkey, NG Technologies, West Solution | Descubrimiento |
+| Qloud (búsqueda) | Electrotics, Gerbio, PC Registrada, Red Sur, Ultra Computación, City Gadgets, Nova Online, Clanco, 710 Technology, PC Store, Support Oficial, Best Informática, Hunter Gaming | Descubrimiento |
 | PrestaShop / TiendaNegocio | Armytech / Otecno | Descubrimiento |
 | Categoría en HTML | Dell AR, Megatone, Mallweb | Descubrimiento |
 | Ficha directa (genérico) | Venex (desde la PC), Maximus, Electro y Hogar | Seguidos |
 | **A mano** (link + "Lo vi a $") | **Mercado Libre** (API bloqueada), **Tienda BNA** (Cloudflare) | Cuando cargás un precio |
+
+Los comparadores (HardGamers, Seguimiento Gamer, BuscaHard, Precios GG, Historial de Precios, Precialo,
+Libre Opción) se revisaron uno por uno (noviembre 2026): se leen los que lo permiten y sus tiendas útiles
+se leen directo. Ninguno incluye Mercado Libre de forma legítima salvo MejoresCompras (dice usar la API
+oficial), que aparece como link **Historial** al lado de cada **Ver en ML**.
 
 Los seguidos se escanean cada ~3 h (cada hora en eventos) y además suman lo que el descubrimiento
 (1 vez por día, cada ~3 h en eventos) vio en las demás tiendas.
@@ -282,9 +289,17 @@ cl. 7.6), no se crea otra cuenta o app para esquivar el bloqueo y no se usan pro
 apagado (`settings.meli_enabled` devuelve `False`, el escaneo saltea los links de ML y el adaptador
 no cae a la web).
 
-**Qué se hace en cambio.** Links **Ver en ML** en cada seguido y modelo del descubrimiento; links en el
-resumen de Telegram durante eventos; carga manual **Lo vi a $** (3 días); aviso si el vendedor no tiene
-su página cubierta.
+**Qué se hace en cambio.** Links **Ver en ML** y **Historial** (MejoresCompras, que dice usar la API
+oficial de ML) en cada seguido y modelo del descubrimiento; los mismos links en el resumen de Telegram
+durante eventos; carga manual **Lo vi a $** (3 días); aviso si el vendedor no tiene su página cubierta.
+
+**Intermediarios evaluados (noviembre 2026) y descartados.** Los términos generales de ML (sección 12,
+"Uso Automatizado del Sitio") prohíben bots, scrapers y agentes para extraer o almacenar información
+"sin importar" la vía, e incluyen expresamente "eludir medidas técnicas de protección". Por eso no se
+usan: lectores/proxies que bajan la página por nosotros (Jina Reader), scrapers con IPs residenciales
+(Apify, Octoparse), leer ML desde la PC con pausas, ni leer automáticamente sitios que rastrean ML
+(RadarLibre prohíbe el scraping masivo de su propio sitio). ML no ofrece otro canal de datos: su
+servidor MCP sólo busca en la documentación y el programa de afiliados da links, no precios.
 
 **Cuánto se pierde.** Con los datos de la API del 20 al 23/11/2026 (4 monitores, 71 corridas), ML
 **nunca** fue la opción más barata: en la mediana estaba **31 % arriba** de la mejor otra tienda

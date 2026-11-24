@@ -49,7 +49,7 @@ def split_message(text: str, limit: int = 3800) -> list[str]:
 def ml_block(rows, now=None) -> list[str]:
     """Durante un evento (y los 2 días previos): links a Mercado Libre para revisarlo a mano desde el
     celular (ML no se lee automáticamente; ver README)."""
-    from app.main import ml_search_url
+    from app.main import ml_history_url, ml_search_url
     from services.events import current_or_next
 
     ev, _ = current_or_next(now, within_days=2)
@@ -61,7 +61,9 @@ def ml_block(rows, now=None) -> list[str]:
         if t.kind != "monitor":
             continue
         url = next((u.url for u in t.urls if u.store == "mercadolibre"), None) or ml_search_url(t.name)
-        out.append(f'• <a href="{html.escape(url, quote=True)}">{html.escape(t.name)}</a>')
+        hist = ml_history_url(" ".join(t.keywords) if t.keywords else t.name)
+        out.append(f'• <a href="{html.escape(url, quote=True)}">{html.escape(t.name)}</a> · '
+                   f'<a href="{html.escape(hist, quote=True)}">historial</a>')
     out.append("Si ves algo bueno, cargalo en el dashboard (\"Lo vi a $\") y entra al análisis.")
     return out
 
@@ -69,7 +71,7 @@ def ml_block(rows, now=None) -> list[str]:
 def build_summary() -> str:
     from app.main import build_context, db
 
-    ctx = build_context()      # incluye las ofertas de las ~75 tiendas del descubrimiento
+    ctx = build_context()      # incluye las ofertas de las ~90 tiendas del descubrimiento
     rows = [r for r in ctx["rows"] if r["target"].active]
     rows.sort(key=lambda r: (r["best"] is None, -(r.get("real") or -1)))
     from services.advice import telegram_lines

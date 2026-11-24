@@ -36,7 +36,13 @@ LABELS = {"dell": "Dell", "megatone": "Megatone", "nickhard": "Nickhard", "mallw
           "comeros": "Comeros", "isinet": "ISInet", "auragamer": "Aura Gamer", "espaciotek": "Espaciotek",
           "zonetech": "Zonetech", "hardcore": "Hardcore Computación", "decaba": "DeCaba",
           "shopgamer": "Shopgamer", "dualkey": "Dualkey", "electrotics": "Electrotics", "gerbio": "Gerbio",
-          "pcregistrada": "PC Registrada", "armytech": "Armytech", "otecno": "Otecno"}
+          "pcregistrada": "PC Registrada", "armytech": "Armytech", "otecno": "Otecno",
+          "redsur": "Red Sur Insumos", "ultracomputacion": "Ultra Computación", "citygadgets": "City Gadgets",
+          "novaonline": "Nova Online", "clanco": "Clanco", "710tech": "710 Technology",
+          "pcstore": "PC Store", "supportoficial": "Support Oficial", "bestinformatica": "Best Informática",
+          "huntergaming": "Hunter Gaming", "ngtechnologies": "NG Technologies", "westsolution": "West Solution",
+          "hardloots": "HardLoots", "astrohard": "Astro Hard", "libreopcion": "Libre Opción",
+          "seguimientogamer": "Seguimiento Gamer"}
 
 
 def _client() -> httpx.Client:
@@ -123,6 +129,17 @@ def parse_tiendanube(page_html: str, store: str, label: str) -> list[dict]:
         m = re.search(r'data-variants="([^"]*)"', chunk)
         url = re.search(r'href="([^"]*/productos/[^"]*)"', chunk)
         name = re.search(r'item-name[^>]*>\s*([^<]+?)\s*<', chunk) or re.search(r'title="([^"]+)"', chunk)
+        if url and name and not m:
+            # Otros temas: sin data-variants, el precio va en data-product-price (en centavos)
+            pp = re.search(r'data-product-price="(\d+)"', chunk)
+            lab = re.search(r'data-label="Sin stock"[^>]*style="([^"]*)"', chunk)
+            no_stock = bool(lab) and "display:none" not in lab.group(1).replace(" ", "").lower()
+            if pp and not no_stock:
+                price = int(pp.group(1)) / 100
+                if is_plausible(price):
+                    out.append({"store": store, "title": htmllib.unescape(name.group(1)), "price": price,
+                                "list": None, "seller": label, "url": url.group(1)})
+            continue
         if not (m and url and name):
             continue
         try:
@@ -346,7 +363,54 @@ def fetch_tiendanegocio(client: httpx.Client, url: str, store: str) -> list[dict
     return parse_tiendanegocio(r.text, base, store, LABELS.get(store, store.capitalize())) if r.status_code == 200 else []
 
 
-PLATFORMS = ("tiendanube", "woocommerce", "shopify", "qloud", "prestashop", "tiendanegocio")
+# ------------------------------------------------------------------ Libre Opción (marketplace, API JSON)
+def parse_libreopcion(data: dict, store: str) -> list[dict]:
+    """Marketplace con varios vendedores (Gears Store, STORE GS, BsAsPC...): una oferta por ítem."""
+    out = []
+    for it in data.get("items") or []:
+        pr = it.get("price") or {}
+        price, lst = pr.get("finalPrice"), pr.get("listPrice")
+        if not is_plausible(price):
+            continue
+        out.append({"store": store, "title": it.get("description") or "", "price": float(price),
+                    "list": float(lst) if lst and lst > price else None,
+                    "seller": f"Libre Opción · {it.get('sellerName')}" if it.get("sellerName") else "Libre Opción",
+                    "url": f"https://libreopcion.com.ar/p-P{it.get('id')}?catalogue=1"})
+    return out
+
+
+def fetch_libreopcion(client: httpx.Client, url: str, store: str) -> list[dict]:
+    r = client.get(url + ("&" if "?" in url else "?") + "limit=60")
+    return parse_libreopcion(r.json(), store) if r.status_code == 200 else []
+
+
+# ------------------------------------------------------------------ Seguimiento Gamer (comparador, JSON)
+def parse_seguimientogamer(data: dict, store: str) -> list[dict]:
+    """categoria-monitores.json: t = tiendas [clave, nombre]; p = [id, título, i_tienda, _, precio,
+    variación %, 0 si hoy está disponible (si no, la fecha en que dejó de estarlo)]."""
+    stores = data.get("t") or []
+    out = []
+    for p in data.get("p") or []:
+        try:
+            pid, title, si, _, price, _, gone = p[:7]
+            key, name = stores[si]
+        except (ValueError, IndexError, TypeError):
+            continue
+        if gone or not is_plausible(price):
+            continue
+        out.append({"store": store, "title": title, "price": float(price), "list": None,
+                    "seller": f"{name} (vía Seguimiento Gamer)",
+                    "url": f"https://seguimientogamer.com.ar/producto/{key}/{pid}/"})
+    return out
+
+
+def fetch_seguimientogamer(client: httpx.Client, url: str, store: str) -> list[dict]:
+    r = client.get(url)
+    return parse_seguimientogamer(r.json(), store) if r.status_code == 200 else []
+
+
+PLATFORMS = ("tiendanube", "woocommerce", "shopify", "qloud", "prestashop", "tiendanegocio",
+             "libreopcion", "seguimientogamer")
 
 
 def fetch(store: str, url: str | None = None, platform: str | None = None) -> list[dict]:
@@ -355,6 +419,10 @@ def fetch(store: str, url: str | None = None, platform: str | None = None) -> li
             return fetch_woocommerce(c, url, store)
         if platform == "qloud":
             return fetch_qloud(c, url, store)
+        if platform == "libreopcion":
+            return fetch_libreopcion(c, url, store)
+        if platform == "seguimientogamer":
+            return fetch_seguimientogamer(c, url, store)
         if platform == "prestashop":
             return fetch_prestashop(c, url, store)
         if platform == "tiendanegocio":

@@ -336,7 +336,7 @@
               <tr style="{% if not o.active %}opacity:.45{% endif %}">
                 <td><a href="{{ (s.product_url if s and s.product_url) or o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.store|capitalize }}</a>{% if s and s.seller and s.seller|lower != o.store %}<div class="note">{{ s.seller }}</div>{% endif %}{% if o.via %}<div class="note">visto en Descubrimiento</div>{% endif %}</td>
                 <td class="r num">
-                  {% if o.ml and not s %}<a class="link" target="_blank" rel="noopener" href="{{ o.url if o.store != 'mercadolibre' or 'listado.' in o.url or '/p/' in o.url else t.name|ml_search }}">Ver en {{ 'ML' if o.store == 'mercadolibre' else MANUAL_STORES[o.store] }}</a>
+                  {% if o.ml and not s %}<a class="link" target="_blank" rel="noopener" href="{{ o.url if o.store != 'mercadolibre' or 'listado.' in o.url or '/p/' in o.url else t.name|ml_search }}">Ver en {{ 'ML' if o.store == 'mercadolibre' else MANUAL_STORES[o.store] }}</a>{% if o.store == 'mercadolibre' %}<div><a class="link" target="_blank" rel="noopener" title="Historial de precios de esa publicación en MejoresCompras" href="{{ (t.keywords|join(' ') if t.keywords else t.name)|ml_history }}">Historial</a></div>{% endif %}
                   {% elif not s %}<span class="muted">—</span>
                   {% elif s.error %}<span style="color:var(--bad)" title="{{ s.error }}">error</span>
                   {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
@@ -410,6 +410,7 @@
             <div class="facts">
               <a class="link" target="_blank" rel="noopener" href="{{ m.best.url }}">Ver la oferta</a>
               <a class="link" target="_blank" rel="noopener" href="{{ m.name|ml_search }}">Ver en ML</a>
+              <a class="link" target="_blank" rel="noopener" title="Historial de precios en MejoresCompras" href="{{ m.search|ml_history }}">Historial ML</a>
               <span>Mercado <b class="num">{{ m.ref|ars if m.ref else '—' }}</b></span>
               {% if m.min_price %}<span>Mínimo visto <b class="num">{{ m.min_price|ars }}</b></span>{% endif %}
               <span class="muted" title="Identificador del modelo (código normalizado)">ID {{ m.key }}</span>

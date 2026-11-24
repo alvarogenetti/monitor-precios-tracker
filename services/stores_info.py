@@ -29,6 +29,13 @@ STORES = [
         ("Electrotics, Gerbio, PC Registrada", "Buscador Qloud (catálogo Microglobal)", "GitHub"),
         ("Armytech", "Buscador PrestaShop", "GitHub"),
         ("Otecno", "Buscador TiendaNegocio (precio por transferencia)", "GitHub"),
+        ("Red Sur, Ultra Computación, City Gadgets, Nova Online, Clanco, 710 Technology, PC Store, "
+         "Support Oficial, Best Informática, Hunter Gaming", "Buscador Qloud", "GitHub"),
+        ("NG Technologies, West Solution", "Buscador Tiendanube", "GitHub"),
+        ("HardLoots, Astro Hard", "WooCommerce: API pública", "GitHub"),
+        ("Libre Opción", "Marketplace (Gears Store, STORE GS, BsAsPC...): su API de búsqueda", "GitHub"),
+        ("Seguimiento Gamer", "Comparador de 23 tiendas (su listado público de monitores): respaldo si "
+                              "falla el lector propio de una tienda, y link al historial de cada producto", "GitHub"),
         ("Diamond Computación, Provincia Compras", "Buscador VTEX (Provincia Compras es marketplace)", "GitHub"),
         ("Frávega", "Buscador: monitor 27 qhd / 2k", "Tu PC"),
     ]},
@@ -44,6 +51,12 @@ STORES = [
         ("Coto, Bidcom", "Se revisaron con navegador: no venden 27\" QHD de marca conocida (Bidcom sólo Gadnic 24/34\")", "—"),
         ("Noblex, Bangho, Tienda Ciudad", "Arman la página con JavaScript (sin navegador no hay productos)", "—"),
         ("Casa del Audio, Rodo, Sodimac, Easy, Castillo, Novogar...", "Se revisaron: no venden 27\" QHD", "—"),
-        ("Otras ~10 tiendas Qloud (710tech, Hunter Gaming, Compel...)", "Mismo catálogo Microglobal que Gerbio/PC Registrada", "—"),
+        ("Compel, Fefotec, Incot, BitHard, Vccit, Ar-Hard, Integrados Argentinos, Authogar",
+         "Se revisaron: no venden 27\" QHD", "—"),
+        ("BuscaHard, Precios GG, Historial de Precios, Precialo", "Comparadores revisados: sus tiendas útiles se leen "
+         "directo (BuscaHard bloquea bots de IA en robots.txt; Precios GG está vacío; Historial cubre "
+         "supermercados; Precialo es de Mercado Libre)", "—"),
+        ("MercadoTrack, RadarLibre, Jina/Apify/Octoparse", "Leer ML a través de terceros: va contra la cláusula 12 de "
+         "ML (uso automatizado). MejoresCompras sólo como link «Historial»", "—"),
     ]},
 ]

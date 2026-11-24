@@ -63,3 +63,29 @@ def test_parse_qloud_prestashop_tiendanegocio():
     got = parse_tiendanegocio(tn, "https://otecno.com.ar", "otecno", "Otecno")
     assert got == [{"store": "otecno", "title": "Monitor ARKHAM 27 QHD", "price": 375758.1, "list": 417509.0,
                     "seller": "Otecno", "url": "https://otecno.com.ar/producto/monitor-arkham"}]
+
+
+def test_parse_libreopcion_y_seguimientogamer():
+    from scrapers.stores.catalogs import parse_libreopcion, parse_seguimientogamer
+
+    lo = {"items": [{"id": 734352, "description": "Monitor Gamer Gigabyte 27 Gs27qa Sa", "sellerName": "Gears Store",
+                     "price": {"listPrice": 380000, "finalPrice": 355700}}]}
+    got = parse_libreopcion(lo, "libreopcion")[0]
+    assert got["price"] == 355700 and got["list"] == 380000 and got["seller"] == "Libre Opción · Gears Store"
+    assert got["url"] == "https://libreopcion.com.ar/p-P734352?catalogue=1"
+    sg = {"t": [["armytech", "Armytech"], ["mexx", "Mexx"]],
+          "p": [["6596", "Monitor Gigabyte 27\" Gs27qa 180hz", 0, 0, 353436, 2.33, 0],
+                ["mexx_1", "Monitor viejo", 1, 0, 300000, 0, "2026-09-08"]]}     # sin stock desde septiembre
+    got = parse_seguimientogamer(sg, "seguimientogamer")
+    assert len(got) == 1 and got[0]["seller"] == "Armytech (vía Seguimiento Gamer)"
+    assert got[0]["url"] == "https://seguimientogamer.com.ar/producto/armytech/6596/"
+
+
+def test_tiendanube_tema_sin_data_variants():
+    from scrapers.stores.catalogs import parse_tiendanube
+
+    card = lambda style, name: (f'<div class="js-item-product col-6 item"><div data-label="Sin stock" style="{style}"></div>'
+                                f'<a href="https://t/productos/{name}/">x</a><div class="item-name">{name}</div>'
+                                f'<span class="js-price-display" data-product-price="39512706">$395.127,06</span></div>')
+    got = parse_tiendanube(card("display: none", "GS27QA") + card("", "AGOTADO"), "ng", "NG")
+    assert [(g["title"], g["price"]) for g in got] == [("GS27QA", 395127.06)]
