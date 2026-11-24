@@ -19,7 +19,7 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 CACHE_PREFIX = "page:"
 # Tiendas cuya ficha trae texto en el HTML (las SPA como Compra Gamer no sirven)
 TEXT_STORES = ("fravega", "oncity", "pardo", "carrefour", "cetrogar", "coppel", "naldo", "jumbo",
-               "samsung", "dell", "megatone", "mercadolibre")
+               "samsung", "dell", "megatone")
 
 ANTI_GLARE_YES = re.compile(r"anti[\s-]?(?:reflej|reflect|glare|brillo)|antirreflej|non[\s-]?glare|\bmate\b|\bmatte\b|\bopaca\b", re.I)
 ANTI_GLARE_NO = re.compile(r"\bglossy\b|pantalla brillante|acabado brillante|superficie brillante", re.I)

@@ -11,8 +11,8 @@ cambia, hay que actualizarlas también.
 - Juegos y multimedia: **casual**. 144-180 Hz sobra; Mini-LED/HDR son un plus menor.
 - Equipo: notebook de 16" con HDMI y **USB-C con video, cargador ≤ 65 W** (un monitor con USB-C
   65 W la carga bien). Windows/Linux hoy; una MacBook es una posibilidad **lejana**.
-- Montaje: brazo hidráulico doble **Ironstek FL04A-LTA** (VESA 75/100, 2-8 kg por brazo).
-  **Un solo monitor externo** + la notebook.
+- Montaje: brazo hidráulico doble **Ironstek FL04A-LTA** (VESA 75/100, 2-8 kg por brazo; todavía
+  sin comprar, se sigue su precio). **Un solo monitor externo** + la notebook.
 - Ambiente con luz normal/artificial.
 
 ## Requisitos obligatorios
@@ -40,8 +40,10 @@ cambia, hay que actualizarlas también.
 - "Real" = contra la **mediana del mejor precio de las últimas semanas** en todas las tiendas, no
   contra el "precio de lista" que muestra la tienda. Si la tienda subió el precio antes del "50 % OFF",
   no cuenta.
-- Aplica a **cualquier monitor que cumpla los requisitos**, no sólo a los 8 seguidos (que salieron
-  de un análisis previo, pero no son una lista cerrada).
+- Aplica a **cualquier monitor que cumpla los requisitos**, no sólo a los seguidos (que salieron
+  de un análisis previo y están ordenados por segmento, pero no son una lista cerrada).
+- En cuotas sin interés, se compara el **valor en pesos de hoy** (con la inflación esperada), no el
+  precio nominal.
 - **Marcas conocidas primero** (ASRock, Gigabyte, MSI, Samsung, ASUS, LG, BenQ, Dell, AOC, KTC,
   ViewSonic, Acer, Xiaomi, Philips, Lenovo...). Marcas sin reseñas (Arkham, Valkyrie, Raptor,
   X-Micro, Teros...) sólo si cumplen todo **y** tienen un descuento excepcional (≥ 30 %).
@@ -50,4 +52,13 @@ cambia, hay que actualizarlas también.
 ## Avisos (Telegram)
 
 Sólo **ofertas reales** (≥ 15 % / ≥ 30 %), precio objetivo manual alcanzado, modelos nuevos que
-cumplen (agrupados) y el **resumen diario** a las 9. Nada de avisos por bajas chicas.
+cumplen y el **resumen diario** a las 9 (con "Qué compraría hoy"). Agrupados: un mensaje por
+escaneo, salvo una oferta excepcional, que sale al instante. Nada de avisos por bajas chicas.
+
+## Preferencias de la herramienta
+
+- Interfaz estilo financiero, tema automático claro/oscuro, sin emojis ni etiquetas de más, poco texto.
+- Sitio público sólo lectura; las acciones, desde la PC.
+- Nada que esquive controles anti-bot ni términos de las tiendas (por eso Mercado Libre y Tienda BNA
+  son a mano).
+- Cada monitor se nombra **Marca + Modelo** y no se repite.

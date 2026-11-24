@@ -8,13 +8,13 @@ STORES = [
                        "Katech, SilverHard, Compufan, Hyper Gaming, MyM, XT-PC, Amonpul…)", "GitHub"),
         ("Mercado Libre", "Sin acceso automático desde el 23/11/2026 (ML bloqueó la app de sólo lectura). "
                           "Links «Ver en ML» y carga manual «Lo vi a $» (vale 3 días)", "A mano"),
-        ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo y Samsung Shop: "
-                           "la más barata entre todas", "GitHub"),
+        ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo, Samsung Shop, "
+                           "Diamond Computación y Provincia Compras: la más barata entre todas", "GitHub"),
         ("Frávega", "API de su buscador (incluye vendedores del marketplace)", "Tu PC"),
         ("Venex", "Ficha directa (GS27QA)", "Tu PC"),
         ("Maximus", "Ficha directa (MSI 275QF)", "GitHub"),
     ]},
-    {"group": "Descubrimiento una vez por día (cualquier 27\" QHD)", "items": [
+    {"group": "Descubrimiento una vez por día, cada ~3 h en eventos (cualquier 27\" QHD)", "items": [
         ("Compra Gamer", "Catálogo completo", "GitHub"),
         ("HardGamers", "Búsquedas: monitor 27 qhd / 2k / 1440 / wqhd / ips 180hz", "GitHub"),
         ("On City, Pardo, Carrefour, Cetrogar, Coppel, Naldo", "Buscador VTEX: monitor 27 qhd", "GitHub"),

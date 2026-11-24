@@ -64,6 +64,18 @@ app = FastAPI(title="Monitor de precios AR", lifespan=lifespan)
 
 
 # ------------------------------------------------------------------ datos del dashboard
+STALE_HOURS = 26          # un precio de hace más de esto (p. ej. PC apagada) se muestra pero no cuenta
+DISCOVERY_FRESH_HOURS = 30
+
+
+def _age_hours(iso: str | None) -> float:
+    from datetime import datetime, timezone
+
+    if not iso:
+        return 1e9
+    return (datetime.now(timezone.utc) - datetime.fromisoformat(iso)).total_seconds() / 3600
+
+
 def _fresh_manual(snap: dict) -> bool:
     from datetime import datetime, timedelta, timezone
 
@@ -106,12 +118,14 @@ def build_dashboard() -> list[dict]:
                 o["ml"] = True     # tienda que se revisa a mano (ML, Tienda BNA): link + carga manual
                 if o["snap"] and not _fresh_manual(o["snap"]):
                     o["snap"] = None      # el precio viejo de la API (o una carga vencida) no cuenta
+            elif o["snap"] and _age_hours(o["snap"]["scanned_at"]) > STALE_HOURS:
+                o["stale"] = round(_age_hours(o["snap"]["scanned_at"]) / 24, 1)   # días: se muestra, no cuenta
         valid = [o["snap"] for o in offers
-                 if o["active"] and o["snap"] and not o["snap"]["error"]
+                 if o["active"] and o["snap"] and not o.get("stale") and not o["snap"]["error"]
                  and o["snap"]["price_cash"] is not None and o["snap"]["in_stock"] != 0]
         best = min(valid, key=lambda s: s["price_cash"]) if valid else None
         known = [o["snap"]["in_stock"] for o in offers
-                 if o["active"] and o["snap"] and not o["snap"]["error"]
+                 if o["active"] and o["snap"] and not o.get("stale") and not o["snap"]["error"]
                  and o["snap"]["in_stock"] is not None]
         stock = "in" if 1 in known else ("out" if known else "unknown")
         last = max((o["snap"]["scanned_at"] for o in offers if o["snap"]), default=None)
@@ -269,7 +283,7 @@ def build_context(static: bool = False) -> dict:
             # ¿Lo seguís? (se recalcula en vivo: puede haberse agregado después del descubrimiento)
             m["tracked"] = tracked_by(m["key"], m["offers"], targets, catalog)
             m["usb_c"] = usb_c_label(m.get("spec"), m.get("badges") or [])
-            m["generic"] = m.get("generic") or any(g in (m["name"] + " " + (m.get("brand") or "")).lower()
+            m["generic"] = m.get("generic") or not m.get("brand") or any(g in (m["name"] + " " + (m.get("brand") or "")).lower()
                                                    for g in generic)
             models.append(m)
 
@@ -284,16 +298,20 @@ def build_context(static: bool = False) -> dict:
         ok = [x for x in items if x[1] is not None]
         return min(ok, key=lambda x: x[1]) if ok else None
 
-    cheapest = best_ok([(m["name"], m["best"]["price"], m) for m in models if m["status"] == "cumple" and not m["generic"]]
+    # Para recomendar sólo se usa un descubrimiento reciente (si falló varios días, sus precios son viejos)
+    fresh = models if disc and _age_hours(disc.get("finished_at")) <= DISCOVERY_FRESH_HOURS else []
+    cheapest = best_ok([(m["name"], m["best"]["price"], m) for m in fresh if m["status"] == "cumple" and not m["generic"]]
                        + [(r["target"].name, r["best"]["price_cash"] if r["best"] else None, r)
                           for r in rows if r["eval"].get("status") == "cumple"], None)
-    offers_now = [r for r in rows if r["level"]] + [m for m in models if m.get("level")]
+    offers_now = [r for r in rows if r["level"]] + [m for m in fresh if m.get("level")]
     from services.events import load as load_events
 
     upcoming = None
-    from datetime import date
+    from datetime import date, datetime
+
+    from services.events import AR
     for e in sorted(load_events(), key=lambda e: e["from"]):
-        if date.fromisoformat(e["to"]) >= date.today():
+        if date.fromisoformat(e["to"]) >= datetime.now(AR).date():   # fecha de Argentina (GitHub corre en UTC)
             upcoming = e
             break
     from services.segments import SEGMENTS
@@ -301,14 +319,14 @@ def build_context(static: bool = False) -> dict:
 
     from services.advice import buy_today
 
-    recs = recommendations(rows, models)
+    recs = recommendations(rows, fresh)
     rec_keys = {m["key"] for m in recs}
     for m in models:
         m["recommended"] = m["key"] in rec_keys
     return {
         "static": static, "rows": rows, "models": models, "discovery": disc,
         "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}), "segments": SEGMENTS,
-        "advice": buy_today(rows, models), "inflation": infl,
+        "advice": buy_today(rows, fresh), "inflation": infl,
         "oled_max": cfg.get("oled_max_price"), "confirm_fields": ["acabado mate", "VESA", "panel", "Hz"],
         "health": store_health_rows(),
         "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
@@ -598,6 +616,10 @@ def api_manual_price(body: ManualPrice):
         t.urls.append(ml)
         targets = [x if x.id != t.id else t for x in load_targets(settings.targets_path)]
         save_targets(settings.targets_path, targets)
+        from services import overrides
+
+        overrides.push_async(settings.targets_path.parent.parent, [settings.targets_path],
+                             f"config: link de {label} para {t.id} (carga manual)")
     from datetime import datetime, timezone
 
     snap = {"store": body.store, "url": ml.url, "title": t.name, "seller": body.seller or None,

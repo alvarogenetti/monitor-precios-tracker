@@ -103,5 +103,17 @@ def report_block(db, targets: list, today: date | None = None, events: list[dict
     if done:
         return []
     lines = build(db, targets, ev)
-    db.insert_alert(key, REPORT_KIND, "\n".join(lines), True)
+    _PENDING[0] = (db, key, "\n".join(lines))
     return lines
+
+
+_PENDING: list = [None]
+
+
+def mark_sent(text: str) -> None:
+    """Registra el informe como enviado (lo llama scan.py --summary cuando Telegram confirmó)."""
+    pend = _PENDING[0]
+    if pend and pend[2] in text:
+        db, key, body = pend
+        db.insert_alert(key, REPORT_KIND, body, True)
+        _PENDING[0] = None

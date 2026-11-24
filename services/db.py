@@ -196,8 +196,11 @@ class Database:
     def merge_from(self, other: Path | str) -> int:
         """Agrega a esta base las filas de `other` que no tiene (escaneos hechos en otro lado).
 
-        Las corridas se identifican por (trigger, started_at); los snapshots por
-        (target_id, url, scanned_at); las alertas por (target_id, kind, created_at)."""
+        Claves naturales: corridas (trigger, started_at); snapshots (target_id, url, scanned_at);
+        alertas (target_id, kind, created_at); descubrimientos (trigger, started_at); precios del
+        descubrimiento (model_key, scanned_at); avisos de oferta (model_key, level, created_at);
+        referencias de evento (event, target_id: gana la primera congelada); caché de specs (la más
+        nueva); modelos descubiertos (se combinan primera/última vez y precio mínimo)."""
         n = 0
         with self.connect() as con:
             con.execute("ATTACH DATABASE ? AS o", (str(other),))
@@ -234,14 +237,74 @@ class Database:
                                VALUES (?,?,?,?,?)""",
                             (a["target_id"], a["kind"], a["message"], a["sent"], a["created_at"]))
                 n += 1
+            n += self._merge_discovery(con)
             con.commit()
             con.execute("DETACH DATABASE o")
+        return n
+
+    @staticmethod
+    def _merge_discovery(con: sqlite3.Connection) -> int:
+        n = 0
+        dmap: dict[int, int] = {}
+        ocols = {r["name"] for r in con.execute("PRAGMA o.table_info(discovery_runs)")}
+        for r in con.execute("SELECT * FROM o.discovery_runs ORDER BY id").fetchall():
+            row = con.execute("SELECT id FROM discovery_runs WHERE trigger=? AND started_at=?",
+                              (r["trigger"], r["started_at"])).fetchone()
+            if row:
+                dmap[r["id"]] = row["id"]
+                continue
+            cur = con.execute(
+                """INSERT INTO discovery_runs (trigger, started_at, finished_at, n_offers, n_models,
+                   errors, results, sources) VALUES (?,?,?,?,?,?,?,?)""",
+                (r["trigger"], r["started_at"], r["finished_at"], r["n_offers"], r["n_models"],
+                 r["errors"], r["results"], r["sources"] if "sources" in ocols else None))
+            dmap[r["id"]] = cur.lastrowid
+            n += 1
+        for p in con.execute("SELECT * FROM o.discovery_prices").fetchall():
+            if con.execute("SELECT 1 FROM discovery_prices WHERE model_key=? AND scanned_at=?",
+                           (p["model_key"], p["scanned_at"])).fetchone():
+                continue
+            con.execute("""INSERT INTO discovery_prices (run_id, model_key, price, store, seller, scanned_at)
+                           VALUES (?,?,?,?,?,?)""",
+                        (dmap.get(p["run_id"], p["run_id"]), p["model_key"], p["price"], p["store"],
+                         p["seller"], p["scanned_at"]))
+            n += 1
+        for m in con.execute("SELECT * FROM o.discovered_models").fetchall():
+            cur = con.execute("SELECT * FROM discovered_models WHERE model_key=?", (m["model_key"],)).fetchone()
+            if cur is None:
+                con.execute("""INSERT INTO discovered_models (model_key, name, status, first_seen, first_run,
+                               last_seen, last_price, min_price) VALUES (?,?,?,?,?,?,?,?)""",
+                            (m["model_key"], m["name"], m["status"], m["first_seen"],
+                             dmap.get(m["first_run"], m["first_run"]), m["last_seen"], m["last_price"],
+                             m["min_price"]))
+                n += 1
+                continue
+            newer = m["last_seen"] > cur["last_seen"]
+            con.execute("""UPDATE discovered_models SET first_seen=MIN(first_seen, ?),
+                           min_price=MIN(COALESCE(min_price, ?), ?), last_seen=MAX(last_seen, ?),
+                           name=?, status=?, last_price=? WHERE model_key=?""",
+                        (m["first_seen"], m["min_price"], m["min_price"], m["last_seen"],
+                         m["name"] if newer else cur["name"], m["status"] if newer else cur["status"],
+                         m["last_price"] if newer else cur["last_price"], m["model_key"]))
+        for a in con.execute("SELECT * FROM o.offer_alerts").fetchall():
+            if con.execute("SELECT 1 FROM offer_alerts WHERE model_key=? AND level=? AND created_at=?",
+                           (a["model_key"], a["level"], a["created_at"])).fetchone():
+                continue
+            con.execute("INSERT INTO offer_alerts (model_key, level, price, created_at) VALUES (?,?,?,?)",
+                        (a["model_key"], a["level"], a["price"], a["created_at"]))
+            n += 1
+        n += con.execute("""INSERT OR IGNORE INTO event_refs (event, target_id, ref, best, created_at)
+                            SELECT event, target_id, ref, best, created_at FROM o.event_refs""").rowcount
+        n += con.execute("""INSERT OR REPLACE INTO spec_cache (model_key, data, fetched_at)
+                            SELECT o.model_key, o.data, o.fetched_at FROM o.spec_cache AS o
+                            LEFT JOIN spec_cache AS m ON m.model_key = o.model_key
+                            WHERE m.model_key IS NULL OR o.fetched_at > m.fetched_at""").rowcount
         return n
 
     def spec_cache_get(self, keys: list[str], max_age_days: int = 30) -> dict[str, dict]:
         with self.connect() as con:
             rows = con.execute(
-                f"""SELECT model_key, data FROM spec_cache WHERE fetched_at >= datetime('now', ?)
+                f"""SELECT model_key, data FROM spec_cache WHERE fetched_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?)
                     AND model_key IN ({','.join('?' * len(keys)) or "''"})""",
                 (f"-{int(max_age_days)} days", *keys)).fetchall()
         return {r["model_key"]: json.loads(r["data"]) for r in rows}
@@ -319,8 +382,9 @@ class Database:
 
     def discovery_series(self, model_key: str) -> list[dict]:
         with self.connect() as con:
-            rows = con.execute("""SELECT price, scanned_at AS ts FROM discovery_prices
-                                  WHERE model_key=? ORDER BY run_id""", (model_key,)).fetchall()
+            rows = con.execute("""SELECT MIN(price) AS price, MAX(scanned_at) AS ts FROM discovery_prices
+                                  WHERE model_key=? GROUP BY substr(scanned_at, 1, 10)
+                                  ORDER BY ts""", (model_key,)).fetchall()
         return [dict(r) for r in rows]
 
     def offer_already_alerted(self, model_key: str, level: str, price: float, days: int = 7) -> bool:
@@ -329,7 +393,7 @@ class Database:
         rank = {"buena": 1, "excepcional": 2}
         with self.connect() as con:
             rows = con.execute("""SELECT level, price FROM offer_alerts WHERE model_key=?
-                                  AND created_at >= datetime('now', ?)""",
+                                  AND created_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?)""",
                                (model_key, f"-{int(days)} days")).fetchall()
         return any(rank[r["level"]] >= rank[level] and price >= r["price"] * 0.95 for r in rows)
 
@@ -424,7 +488,8 @@ class Database:
             rows = con.execute(
                 """SELECT run_id, url, store, seller, price_cash, in_stock, error, scanned_at
                    FROM snapshots WHERE target_id=? AND run_id IS NOT NULL
-                     AND scanned_at >= datetime('now', ?)
+                     AND COALESCE(promo, '') NOT LIKE 'carga manual%'
+                     AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?)
                    ORDER BY scanned_at, id""",
                 (target_id, f"-{int(days) + 2} days"),
             ).fetchall()
@@ -462,7 +527,7 @@ class Database:
             rows = con.execute(
                 """SELECT price_cash FROM snapshots WHERE target_id=? AND url=? AND error IS NULL
                    AND price_cash IS NOT NULL AND (in_stock IS NULL OR in_stock = 1)
-                   AND scanned_at >= datetime('now', ?) AND scanned_at <= datetime('now', ?)""",
+                   AND scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?) AND scanned_at <= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', ?)""",
                 (target_id, url, f"-{int(days)} days", f"-{int(exclude_hours)} hours")).fetchall()
         prices = [r[0] for r in rows]
         return statistics.median(prices) if len(prices) >= 3 else None

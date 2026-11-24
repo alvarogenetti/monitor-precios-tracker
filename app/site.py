@@ -7,8 +7,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from app.main import STATUS_LABELS, BANDS, build_dashboard, db, templates
-from services.events import active_event
+from app.main import templates
 from settings import settings, setup_logging
 
 

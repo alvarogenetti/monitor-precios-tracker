@@ -342,7 +342,7 @@
                   {% elif s.in_stock == 0 or not s.price_cash %}<span class="muted">no lo tiene</span>
                   {% else %}{{ s.price_cash|ars }}{% if s.price_list %}<div class="strike">{{ s.price_list|ars }}</div>{% endif %}{% endif %}
                 </td>
-                <td class="note">{% if o.ml %}{% if s %}carga manual{{ ' · ' ~ s.seller if s.seller }} · vence a los 3 días · {% else %}sin acceso automático: revisalo a mano{% endif %}{% if not static %}
+                <td class="note">{% if o.stale %}<span class="warn">dato de hace {{ o.stale }} días: no cuenta</span> · {% endif %}{% if o.ml %}{% if s %}carga manual{{ ' · ' ~ s.seller if s.seller }} · vence a los 3 días · {% else %}sin acceso automático: revisalo a mano{% endif %}{% if not static %}
                   <form class="inline-form" style="margin-top:4px" onsubmit="manualPrice(event, '{{ t.id }}', '{{ o.store }}')">Lo vi a $ <input name="price" type="number" min="1" step="1" required style="width:96px">
                     <input name="seller" placeholder="vendedor" style="width:100px"> <input name="url" type="url" placeholder="link (opcional)" style="width:130px">
                     <button class="btn sm">Cargar</button></form>{% if o.store == 'mercadolibre' and not (r.offers|selectattr('store', 'equalto', 'tiendabna')|list) %}
@@ -380,7 +380,7 @@
 
   {# ======================= DESCUBRIMIENTO ======================= #}
   <section data-panel="descubrimiento" hidden>
-    <p class="note" style="margin:14px 0 0">Todos los 27" QHD de las tiendas, una vez por día. Si alguno baja 15 % o más, avisa aunque no lo sigas. Seguir lo escanea cada 3 h en cada tienda.{% set n_tr = models|selectattr('tracked')|list|length %}{% if n_tr %} Los {{ n_tr }} que ya seguís no se repiten acá: están en Seguidos.{% endif %}{% if discovery %} Último: <span data-ts="{{ discovery.finished_at }}"></span>.{% endif %}</p>
+    <p class="note" style="margin:14px 0 0">Todos los 27" QHD de las tiendas, una vez por día (cada ~3 h en eventos). Si alguno baja 15 % o más, avisa aunque no lo sigas. Seguir lo escanea cada 3 h en cada tienda.{% set n_tr = models|selectattr('tracked')|list|length %}{% if n_tr %} Los {{ n_tr }} que ya seguís no se repiten acá: están en Seguidos.{% endif %}{% if discovery %} Último: <span data-ts="{{ discovery.finished_at }}"></span>.{% endif %}</p>
     {% if recs %}
       <div class="callout"><h3>Conviene empezar a seguir</h3><ul>
         {% for m in recs %}<li><a class="link" style="font-size:13px" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.name }}</a>
@@ -454,7 +454,7 @@
         <li>USB-C con carga de 65 W (hasta ~$100.000 más)</li><li>300 nits o más, sin parpadeo</li><li>Marca conocida</li><li>Peso: informativo</li></ul>
         <h3 style="margin-top:14px">No pagar extra por</h3><p>KVM, parlantes, base ergonómica, HDR de marketing, más de 180 Hz.</p></div>
       <div class="panel"><h3>Cuándo comprar</h3><p>Solo con descuento real contra el precio de mercado (mediana de 30 días entre todas las tiendas): 15 % es buena oferta, 30 % excepcional. El precio tachado de la tienda no cuenta.</p>
-        <h3 style="margin-top:14px">Uso</h3><p>Seguidos: cada 3 h en cada tienda. Descubrimiento: todo el mercado, una vez por día. {% if static %}Seguir, confirmar datos y descartar se hacen desde el dashboard de la PC (iniciar.ps1).{% else %}Abrí un monitor para confirmar datos, seguirlo o descartarlo.{% endif %}</p></div>
+        <h3 style="margin-top:14px">Uso</h3><p>Seguidos: cada 3 h en cada tienda (cada hora en eventos). Descubrimiento: todo el mercado, una vez por día (cada ~3 h en eventos). {% if static %}Seguir, confirmar datos y descartar se hacen desde el dashboard de la PC (iniciar.ps1).{% else %}Abrí un monitor para confirmar datos, seguirlo o descartarlo.{% endif %}</p></div>
     </div>
     <div class="group"><h2>Dónde se busca</h2>
       <p class="desc"><b>Mercado Libre se revisa a mano.</b> El 23/11/2026 ML bloqueó el acceso de desarrollador (no permite apps que sólo leen precios) y sus términos prohíben leer la web con un programa. Cada seguido tiene «Ver en ML» y, en la PC, «Lo vi a $» para cargar un precio: cuenta 3 días como una tienda más. Con los datos previos al bloqueo, ML nunca fue el más barato (mediana +31 % sobre la mejor otra tienda). Detalle en el README.</p>

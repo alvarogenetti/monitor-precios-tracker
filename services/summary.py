@@ -35,6 +35,17 @@ def pre_event_block(db, rows, now=None) -> list[str]:
     return lines + [""]
 
 
+def split_message(text: str, limit: int = 3800) -> list[str]:
+    """Telegram corta a 4096 caracteres: parte el resumen por líneas en varios mensajes."""
+    parts, cur = [], ""
+    for line in text.split("\n"):
+        if cur and len(cur) + len(line) + 1 > limit:
+            parts.append(cur)
+            cur = ""
+        cur = f"{cur}\n{line}" if cur else line
+    return parts + ([cur] if cur else [])
+
+
 def ml_block(rows, now=None) -> list[str]:
     """Durante un evento (y los 2 días previos): links a Mercado Libre para revisarlo a mano desde el
     celular (ML no se lee automáticamente; ver README)."""
@@ -73,7 +84,9 @@ def build_summary() -> str:
         if not b:
             lines.append(f"⚪ {name}: sin stock")
             continue
-        where = html.escape(b["store"] + (f" · {b['seller']}" if b.get("seller") else ""))
+        seller = b.get("seller") or ""
+        where = html.escape(seller if b["store"].lower()[:5] in seller.lower().replace("á", "a")
+                            else b["store"] + (f" · {seller}" if seller else ""))
         vs = (f"{round(-r['real'] * 100):+d}% vs mercado" if r.get("real") is not None
               else f"{round(r['diff']):+d}% vs objetivo")
         mark = {"excepcional": " 🔥", "buena": " 💰"}.get(r.get("level"), "")

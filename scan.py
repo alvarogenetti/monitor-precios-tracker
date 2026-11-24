@@ -27,10 +27,6 @@ def main() -> int:
     ap.add_argument("--keywords", nargs="*", default=[], help="keywords para --url de búsqueda")
     ap.add_argument("--only-local", action="store_true",
                     help='sólo los links con "ci": false (los que GitHub Actions no puede leer)')
-    ap.add_argument("--meli-login", action="store_true",
-                    help="login OAuth único con tu cuenta de Mercado Libre (guarda el token cifrado)")
-    ap.add_argument("--meli-check", action="store_true",
-                    help="prueba la API oficial de Mercado Libre con tus credenciales")
     ap.add_argument("--summary", action="store_true",
                     help="manda por Telegram el resumen diario (o lo imprime si no hay Telegram)")
     ap.add_argument("--discover", action="store_true",
@@ -44,13 +40,16 @@ def main() -> int:
         from services.notifier import send_telegram
         from services.summary import build_summary
 
-        text = build_summary()
-        sent = False if args.no_alerts else asyncio.run(send_telegram(text))
-        print(text if not sent else "Resumen enviado por Telegram")
-        return 0
+        from services.event_report import mark_sent
+        from services.summary import split_message
 
-    if args.meli_login or args.meli_check:
-        return meli_cli(args.meli_login)
+        text = build_summary()
+        parts = split_message(text)
+        sent = False if args.no_alerts else all(asyncio.run(send_telegram(p)) for p in parts)
+        if sent:
+            mark_sent(text)       # el informe del evento se marca recién cuando llegó
+        print(text if not sent else f"Resumen enviado por Telegram ({len(parts)} mensaje/s)")
+        return 0
 
     if args.url:
         return asyncio.run(_probe(args.url, args.store, args.keywords))
@@ -100,51 +99,6 @@ def main() -> int:
               f"  (DB: {settings.db_path})")
     # Falla sólo si no se pudo scrapear nada (para que el workflow lo marque en rojo)
     return 1 if summary["results"] and summary["ok"] == 0 else 0
-
-
-def meli_cli(login: bool) -> int:
-    from urllib.parse import parse_qs, urlparse
-
-    from scrapers.stores.mercadolibre import meli_client
-    from services.meli_api import MeliError, best_offer
-
-    client = meli_client()
-    if client is None:
-        print("Faltan ML_CLIENT_ID y ML_CLIENT_SECRET en .env (ver README > Mercado Libre).")
-        return 1
-    if login:
-        print("1) Abrí este link, iniciá sesión en Mercado Libre y autorizá la app:\n")
-        print("   " + client.login_url() + "\n")
-        print(f"2) Te va a redirigir a {settings.meli_redirect_uri}?code=TG-...")
-        code = ""
-        while not code:
-            raw = input("   Pegá acá la URL completa a la que te redirigió (o sólo el code): ")
-            raw = raw.strip().strip('"').strip("'")
-            code = parse_qs(urlparse(raw).query).get("code", [raw])[0].strip()
-            if not code:
-                print("   (llegó vacío; pegalo de nuevo con clic derecho o Ctrl+V y Enter)")
-        try:
-            body = client.exchange_code(code)
-        except MeliError as e:
-            print(f"No se pudo obtener el token: {e}")
-            return 1
-        print(f"\nListo: token guardado cifrado en {settings.meli_token_path} "
-              f"(usuario {body.get('user_id')}).")
-    try:
-        client.token()
-        print(f"Autenticación OK (modo: {client.mode}).")
-        q = "Gigabyte GS27QA"
-        prods = client.search_products(q, limit=5)
-        print(f"/products/search?q={q}: {len(prods)} productos")
-        for p in prods[:3]:
-            items = client.product_items(p["id"])
-            o = best_offer(items, seller_ok=client.seller_ok)
-            price = f"$ {o['price']:,.0f}".replace(",", ".") if o else "sin publicaciones"
-            print(f"  {p['id']}  {p.get('name', '')[:60]:60}  {len(items)} vendedores  {price}")
-        return 0
-    except MeliError as e:
-        print(f"Falló la API de Mercado Libre: {e}")
-        return 1
 
 
 async def _probe(url: str, store: str | None, keywords: list[str]) -> int:

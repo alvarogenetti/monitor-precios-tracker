@@ -30,6 +30,8 @@ def test_informe_con_ofertas_e_inflados(tmp_path):
     assert "Cómo fue Black Friday" in txt and "1</b> oferta real" in txt
     assert "ASRock PG27QFT1B" in txt and "gerbio" in txt and "-18%" in txt
     assert "inflados" in txt and "fakestore (1)" in txt and "Subas en las 2 semanas previas: 1 aviso" in txt
+    assert event_report.report_block(db, TS, date(2026, 12, 2), [BF])            # no se envió: se repite
+    event_report.mark_sent("encabezado\n" + txt + "\npie")                     # Telegram confirmó
     assert event_report.report_block(db, TS, date(2026, 12, 2), [BF]) == []      # una sola vez
 
 

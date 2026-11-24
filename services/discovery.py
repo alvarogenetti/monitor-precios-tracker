@@ -1,7 +1,9 @@
 """Descubrimiento: busca en todo el catálogo monitores que cumplan los requisitos obligatorios.
 
-Recorre fuentes "amplias" (catálogo completo de Compra Gamer, búsquedas genéricas de HardGamers y
-Frávega), agrupa las ofertas por modelo y evalúa cada modelo contra config/discovery.json:
+Recorre las fuentes de config/discovery.json → sources (~35: Compra Gamer, HardGamers, tiendas VTEX,
+Dell/Megatone/Mallweb y lectores por plataforma: WooCommerce, Tiendanube, Qloud, PrestaShop,
+TiendaNegocio, Shopify), agrupa las ofertas por modelo (nombre canónico Marca + Modelo, sin
+duplicados) y evalúa cada modelo contra los requisitos:
 
   - Lo que se puede leer del título (27", QHD, Hz, IPS/VA/OLED, curvo, usado) se verifica siempre.
   - Lo que NO figura en los títulos (acabado mate, VESA, peso, brillo, Hz por HDMI, fuente 220 V,
@@ -766,11 +768,11 @@ def _apply_market(db, results: list[ModelResult], targets, cfg: dict) -> None:
     for r in results:
         if r.tracked and r.tracked in by_id:          # el seguimiento tiene más historia: manda
             ref, _ = market_ref(db, by_id[r.tracked])
-        else:                                           # descubrimiento: 1 punto por día
+        else:                                           # descubrimiento: 1 punto por día (el mínimo)
             ref, _ = reference(db.discovery_series(r.key), min_points=4, min_span_days=3)
         r.ref = ref
         r.real = real_discount(r.best["price"], ref)
-        r.generic = any(g in (r.name + " " + (r.brand or "")).lower() for g in generic)
+        r.generic = not r.brand or any(g in (r.name + " " + (r.brand or "")).lower() for g in generic)
         lvl = level(r.real)
         if lvl == "buena" and r.generic:                # sin reseñas: sólo ofertas excepcionales
             lvl = None
@@ -783,7 +785,22 @@ async def _real_offers(db, results: list[ModelResult], targets, cfg: dict, send_
     from services.tracker import fmt_ars
 
     _apply_market(db, results, targets, cfg)
+    by_id = {t.id: t for t in targets}
+
+    def covered_by_tracker(r: ModelResult) -> bool:
+        """El escaneo de seguidos ya avisa esta oferta (misma tienda): no repetirla acá."""
+        t = by_id.get(r.tracked or "")
+        if not t:
+            return False
+        from scrapers.stores.vtex import ELECTRO_STORES
+
+        stores = {u.store for u in t.urls if u.active}
+        if "electro" in stores:
+            stores |= set(ELECTRO_STORES)
+        return r.best["store"] in stores
+
     hits = [r for r in results if r.level and r.status in ("cumple", "oled_oferta", "a_confirmar")
+            and not covered_by_tracker(r)
             and not db.offer_already_alerted(r.key, r.level, r.best["price"])]
     if not hits:
         return 0

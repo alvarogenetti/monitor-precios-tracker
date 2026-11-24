@@ -4,11 +4,9 @@ from datetime import datetime, timedelta, timezone
 from app.main import _fresh_manual, ml_search_url
 from scrapers.stores.mercadolibre import MercadoLibreScraper
 from services.targets import Target
-from settings import settings
 
 
-def test_ml_api_is_off_and_scraper_never_reads_the_web():
-    assert settings.meli_enabled is False
+def test_ml_scraper_never_reads_the_web():
     t = Target(id="x", name="X", target_price=1)
     res = asyncio.run(MercadoLibreScraper(None, 0).scrape("https://listado.mercadolibre.com.ar/x", t))
     assert res.price_cash is None and "manual" in res.error

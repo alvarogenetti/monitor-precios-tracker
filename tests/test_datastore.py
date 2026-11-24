@@ -83,3 +83,24 @@ def test_store_health(tmp_path):
     assert h["gerbio"]["last"] == 0 and h["gerbio"]["error"] == "0 resultados" and h["gerbio"]["last_ok"]
     assert h["otecno"]["last"] == 7 and h["otecno"]["last_fail"] is None
     assert db.store_health()[0]["store"] == "gerbio"          # los que fallan, primero
+
+
+def test_merge_from_also_merges_discovery_tables(tmp_path):
+    a, b = Database(tmp_path / "a.db"), Database(tmp_path / "b.db")
+    # b = GitHub: descubrimiento, referencias de evento, aviso de oferta y caché que a (la PC) no tiene
+    rid = b.start_discovery("ci")
+    b.finish_discovery(rid, 1, [{"key": "X"}], [], [{"store": "gerbio", "n": 3, "error": None}])
+    with b.connect() as con:
+        con.execute("INSERT INTO discovered_models VALUES ('X','X','cumple','2026-11-24T12:00:00+00:00',?, "
+                    "'2026-11-24T12:00:00+00:00', 100, 90)", (rid,))
+        con.execute("INSERT INTO discovery_prices VALUES (?, 'X', 100, 's', NULL, '2026-11-24T12:00:00+00:00')", (rid,))
+    b.freeze_event_refs("BF|2026-11-26", {"m": (300000, 310000)})
+    b.record_offer_alert("X", "buena", 100) if hasattr(b, "record_offer_alert") else None
+    b.spec_cache_put("page:X", {"anti_glare": True})
+    a.freeze_event_refs("BF|2026-11-26", {"m": (999, 999)})        # ya congelada en a: gana la de a
+    n = a.merge_from(b.path)
+    assert n >= 4 and a.merge_from(b.path) == 0                   # idempotente
+    assert a.last_discovery()["results"][0]["key"] == "X"
+    assert a.event_refs("BF|2026-11-26")["m"]["ref"] == 999
+    assert a.spec_cache_get(["page:X"], 3650) == {"page:X": {"anti_glare": True}}
+    assert a.has_discovered_models() and a.store_health()[0]["store"] == "gerbio"

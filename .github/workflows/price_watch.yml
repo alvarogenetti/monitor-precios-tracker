@@ -17,15 +17,13 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50       # el push y la publicación tienen que entrar aunque un paso se cuelgue
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      ML_CLIENT_ID: ${{ secrets.ML_CLIENT_ID }}
-      ML_CLIENT_SECRET: ${{ secrets.ML_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v7
 
@@ -65,12 +63,14 @@ jobs:
 
       - name: Escanear precios
         if: steps.gate.outputs.run == 'true'
+        timeout-minutes: 20
         run: python scan.py --once
 
       # Una vez por día (primera corrida desde las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen.
       # Durante un evento, además, descubrimiento cada ~3 h (sin resumen).
       - name: Descubrir modelos nuevos y resumen diario
         if: always() && steps.gate.outputs.run == 'true'
+        timeout-minutes: 20
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python -m services.daily due; then
             python scan.py --discover

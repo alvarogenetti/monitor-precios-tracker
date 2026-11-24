@@ -36,12 +36,6 @@ def _path(name: str, default: str) -> Path:
 class Settings:
     telegram_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-    # Mercado Libre (API oficial): app propia en developers.mercadolibre.com.ar
-    meli_client_id: str = os.getenv("ML_CLIENT_ID", "").strip()
-    meli_client_secret: str = os.getenv("ML_CLIENT_SECRET", "").strip()
-    meli_redirect_uri: str = os.getenv(
-        "ML_REDIRECT_URI", "https://github.com/alvarogenetti/monitor-precios-tracker").strip()
-    meli_token_path: Path = _path("ML_TOKEN_PATH", "data/meli_token.enc")
     # Alertas: baja mínima (%) para avisar, y tope de cordura respecto del rango "alto"
     alert_min_drop_pct: float = _float("ALERT_MIN_DROP_PCT", 1.0)
     alert_max_over_high: float = _float("ALERT_MAX_OVER_HIGH", 1.5)
@@ -63,11 +57,6 @@ class Settings:
     specs_path: Path = _path("SPECS_PATH", "config/specs.json")
     overrides_path: Path = _path("OVERRIDES_PATH", "config/overrides.json")
 
-    @property
-    def meli_enabled(self) -> bool:
-        # Mercado Libre bloqueó el acceso de desarrollador el 23/11/2026 (app de sólo lectura).
-        # No se llama más a su API ni a su web: ML queda como links + carga manual (ver README).
-        return False
 
     @property
     def telegram_enabled(self) -> bool:
