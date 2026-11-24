@@ -17,6 +17,11 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
 | Dashboard completo en tu PC (escanear, confirmar datos, seguir modelos) | `C:\Proyectos\monitor-precios-tracker\iniciar.ps1` |
 | Avisos | Telegram: ofertas reales, tu precio de aviso, modelos nuevos que cumplen y resumen diario a las 9 |
 
+**Qué compraría hoy.** Arriba de Seguidos (y al principio del resumen de Telegram): el monitor más
+barato que cumple todo entre seguidos y descubrimiento (marcas conocidas), la opción USB-C más barata
+y cuánto más sale, y un veredicto: **comprá** si alguno tiene descuento real ≥ 15 %, si no **esperá**
+(con los días que faltan para el próximo evento). Código: `services/advice.py`.
+
 **Pestañas del dashboard**
 
 - **Seguidos**: los monitores que elegiste, escaneados cada ~3 h en cada tienda y agrupados por
@@ -27,9 +32,13 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
   Cada seguido suma además las ofertas que el descubrimiento encontró para ese modelo en las
   otras tiendas ("visto en Descubrimiento"): si alguna es más barata, pasa a ser su mejor precio.
 - **Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
-  una vez por día. Arriba aparecen los **💡 sugeridos para seguir**. Con **+ Seguir** un modelo pasa
+  una vez por día (cada ~3 h durante eventos). Arriba aparecen los **💡 sugeridos para seguir**.
+  De "falta confirmar" se ven los 6 más baratos (**Ver los N** muestra el resto); los modelos sin
+  marca reconocida cuentan como marcas no conocidas. Con **+ Seguir** un modelo pasa
   a Seguidos. Los no seguidos igual se vigilan: si aparece una oferta real, avisa.
-- **Alertas** e **Info** (requisitos obligatorios/deseables y en qué tiendas se busca).
+- **Alertas** e **Info** (requisitos obligatorios/deseables, en qué tiendas se busca y el **estado
+  de las tiendas**: ofertas que trajo cada una en el último descubrimiento, última vez con datos y
+  último problema). El resumen diario avisa las tiendas que volvieron vacías o con error.
 
 **Mercado Libre: a mano.** Desde el 23/11/2026 no se lee automáticamente (ver
 [sección 6](#6-mercado-libre-por-qué-es-manual)). En cada seguido, la fila de Mercado Libre tiene
@@ -85,7 +94,11 @@ Hot Sale, Cyber Monday, Black Friday...:
   la referencia.
 - **En los 14 días previos**, si una tienda **sube** un precio 10 % o más sobre su precio habitual,
   avisa ("Subió antes de Black Friday"): es la trampa del "50 % OFF".
-- **Durante el evento** se escanea cada hora.
+- **Durante el evento** los seguidos se escanean cada hora y el descubrimiento (las ~75 tiendas) corre
+  cada ~3 h (`python -m services.daily discover-due`), además del diario con resumen.
+- Hay un ensayo general con las fechas reales del Black Friday 2026 en
+  `tests/test_black_friday_dryrun.py` (referencias congeladas, links de ML, escaneo por hora,
+  descubrimiento cada 3 h).
 
 ### Promos y cuotas
 
@@ -202,7 +215,7 @@ services/       tracker (escaneo y alertas), discovery, market (ofertas reales),
                 page_specs (fichas de tiendas), overrides, segments, datastore (rama data),
                 events, daily, summary, stores_info, meli_api, notifier, db
 config/         targets, discovery, specs, overrides, events
-tests/          pytest (sin red)
+tests/          pytest (sin red); corren en GitHub Actions en cada push (.github/workflows/tests.yml)
 iniciar.ps1     dashboard local · escaneo-local.ps1: tarea programada
 ```
 

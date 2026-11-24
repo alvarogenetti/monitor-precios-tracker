@@ -269,6 +269,8 @@ def build_context(static: bool = False) -> dict:
     from services.segments import SEGMENTS
     from services.stores_info import STORES
 
+    from services.advice import buy_today
+
     recs = recommendations(rows, models)
     rec_keys = {m["key"] for m in recs}
     for m in models:
@@ -276,7 +278,9 @@ def build_context(static: bool = False) -> dict:
     return {
         "static": static, "rows": rows, "models": models, "discovery": disc,
         "recs": recs, "stores": STORES, "req": cfg.get("requirements", {}), "segments": SEGMENTS,
+        "advice": buy_today(rows, models),
         "oled_max": cfg.get("oled_max_price"), "confirm_fields": ["acabado mate", "VESA", "panel", "Hz"],
+        "health": store_health_rows(),
         "state": STATE.as_dict(), "last_run": db.last_run(), "alerts": db.recent_alerts(15),
         "telegram": settings.telegram_enabled, "scheduler": settings.scheduler_enabled or static,
         "interval": settings.scan_interval_minutes if not static else 180, "bands": BANDS,
@@ -511,6 +515,18 @@ class ManualPrice(BaseModel):
     price: float = Field(gt=0)
     url: str | None = None          # link a la publicación que viste
     seller: str | None = None
+
+
+def store_label(store: str) -> str:
+    from scrapers.stores.catalogs import LABELS
+    from scrapers.stores.vtex import VTEX_STORES
+
+    return LABELS.get(store) or (VTEX_STORES.get(store) or (None,))[0] or {
+        "compragamer": "Compra Gamer", "hardgamers": "HardGamers (5 búsquedas)"}.get(store, store.capitalize())
+
+
+def store_health_rows() -> list[dict]:
+    return [{**h, "label": store_label(h["store"])} for h in db.store_health()]
 
 
 def known_sellers() -> set[str]:

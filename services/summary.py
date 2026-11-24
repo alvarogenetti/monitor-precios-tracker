@@ -9,13 +9,13 @@ PAGES_URL = "https://alvarogenetti.github.io/monitor-precios-tracker/"
 EMOJI = {"bajo": "🟢", "normal": "🔵", "alto": "🔴", None: "⚪"}
 
 
-def pre_event_block(db, rows) -> list[str]:
+def pre_event_block(db, rows, now=None) -> list[str]:
     """Si un evento empieza en <= 2 días (o ya empezó y no se congeló), guarda el precio de mercado
     de cada seguido como referencia del evento y devuelve el bloque para el resumen (una sola vez)."""
     from services.events import current_or_next, event_key
     from services.market import reference
 
-    ev, days = current_or_next(within_days=2)
+    ev, days = current_or_next(now, within_days=2)
     if not ev or db.event_refs(event_key(ev)):
         return []
     refs = {}
@@ -35,13 +35,13 @@ def pre_event_block(db, rows) -> list[str]:
     return lines + [""]
 
 
-def ml_block(rows) -> list[str]:
+def ml_block(rows, now=None) -> list[str]:
     """Durante un evento (y los 2 días previos): links a Mercado Libre para revisarlo a mano desde el
     celular (ML no se lee automáticamente; ver README)."""
     from app.main import ml_search_url
     from services.events import current_or_next
 
-    ev, _ = current_or_next(within_days=2)
+    ev, _ = current_or_next(now, within_days=2)
     if not ev:
         return []
     out = [f"\n🛒 <b>{html.escape(ev['name'])}: revisá Mercado Libre a mano</b>"]
@@ -61,7 +61,9 @@ def build_summary() -> str:
     ctx = build_context()      # incluye las ofertas de las ~75 tiendas del descubrimiento
     rows = [r for r in ctx["rows"] if r["target"].active]
     rows.sort(key=lambda r: (r["best"] is None, -(r.get("real") or -1)))
-    lines = pre_event_block(db, rows) + ["📊 <b>Resumen diario de precios</b>"]
+    from services.advice import telegram_lines
+
+    lines = pre_event_block(db, rows) + telegram_lines(ctx.get("advice")) + ["📊 <b>Resumen diario de precios</b>"]
     for r in rows:
         t, b = r["target"], r["best"]
         name = html.escape(t.name)
@@ -83,8 +85,9 @@ def build_summary() -> str:
     if disc:
         n = sum(1 for m in disc["results"] if m["status"] == "cumple")
         lines.append(f"\n🔎 Descubrimiento: {n} modelos cumplen todos tus requisitos")
-        if disc.get("errors"):
-            lines.append("⚠️ Tiendas con problemas: " + html.escape(", ".join(e.split(":")[0] for e in disc["errors"])))
+        bad = [h["store"] for h in db.store_health(1) if h["error"]]
+        if bad:
+            lines.append("⚠️ Tiendas sin resultados o con error: " + html.escape(", ".join(bad)))
     lines += ml_block(rows)
     lines.append("🟢 oferta real ≥15 % · 🔵 precio normal · 🔴 caro (+10 % sobre el mercado)")
     lines.append(f'<a href="{PAGES_URL}">Ver dashboard</a>')

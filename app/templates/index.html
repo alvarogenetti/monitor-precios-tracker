@@ -156,6 +156,11 @@
 
   .callout { margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ring); background: var(--surface); font-size: 13px; }
   .callout h3 { margin: 0 0 6px; font-size: 13px; }
+  .group .more { margin: 6px 0 0 2px; font-size: 13px; }
+  .advice .adv-verdict { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .advice.comprar { border-color: var(--good); }
+  .advice li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .advice li > span:first-child { color: var(--muted); min-width: 190px; }
   .callout ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
   .callout li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 
@@ -273,12 +278,20 @@
   {% set SECTIONS = [('offer', 'Ofertas reales'), ('usbc', 'Cumplen todo · con USB-C'), ('cumple', 'Cumplen todo'), ('oled_oferta', 'OLED en oferta'), ('a_confirmar', 'Falta confirmar algún dato'), ('descartado', 'No cumplen')] %}
   {% macro sections() %}
     {% for key, title in SECTIONS %}
-      <div class="group" data-section="{{ key }}"><h2>{{ title }}<span class="n"></span></h2><div class="list sec-list"></div></div>
+      <div class="group" data-section="{{ key }}"><h2>{{ title }}<span class="n"></span></h2><div class="list sec-list"></div>{% if key == 'a_confirmar' %}<button class="link more" hidden onclick="expandSec(this)"></button>{% endif %}</div>
     {% endfor %}
   {% endmacro %}
 
   {# ======================= SEGUIDOS ======================= #}
   <section data-panel="seguidos">
+    {% if advice %}{% set c = advice.cheapest %}{% set u = advice.usbc %}
+    <div class="callout advice {{ advice.action }}"><h3>Qué compraría hoy</h3>
+      <div class="adv-verdict">{{ advice.verdict }}</div>
+      <ul>
+        <li><span>Más barato que cumple todo</span><a class="link" target="_blank" rel="noopener" href="{{ c.url }}">{{ c.name }}</a><b class="num">{{ c.price|ars }}</b><span class="note">{{ c.store }}{% if not c.tracked %} · no lo seguís{% endif %}</span></li>
+        {% if u and u is not sameas c %}<li><span>Con USB-C</span><a class="link" target="_blank" rel="noopener" href="{{ u.url }}">{{ u.name }}</a><b class="num">{{ u.price|ars }}</b><span class="note">+{{ advice.usbc_extra|ars }} · {{ u.store }}</span></li>{% endif %}
+      </ul></div>
+    {% endif %}
     {{ toolbar('seguidos', false) }}
     <div class="group" data-section="offer"><h2>Ofertas reales ahora<span class="n"></span></h2><div class="list sec-list"></div></div>
     {% for key, title, desc in segments %}
@@ -378,7 +391,7 @@
       {{ sections() }}
       <div id="pool-descubrimiento" hidden>
       {% for m in models if not m.tracked %}
-        <details class="row item" data-status="{{ m.status }}" data-usbc="{{ 1 if m.usb_c else 0 }}" data-offer="{{ 1 if m.level else 0 }}" data-known="{{ 0 if m.generic else 1 }}"
+        <details class="row item" data-status="{{ m.status }}" data-usbc="{{ 1 if m.usb_c else 0 }}" data-offer="{{ 1 if m.level else 0 }}" data-known="{{ 0 if (m.generic or not m.brand) else 1 }}"
                  data-price="{{ m.best.price }}" data-real="{{ m.real if m.real is not none else -9 }}"
                  data-name="{{ m.name|lower }} {{ m.search|lower }} {{ (m.best.seller or m.best.store)|lower }}"
                  data-series='{{ (m.series or [])|tojson }}' data-ref="{{ m.ref or '' }}" data-lo="0">
@@ -443,6 +456,15 @@
     </div>
     <div class="group"><h2>Dónde se busca</h2>
       <p class="desc"><b>Mercado Libre se revisa a mano.</b> El 23/11/2026 ML bloqueó el acceso de desarrollador (no permite apps que sólo leen precios) y sus términos prohíben leer la web con un programa. Cada seguido tiene «Ver en ML» y, en la PC, «Lo vi a $» para cargar un precio: cuenta 3 días como una tienda más. Con los datos previos al bloqueo, ML nunca fue el más barato (mediana +31 % sobre la mejor otra tienda). Detalle en el README.</p>
+      {% if health %}
+      <details class="panel" style="margin-bottom:12px"><summary><b>Estado de las tiendas</b> <span class="note">· {{ health|selectattr('error')|list|length }} con problemas en el último descubrimiento</span></summary>
+        <table class="stores" style="margin-top:8px"><thead><tr><th>Tienda</th><th class="r">Ofertas</th><th>Última vez con datos</th><th>Último problema</th></tr></thead><tbody>
+        {% for h in health %}<tr><td>{{ h.label }}</td>
+          <td class="r num">{% if h.error %}<span style="color:var(--bad)" title="{{ h.error }}">{{ h.last or 0 }} · {{ h.error[:40] }}</span>{% else %}{{ h.last }}{% endif %}</td>
+          <td class="note">{% if h.last_ok %}<span data-ts="{{ h.last_ok }}"></span>{% else %}nunca{% endif %}</td>
+          <td class="note">{% if h.last_fail %}<span data-ts="{{ h.last_fail }}"></span>{% else %}—{% endif %}</td></tr>{% endfor %}
+        </tbody></table></details>
+      {% endif %}
       {% for g in stores %}
         <div class="list" style="margin-bottom:12px">
           <div class="alert" style="font-weight:600;font-size:12px;color:var(--muted)">{{ g.group }}</div>
@@ -503,6 +525,8 @@ function sectionOf(el){
   if (st === 'cumple' && el.dataset.usbc === '1') return 'usbc';
   return st;
 }
+const SEC_LIMIT = 6, expanded = {};
+function expandSec(btn){ const g = btn.closest('[data-section]'); expanded[g.dataset.section] = !expanded[g.dataset.section]; applyFilters('descubrimiento'); }
 function applyFilters(scope){
   const bar = document.querySelector(`[data-filters="${scope}"]`), panel = document.querySelector(`[data-panel="${scope}"]`);
   if (!bar) return;
@@ -523,8 +547,16 @@ function applyFilters(scope){
     if (known && known.checked && el.dataset.known !== '1') show = false;
     if (sec === 'descartado' && !nocumple) show = false;
     (groups[sec] || groups['otros'] || groups['a_confirmar']).querySelector('.sec-list').appendChild(el);
-    el.hidden = !show; if (show) counts[sec] = (counts[sec] || 0) + 1;
+    if (show) counts[sec] = (counts[sec] || 0) + 1;
+    // Descubrimiento: de "falta confirmar" sólo los más baratos, salvo que se pida ver todos
+    if (show && scope === 'descubrimiento' && sec === 'a_confirmar' && !expanded[sec] && !q && counts[sec] > SEC_LIMIT) show = false;
+    el.hidden = !show;
   }
+  panel.querySelectorAll('.more').forEach(b => {
+    const k = b.closest('[data-section]').dataset.section, n = counts[k] || 0;
+    b.hidden = n <= SEC_LIMIT || !!q;
+    b.textContent = expanded[k] ? 'Ver menos' : `Ver los ${n}`;
+  });
   Object.entries(groups).forEach(([k, g]) => { g.hidden = !counts[k]; g.querySelector('.n').textContent = counts[k] || ''; });
   mem.set('f-' + scope, {q, view, known: known ? known.checked : null, nocumple, sort});
   drawAll();

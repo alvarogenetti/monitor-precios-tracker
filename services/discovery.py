@@ -705,9 +705,12 @@ from scrapers.stores.catalogs import PLATFORMS  # noqa: E402
 
 
 async def collect(session: BrowserSession, sources: list[dict],
-                  on_progress: Callable[[int, int, str], None] | None = None) -> tuple[list[Offer], list[str]]:
+                  on_progress: Callable[[int, int, str], None] | None = None,
+                  stats: list[dict] | None = None) -> tuple[list[Offer], list[str]]:
+    """stats (opcional): se le agrega {store, n, error} por fuente (estado de las tiendas)."""
     offers: list[Offer] = []
     errors: list[str] = []
+    stats = stats if stats is not None else []
     if os.environ.get("GITHUB_ACTIONS") == "true":
         sources = [s for s in sources if s.get("ci", True)]
     for i, src in enumerate(sources):
@@ -727,10 +730,12 @@ async def collect(session: BrowserSession, sources: list[dict],
             log.info("Descubrimiento %s: %d ofertas (%s)", src["store"], len(got), src["url"])
             if not got:   # la tienda cambió su página o el lector dejó de andar: que se note
                 errors.append(f"{src['store']}: 0 resultados")
+            stats.append({"store": src["store"], "n": len(got), "error": None if got else "0 resultados"})
             offers += got
         except Exception as e:  # noqa: BLE001
             log.warning("Descubrimiento: falló %s: %s", src["url"], e)
             errors.append(f"{src['store']}: {e}"[:200])
+            stats.append({"store": src["store"], "n": 0, "error": str(e)[:160]})
     if on_progress:
         on_progress(len(sources), len(sources), "")
     # Deduplicar (la misma oferta aparece en varias búsquedas)
@@ -833,7 +838,8 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
     run_id = db.start_discovery(trigger)
     async with BrowserSession(settings.headless, settings.block_stylesheets,
                               settings.page_timeout_ms) as session:
-        offers, errors = await collect(session, cfg.get("sources", []), on_progress)
+        stats: list[dict] = []
+        offers, errors = await collect(session, cfg.get("sources", []), on_progress, stats)
     results = analyze(offers, cfg, catalog)
     # Lo que el título no dice (mate, VESA, peso...) se completa con el catálogo de ML
     pending = [(r.key, r.search, r.brand) for r in results if r.status == "a_confirmar"]
@@ -882,7 +888,16 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
 
     payload = [asdict(r) for r in results]
     counts = Counter(r.status for r in results)
-    db.finish_discovery(run_id, len(offers), payload, errors)
+    # varias búsquedas de la misma tienda (HardGamers x5, Frávega x2) se suman en una fila
+    merged: dict[str, dict] = {}
+    for s in stats:
+        m = merged.setdefault(s["store"], {"store": s["store"], "n": 0, "error": None})
+        m["n"] += s["n"]
+        m["error"] = m["error"] or s["error"]
+    for m in merged.values():
+        if m["n"]:
+            m["error"] = None if m["error"] == "0 resultados" else m["error"]
+    db.finish_discovery(run_id, len(offers), payload, errors, list(merged.values()))
     summary = {"run_id": run_id, "offers": len(offers), "models": len(results),
                "counts": dict(counts), "alerts": alerts + offers_alert, "errors": errors,
                "baseline": baseline, "real_offers": offers_alert}

@@ -71,3 +71,15 @@ def test_push_pull_and_conflict_merge(tmp_path, monkeypatch):
     c.insert_snapshot("m", snap("u4", 60, "2026-11-20T12:00:00+00:00"), c.start_run("cli"))
     datastore.pull(db_ci)
     assert "u4" in {h["url"] for h in Database(db_ci).history("m")}
+
+
+def test_store_health(tmp_path):
+    db = Database(tmp_path / "h.db")
+    for srcs in ([{"store": "gerbio", "n": 10, "error": None}, {"store": "otecno", "n": 5, "error": None}],
+                 [{"store": "gerbio", "n": 0, "error": "0 resultados"}, {"store": "otecno", "n": 7, "error": None}]):
+        rid = db.start_discovery("ci")
+        db.finish_discovery(rid, 1, [], [], srcs)
+    h = {x["store"]: x for x in db.store_health()}
+    assert h["gerbio"]["last"] == 0 and h["gerbio"]["error"] == "0 resultados" and h["gerbio"]["last_ok"]
+    assert h["otecno"]["last"] == 7 and h["otecno"]["last_fail"] is None
+    assert db.store_health()[0]["store"] == "gerbio"          # los que fallan, primero

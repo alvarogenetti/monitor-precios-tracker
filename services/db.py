@@ -115,6 +115,9 @@ class Database:
 
     @staticmethod
     def _migrate(con: sqlite3.Connection) -> None:
+        dcols = {r["name"] for r in con.execute("PRAGMA table_info(discovery_runs)")}
+        if "sources" not in dcols:   # ofertas por fuente en cada descubrimiento (estado de las tiendas)
+            con.execute("ALTER TABLE discovery_runs ADD COLUMN sources TEXT")
         cols = {r["name"] for r in con.execute("PRAGMA table_info(snapshots)")}
         if "promo" not in cols:
             con.execute("ALTER TABLE snapshots ADD COLUMN promo TEXT")
@@ -255,13 +258,34 @@ class Database:
                                    (trigger, utcnow())).lastrowid)
 
     def finish_discovery(self, run_id: int, n_offers: int, results: list[dict],
-                         errors: list[str]) -> None:
+                         errors: list[str], sources: list[dict] | None = None) -> None:
         with self.connect() as con:
             con.execute(
                 """UPDATE discovery_runs SET finished_at=?, n_offers=?, n_models=?, errors=?,
-                   results=? WHERE id=?""",
+                   results=?, sources=? WHERE id=?""",
                 (utcnow(), n_offers, len(results), json.dumps(errors, ensure_ascii=False),
-                 json.dumps(results, ensure_ascii=False), run_id))
+                 json.dumps(results, ensure_ascii=False),
+                 json.dumps(sources, ensure_ascii=False) if sources is not None else None, run_id))
+
+    def store_health(self, runs: int = 30) -> list[dict]:
+        """Por fuente: ofertas en el último descubrimiento, cuándo trajo algo por última vez y
+        cuándo falló por última vez (de los últimos `runs` descubrimientos)."""
+        with self.connect() as con:
+            rows = con.execute("""SELECT started_at, sources FROM discovery_runs
+                                  WHERE sources IS NOT NULL AND finished_at IS NOT NULL
+                                  ORDER BY id DESC LIMIT ?""", (runs,)).fetchall()
+        out: dict[str, dict] = {}
+        for i, r in enumerate(rows):
+            for s in json.loads(r["sources"]):
+                h = out.setdefault(s["store"], {"store": s["store"], "last": None, "last_ok": None,
+                                                "last_fail": None, "error": None})
+                if i == 0 and h["last"] is None:
+                    h["last"], h["error"] = s.get("n", 0), s.get("error")
+                if s.get("n") and h["last_ok"] is None:
+                    h["last_ok"] = r["started_at"]
+                if (s.get("error") or not s.get("n")) and h["last_fail"] is None:
+                    h["last_fail"] = r["started_at"]
+        return sorted(out.values(), key=lambda h: (bool(h["last"]), h["store"]))
 
     def has_discovered_models(self) -> bool:
         with self.connect() as con:

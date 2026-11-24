@@ -67,13 +67,16 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         run: python scan.py --once
 
-      # Una vez por día (primera corrida desde las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen
+      # Una vez por día (primera corrida desde las 12 UTC = 9 AR) o a mano: modelos nuevos + resumen.
+      # Durante un evento, además, descubrimiento cada ~3 h (sin resumen).
       - name: Descubrir modelos nuevos y resumen diario
         if: always() && steps.gate.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python -m services.daily due; then
             python scan.py --discover
             python scan.py --summary
+          elif python -m services.daily discover-due; then
+            python scan.py --discover
           else
             echo "Ya se hizo hoy (o todavía no son las 12 UTC)"
           fi
