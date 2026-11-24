@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 50       # el push y la publicación tienen que entrar aunque un paso se cuelgue
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy_retry.outputs.page_url }}
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -97,7 +97,19 @@ jobs:
         with:
           path: site
 
+      # A veces la API de GitHub todavía no "ve" el paquete recién subido ("Found 0 artifact(s)"):
+      # si el primer intento falla, se espera un minuto y se reintenta una vez.
       - name: Publicar en GitHub Pages
         id: deploy
         if: always() && steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: Esperar antes de reintentar la publicación
+        if: always() && steps.gate.outputs.run == 'true' && steps.deploy.outcome == 'failure'
+        run: sleep 60
+
+      - name: Publicar en GitHub Pages (reintento)
+        id: deploy_retry
+        if: always() && steps.gate.outputs.run == 'true' && steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v5
