@@ -51,6 +51,8 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
   3. los **atributos del catálogo de Mercado Libre** y, si falta algo, el **texto de la ficha de
      la tienda** ("antirreflejo", "VESA 100x100"...; cacheados 30 días). Si uno de estos datos
      descalifica, queda "a verificar" en vez de descartar.
+- Un título sin el sufijo de la variante ("274QPF ... 320HZ") se une a la variante catalogada con
+  esos Hz ("274QPF X32"), así el mismo monitor no aparece dos veces.
 - Estados: ✅ cumple todo · ❔ a confirmar · 🟣 OLED en oferta · ⛔ no cumple.
 - Marcas sin reseñas (`generic_brands`): sólo avisan ofertas ≥ 30 %.
 
@@ -107,7 +109,7 @@ Tu PC (tarea programada "MonitorPrecios-local", cada 3 h a y media)
 | `hardgamers` | ~41 tiendas vía HardGamers | Listado de búsqueda (Playwright) |
 | `mercadolibre` | Mercado Libre | **API oficial** con app propia: catálogo + publicación nueva más barata de vendedores con reputación |
 | `vtex` (`fravega`, `oncity`, `cetrogar`, `carrefour`, `pardo`, `coppel`, `naldo`, `jumbo`, `samsung`) y `electro` (todas juntas) | Electro y Samsung Shop | Buscador JSON público del storefront VTEX (sin navegador) |
-| `catalogs` (`dell`, `megatone`) | Dell AR, Megatone | Categoría de monitores leída del HTML (descubrimiento) |
+| `catalogs` (`dell`, `megatone`, `mallweb`, Tiendanube) | Dell AR, Megatone, Mallweb, Nickhard | Listado de monitores leído del HTML (descubrimiento). Tiendanube: cualquier tienda con `"platform": "tiendanube"` y su URL de búsqueda; toma el precio por transferencia |
 | `generic` | Cualquier ficha (Maximus, Venex...) | JSON-LD, meta tags y heurística de precios |
 
 No se evade ningún control anti-bot: las tiendas que bloquean (ASUS con captcha, Frávega/Venex

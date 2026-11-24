@@ -93,6 +93,20 @@ class SpecCatalog:
                 if brand_of(e.get("name", "")) == brand and e.get("hz_dp") == hz]
         return same[0] if len(same) == 1 else None
 
+    def match_variant(self, code: str, hz: int | None) -> dict | None:
+        """Título con el código base pero sin el sufijo de la variante ("274QPF ... 320HZ" en vez
+        de "274QPF X32"): si hay UNA sola variante catalogada con ese código y esos Hz, es esa."""
+        c = norm(code)
+        if not hz or len(c) < 4:
+            return None
+        same = [e for e in self.entries if norm(e.get("model_key", "")).startswith(c)
+                and 0 < len(norm(e["model_key"])) - len(c) <= SUFFIX_MAX and e.get("hz_dp") == hz]
+        return same[0] if len(same) == 1 else None
+
+
+# Largo máximo del sufijo de variante (X24, X32, E2, M...) para unificar títulos que lo omiten
+SUFFIX_MAX = 3
+
 
 # ------------------------------------------------------------------ hechos desde el título
 SIZE_QUOTE_RE = re.compile(r"(?<![\d.,])(\d{2}(?:[.,]\d)?)\s*\\?(?:\"|”|″|''|pulgadas|pulg\b|inch)")
@@ -164,6 +178,9 @@ def model_key(title: str, facts: TitleFacts,
         if (sum(c.isdigit() for c in core) >= 2 and any(c.isalpha() for c in core)
                 and not NOT_MODEL_RE.match(core) and not re.fullmatch(r"\d+X\d+", core)
                 and len(norm(core)) >= 4):
+            spec = catalog.match_variant(core, facts.hz)
+            if spec:
+                return norm(spec["model_key"]), spec.get("search") or spec["model_key"], spec
             return norm(core), core, None
     spec = catalog.match_brand_hz(title)
     if spec:
@@ -271,7 +288,7 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
     if is_oled:
         if best.price > cfg.get("oled_max_price", 0):
             fails.append("OLED (caro)")
-    elif panel and re.search(r"VA", panel):
+    elif panel and re.search(r"\bVA\b", panel):
         fails.append("panel VA")
     elif not panel:
         missing.append("panel")
@@ -443,6 +460,28 @@ def reevaluate(m: dict, cfg: dict, catalog: SpecCatalog, ml_spec: dict | None,
     return m
 
 
+def _merge_variants(groups: dict[str, list], searches: dict[str, str], specs: dict) -> None:
+    """Une el grupo "274QPF" (título sin sufijo) con "274QPFX32" si es la única variante con esos
+    Hz. Así el mismo monitor no aparece dos veces ni dispara un aviso de "modelo nuevo"."""
+    def hz(k: str) -> int | None:
+        return _majority([title_facts(o.title).hz for o in groups[k]])
+
+    for k in sorted(groups, key=len):
+        if k not in groups or "~" in k or len(k) < 4:
+            continue
+        h = hz(k)
+        if not h:
+            continue
+        cands = [c for c in groups if c != k and "~" not in c and c.startswith(k)
+                 and 0 < len(c) - len(k) <= SUFFIX_MAX and hz(c) == h]
+        if len(cands) == 1:
+            c = cands[0]
+            groups[c].extend(groups.pop(k))
+            specs[c] = specs.get(c) or specs.pop(k, None)
+            specs.pop(k, None)
+            searches.pop(k, None)
+
+
 def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
             extra_specs: dict[str, dict] | None = None,
             overrides: dict[str, dict] | None = None) -> list[ModelResult]:
@@ -470,6 +509,7 @@ def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
         groups.setdefault(key, []).append(o)
         searches.setdefault(key, search)
         specs[key] = specs.get(key) or spec
+    _merge_variants(groups, searches, specs)
     from services.overrides import apply as apply_override
     from services.spec_enrich import merge
 
@@ -537,11 +577,12 @@ async def _collect_hardgamers(session: BrowserSession, url: str) -> list[Offer]:
     return out
 
 
-def _collect_catalog(store: str) -> list[Offer]:
-    """Dell y Megatone: categoría de monitores leída del HTML."""
+def _collect_catalog(store: str, url: str | None = None, platform: str | None = None) -> list[Offer]:
+    """Dell, Megatone, Mallweb y tiendas Tiendanube: listado de monitores leído del HTML."""
     from scrapers.stores.catalogs import fetch
 
-    return [Offer(store, i["title"], i["price"], i["url"], i["seller"], i["list"], True) for i in fetch(store)]
+    return [Offer(store, i["title"], i["price"], i["url"], i["seller"], i["list"], True)
+            for i in fetch(store, url, platform)]
 
 
 def _collect_vtex(store: str, url: str) -> list[Offer]:
@@ -574,8 +615,8 @@ async def collect(session: BrowserSession, sources: list[dict],
         try:
             if src["store"] == "compragamer":
                 got = await _collect_compragamer(session, src["url"])
-            elif src["store"] in ("dell", "megatone"):
-                got = await asyncio.to_thread(_collect_catalog, src["store"])
+            elif src["store"] in ("dell", "megatone", "mallweb") or src.get("platform") == "tiendanube":
+                got = await asyncio.to_thread(_collect_catalog, src["store"], src["url"], src.get("platform"))
             elif src["store"] in VTEX_STORES:
                 got = await asyncio.to_thread(_collect_vtex, src["store"], src["url"])
             else:

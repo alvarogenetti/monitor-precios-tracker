@@ -139,3 +139,31 @@ def test_discovery_real_offers_with_history(tmp_path):
     assert by["ARK27210QI8"].generic and by["ARK27210QI8"].level is None   # -17 % en genérica: no alcanza
     assert n == 1
     assert asyncio.run(_real_offers(db, res, [], cfg, send_alerts=False)) == 0   # no repite la misma oferta
+
+
+def test_title_without_variant_suffix_joins_its_variant():
+    # Catalogado: "274QPF ... 320HZ" es el 274QPF X32 (única variante con 320 Hz)
+    cat = SpecCatalog([{"model_key": "274QPFX32", "name": "MSI MAG 274QPF X32", "hz_dp": 320},
+                       {"model_key": "274QPFX24", "name": "MSI MAG 274QPF X24", "hz_dp": 240}])
+    t = 'MONITOR 27" MSI MAG 274QPF WQHD 320HZ 0.5MS FLAT 2XHDMI + 1XDP'
+    assert model_key(t, title_facts(t), cat)[0] == "274QPFX32"
+    t2 = 'MONITOR 27" MSI MAG 274QPF WQHD 144HZ'       # Hz que no coinciden: queda aparte
+    assert model_key(t2, title_facts(t2), cat)[0] == "274QPF"
+    # Con catálogo, en el mismo descubrimiento: los dos títulos quedan en un solo modelo
+    res = analyze(offers(
+        ("hardgamers", "MONITOR GAMER MSI 27 RAPID IPS MAG 274QPF X32 WQHD 320HZ", 522920, "Enjoy"),
+        ("hardgamers", 'MONITOR 27" MSI MAG 274QPF WQHD 320HZ 0.5MS FLAT', 691148, "BLACK"),
+        ("hardgamers", "MONITOR 27 MSI MAG 274QP QD-OLED X24 WQHD 240HZ", 941667, "Crosshair"),
+    ), CFG, cat, overrides={})
+    assert sorted(r.key for r in res) == ["274QP", "274QPFX32"]
+    assert len(next(r for r in res if r.key == "274QPFX32").offers) == 2
+
+
+def test_merge_variants_without_catalog():
+    from services.discovery import _merge_variants
+
+    groups = {"ABC12": [Offer("x", "MONITOR ABC12 27 QHD 200HZ", 1, "")],
+              "ABC12M": [Offer("x", "MONITOR ABC12M 27 QHD 200HZ", 1, "")],
+              "ABC12X": [Offer("x", "MONITOR ABC12X 27 QHD 144HZ", 1, "")]}
+    _merge_variants(groups, {k: k for k in groups}, {})
+    assert sorted(groups) == ["ABC12M", "ABC12X"] and len(groups["ABC12M"]) == 2

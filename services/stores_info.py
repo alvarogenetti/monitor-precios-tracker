@@ -20,6 +20,8 @@ STORES = [
         ("Samsung Shop", "Buscador VTEX: monitor 27", "GitHub"),
         ("Dell Argentina", "Categoría de monitores (desde GitHub sólo la primera página)", "GitHub"),
         ("Megatone", "Categoría de monitores (primeros 20)", "GitHub"),
+        ("Nickhard", "Buscador Tiendanube: monitor 27 (precio por transferencia)", "GitHub"),
+        ("Mallweb", "Categoría de monitores (precio en efectivo/transferencia)", "GitHub"),
         ("Frávega", "Buscador: monitor 27 qhd / 2k", "Tu PC"),
     ]},
     {"group": "Evaluadas y descartadas", "items": [

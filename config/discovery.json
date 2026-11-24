@@ -96,6 +96,15 @@
     {
       "store": "megatone",
       "url": "https://www.megatone.net/listado/tecnologia/informatica/monitores/"
+    },
+    {
+      "store": "nickhard",
+      "platform": "tiendanube",
+      "url": "https://nickhard.com.ar/search/?q=monitor+27"
+    },
+    {
+      "store": "mallweb",
+      "url": "https://www.mallweb.com.ar/categoria/monitores"
     }
   ],
   "ignore_models": [],
