@@ -59,6 +59,8 @@ escaneo, salvo una oferta excepcional, que sale al instante. Nada de avisos por 
 
 - Interfaz estilo financiero, tema automático claro/oscuro, sin emojis ni etiquetas de más, poco texto.
 - Sitio público sólo lectura; las acciones, desde la PC.
-- Nada que esquive controles anti-bot ni términos de las tiendas (por eso Mercado Libre y Tienda BNA
-  son a mano).
+- Nada que esquive controles anti-bot ni términos de las tiendas (por eso Tienda BNA es a mano y
+  Mercado Libre llega sólo vía ComparaYa, que es afiliado de ML, más la carga a mano).
+- Todo cambio queda documentado al momento (README, Info del dashboard, este perfil): la documentación
+  tiene que decir lo que el sistema hace hoy.
 - Cada monitor se nombra **Marca + Modelo** y no se repite.

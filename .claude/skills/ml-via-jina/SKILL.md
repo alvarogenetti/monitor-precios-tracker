@@ -7,7 +7,8 @@ description: Plan pendiente (no implementado) para leer precios de Mercado Libre
 
 Estado al 2026-11-24: **no funciona**. ML redirige a Jina a
 `/gz/account-verification` ("Para continuar, ingresá a tu cuenta"), así que no llega ningún precio.
-Hoy ML es manual: links **Ver en ML** / **Historial** y carga **Lo vi a $** (README, sección 7).
+Hoy ML llega en parte vía ComparaYa (afiliado de ML, `services/comparaya.py`) y el resto es manual:
+links **Ver en ML** / **Historial** y carga **Lo vi a $** (README, sección 7).
 
 El dueño decidió que, si algún día vuelve a funcionar, se use. Reglas fijas:
 - Sólo los seguidos de `config/targets.json` (~10 fichas), una consulta por ficha cada ~3 h, con pausa de 4 s entre fichas.

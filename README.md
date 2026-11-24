@@ -16,7 +16,7 @@ qué comprar y avisa por **Telegram**. Corre solo en GitHub Actions y publica un
 4. [Arquitectura](#4-arquitectura)
 5. [Instalación](#5-instalación)
 6. [Referencia](#6-referencia)
-7. [Mercado Libre: por qué es manual](#7-mercado-libre-por-qué-es-manual)
+7. [Mercado Libre: cobertura parcial](#7-mercado-libre-cobertura-parcial)
 8. [Decisiones y límites](#8-decisiones-y-límites)
 
 ---
@@ -287,7 +287,21 @@ python -m pytest -q                   # tests
 
 ---
 
-## 7. Mercado Libre: por qué es manual
+## 7. Mercado Libre: cobertura parcial
+
+**En una línea.** ML se contempla, pero no completo: su precio entra solo cuando ComparaYa (afiliado de
+ML) lo publica para ese modelo, una vez por día; para el resto quedan los links **Ver en ML** /
+**Historial** y la carga manual **Lo vi a $**. En la primera prueba (24/11/2026) ComparaYa tenía ficha
+de 26 de los 67 modelos que cumplen o falta confirmar, y precio de ML en **2** (Asus VG27AQL3A
+$640.000, LG 27GS75Q-B $867.894; en los dos ML era más caro que la mejor tienda).
+
+| Vía | Qué cubre | Automático |
+|---|---|---|
+| ComparaYa (sección 3) | Modelos cuya ficha de ComparaYa tiene oferta nueva de ML con el código exacto | Sí, en cada descubrimiento |
+| **Lo vi a $** | Lo que veas vos en ML (vale 3 días) | No |
+| **Ver en ML** / **Historial** | Búsqueda en ML e historial en MejoresCompras | Sólo links |
+| API oficial de ML | Nada: bloqueada desde el 23/11/2026 | — |
+| Jina Reader | Nada: ML lo manda a verificación de cuenta (probado 24/11/2026). Plan por si cambia: skill `.claude/skills/ml-via-jina` | — |
 
 **Qué pasó.** Hasta el 23/11/2026 los precios de ML salían de su API oficial, con una app de
 desarrollador propia. Ese día la API empezó a responder `403` a todo lo que da precios
@@ -306,9 +320,8 @@ publicarse fuera de la app (7.2) y que sacar estadísticas de precios requiere a
 No se pidió la rehabilitación: para un uso sólo de lectura no la van a dar.
 
 **Qué no se hace.** No se lee la web de ML con un programa (los términos prohíben robots y scraping,
-cl. 7.6), no se crea otra cuenta o app para esquivar el bloqueo y no se usan proxies. El código quedó
-apagado (`settings.meli_enabled` devuelve `False`, el escaneo saltea los links de ML y el adaptador
-no cae a la web).
+cl. 7.6), no se crea otra cuenta o app para esquivar el bloqueo y no se usan proxies. El adaptador
+(`scrapers/stores/mercadolibre.py`) no hace pedidos y el escaneo de seguidos saltea los links de ML.
 
 **Precios de ML vía ComparaYa (desde el 24/11/2026).** El descubrimiento lee las fichas públicas de
 ComparaYa (ver sección 3), que muestra el precio de ML porque es afiliado. Nosotros no tocamos ML: leemos
@@ -322,15 +335,17 @@ durante eventos; carga manual **Lo vi a $** (3 días); aviso si el vendedor no t
 **Intermediarios evaluados (noviembre 2026) y descartados.** Los términos generales de ML (sección 12,
 "Uso Automatizado del Sitio") prohíben bots, scrapers y agentes para extraer o almacenar información
 "sin importar" la vía, e incluyen expresamente "eludir medidas técnicas de protección". Por eso no se
-usan: lectores/proxies que bajan la página por nosotros (Jina Reader), scrapers con IPs residenciales
-(Apify, Octoparse), leer ML desde la PC con pausas, ni leer automáticamente sitios que rastrean ML
-(RadarLibre prohíbe el scraping masivo de su propio sitio). ML no ofrece otro canal de datos: su
-servidor MCP sólo busca en la documentación y el programa de afiliados da links, no precios.
+usan: scrapers con IPs residenciales (Apify, Octoparse), leer ML desde la PC con pausas, ni sitios que
+prohíben que los lean (RadarLibre prohíbe el scraping masivo; Precialo, el buscador). Jina Reader se
+probó y ML lo bloquea. ComparaYa es distinto: no leemos ML sino páginas de ComparaYa que su robots.txt
+permite, y ellos tienen el precio de ML porque son afiliados. ML no ofrece otro canal de datos para
+nosotros: su servidor MCP sólo busca en la documentación.
 
 **Cuánto se pierde.** Con los datos de la API del 20 al 23/11/2026 (4 monitores, 71 corridas), ML
 **nunca** fue la opción más barata: en la mediana estaba **31 % arriba** de la mejor otra tienda
 (MSI 274QF X24 +15 %, Gigabyte GS27QA +21 %, KTC M27T6S +31 %). Lo que puede escaparse son ofertas
-puntuales de ML (relámpago, tiendas oficiales, eventos): para eso están los links y la carga manual.
+puntuales de ML (relámpago, tiendas oficiales, eventos) en modelos que ComparaYa no tiene: para eso
+están los links y la carga manual.
 
 ---
 
@@ -351,4 +366,7 @@ puntuales de ML (relámpago, tiendas oficiales, eventos): para eso están los li
   la primera página desde GitHub.
 - Los cupones que se cargan en el checkout no se ven.
 - Frávega y Venex dependen de que la PC esté prendida.
-- Mercado Libre y Tienda BNA dependen de que cargues a mano lo que ves.
+- Mercado Libre: automático sólo donde ComparaYa lo publica (2 de 67 modelos en la primera prueba);
+  el resto, y Tienda BNA, dependen de que cargues a mano lo que ves.
+- ComparaYa: sólo se encuentran las fichas cuya dirección sigue el patrón `monitor-marca-codigo-27`
+  (26 de 67); las demás se fijan a mano en `comparaya_slugs`.
