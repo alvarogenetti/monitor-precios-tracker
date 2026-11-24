@@ -167,3 +167,36 @@ def test_merge_variants_without_catalog():
               "ABC12X": [Offer("x", "MONITOR ABC12X 27 QHD 144HZ", 1, "")]}
     _merge_variants(groups, {k: k for k in groups}, {})
     assert sorted(groups) == ["ABC12M", "ABC12X"] and len(groups["ABC12M"]) == 2
+
+
+def test_hyphen_suffix_and_resolution_tokens_are_not_new_models():
+    res = analyze(offers(
+        ("hardgamers", 'MONITOR GAMER 27" VIEWSONIC CURVO 180HZ 1MS VX2718-2KPC-MHD', 345949, "A"),
+        ("hardgamers", "MONITOR 27 CURVO 2KPC VIEWSONIC VX2718 QHD 1440P 180HZ 1MS", 351216, "B"),
+        ("hardgamers", 'Monitor Gamer 27" Level Up QHD 2K 2560x1440px IPS 200Hz Blanco', 300000, "C"),
+        ("hardgamers", 'MONITOR GAMER 27" LEVEL UP CON ROTACION QHD 200HZ 1MS BLANCO 27-UP6590R', 310000, "D"),
+    ), CFG, SpecCatalog([]), overrides={})
+    assert sorted(r.key for r in res) == ["27UP6590R", "VX2718"]
+    assert all(len(r.offers) == 2 for r in res)
+
+
+def test_tracked_by_keywords_or_catalog_key():
+    from services.discovery import tracked_by
+    from services.targets import Target
+
+    t = Target(id="asrock", name="ASRock PG27QFT1B", target_price=1, keywords=["NOEXISTE"])
+    brazo = Target(id="brazo", name="Brazo", target_price=1, kind="accesorio", keywords=["PG27QFT1B"])
+    offs = [{"title": "Monitor ASRock 27 QHD"}]
+    assert tracked_by("PG27QFT1B", offs, [brazo, t], SPECS) == "asrock"   # por clave de catálogo
+    assert tracked_by("OTRO", [{"title": "x NOEXISTE"}], [t]) == "asrock"  # por keyword
+    assert tracked_by("OTRO", offs, [brazo, t], SPECS) is None
+
+
+def test_suspicious_pairs_same_hz_only():
+    from services.discovery import suspicious_pairs
+
+    class R:
+        def __init__(self, key, hz, curved=False):
+            self.key, self.facts = key, {"hz": hz, "curved": curved}
+    assert suspicious_pairs([R("274QPFX32", 320), R("274QP", 240)]) == []
+    assert suspicious_pairs([R("ABC123", 180), R("ABC123W", 180)]) == [("ABC123", "ABC123W")]

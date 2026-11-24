@@ -45,7 +45,8 @@ STATUS_ORDER = {"cumple": 0, "oled_oferta": 1, "a_confirmar": 2, "descartado": 3
 BRANDS = ["ASROCK", "GIGABYTE", "AORUS", "MSI", "LG", "BENQ", "SAMSUNG", "KTC", "ARKHAM", "RAPTOR",
           "VALKYRIE", "X-MICRO", "XMICRO", "TEROS", "VIEWSONIC", "ASUS", "ACER", "AOC", "PHILIPS",
           "DELL", "LENOVO", "XIAOMI", "HP", "SOLARMAX", "KOORUI", "HIKVISION", "NOGA", "PHILCO",
-          "BGH", "COOLER MASTER", "REDRAGON", "GAMEMAX", "TCL", "HISENSE", "NZXT", "EVNIA", "INNOCN"]
+          "BGH", "COOLER MASTER", "REDRAGON", "GAMEMAX", "TCL", "HISENSE", "NZXT", "EVNIA", "INNOCN",
+          "LEVEL UP", "E-VIEW"]
 
 
 # ------------------------------------------------------------------ config
@@ -159,12 +160,18 @@ def title_facts(title: str) -> TitleFacts:
 TOKEN_RE = re.compile(r"[A-Z0-9][A-Z0-9\-]{3,}")
 NOT_MODEL_RE = re.compile(
     r"^(\d+(HZ|MS|P|K|W|R|GB|NITS|CD|X\d+)?|HDR\d+|DCI\w*|SRGB\w*|HDMI\w*|USB\w*|DP\d\w*|"
-    r"G-?SYNC\w*|QHD\w*|WQHD|1MS\w*|ELIMINAR)$")
+    r"G-?SYNC\w*|QHD\w*|WQHD|1MS\w*|ELIMINAR|\d{3,4}X\d{3,4}\w*)$")
 
 
 def brand_of(title: str) -> str | None:
     t = f" {title.upper()} "
     return next((b for b in BRANDS if f" {b} " in t or f" {b}-" in t), None)
+
+
+def _is_code(core: str) -> bool:
+    return (sum(c.isdigit() for c in core) >= 2 and any(c.isalpha() for c in core)
+            and not NOT_MODEL_RE.match(core) and not re.fullmatch(r"\d+X\d+", core)
+            and len(norm(core)) >= 4)
 
 
 def model_key(title: str, facts: TitleFacts,
@@ -175,9 +182,11 @@ def model_key(title: str, facts: TitleFacts,
         return norm(spec["model_key"]), spec.get("search") or spec["model_key"], spec
     for tok in TOKEN_RE.findall(title.upper()):
         core = tok.strip("-")
-        if (sum(c.isdigit() for c in core) >= 2 and any(c.isalpha() for c in core)
-                and not NOT_MODEL_RE.match(core) and not re.fullmatch(r"\d+X\d+", core)
-                and len(norm(core)) >= 4):
+        # "VX2718-2KPC-MHD" / "XG27AQ-W": el sufijo después del guion es variante/color, no otro modelo
+        head = core.split("-")[0]
+        if "-" in core and _is_code(head):
+            core = head
+        if _is_code(core):
             spec = catalog.match_variant(core, facts.hz)
             if spec:
                 return norm(spec["model_key"]), spec.get("search") or spec["model_key"], spec
@@ -481,6 +490,52 @@ def _merge_variants(groups: dict[str, list], searches: dict[str, str], specs: di
             specs.pop(k, None)
             searches.pop(k, None)
 
+    # "SAMSUNG ODYSSEY G5 27 165HZ" (sin código) -> el único Samsung con código y 165 Hz del listado
+    def brand(k: str) -> str | None:
+        return _majority([brand_of(o.title) for o in groups[k]])
+
+    def curved(k: str) -> bool:
+        return any(title_facts(o.title).curved for o in groups[k])
+
+    for k in [k for k in groups if "~" in k]:
+        b, h = brand(k), hz(k)
+        if not b or not h:
+            continue
+        cands = [c for c in groups if "~" not in c and brand(c) == b and hz(c) == h
+                 and curved(c) == curved(k)]
+        if len(cands) == 1:
+            c = cands[0]
+            groups[c].extend(groups.pop(k))
+            specs.pop(k, None)
+            searches.pop(k, None)
+
+
+def tracked_by(key: str, offers: list[dict], targets: list, catalog: SpecCatalog | None = None) -> str | None:
+    """id del seguido que ya cubre este modelo: por keywords en los títulos o por la misma clave de
+    catálogo (así un seguido nunca aparece además como "nuevo" en el descubrimiento)."""
+    from scrapers.base import matches_keywords
+
+    for t in targets:
+        if getattr(t, "kind", "monitor") != "monitor":
+            continue
+        if t.keywords and any(matches_keywords(o["title"], t.keywords, []) for o in offers):
+            return t.id
+        spec = catalog.match(t.name) if catalog else None
+        if spec and norm(spec["model_key"]) == key:
+            return t.id
+    return None
+
+
+def suspicious_pairs(results: list) -> list[tuple[str, str]]:
+    """Control: pares de modelos que podrían ser el mismo (una clave contiene a la otra y tienen
+    los mismos Hz). Se loguea en cada descubrimiento para revisarlos."""
+    out = []
+    for a in results:
+        for b in results:
+            if a.key < b.key and min(len(a.key), len(b.key)) >= 4 and "~" not in a.key + b.key                     and (a.key in b.key or b.key in a.key) and a.facts.get("hz") == b.facts.get("hz")                     and a.facts.get("curved") == b.facts.get("curved"):
+                out.append((a.key, b.key))
+    return out
+
 
 def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
             extra_specs: dict[str, dict] | None = None,
@@ -751,15 +806,21 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
 
     targets = load_targets(settings.targets_path)
     for r in results:
-        r.tracked = next((t.id for t in targets if t.keywords and any(
-            matches_keywords(o["title"], t.keywords, []) for o in r.offers)), None)
+        r.tracked = tracked_by(r.key, r.offers, targets, catalog)
+    for a, b in suspicious_pairs(results):
+        log.warning("Posible duplicado en el descubrimiento: %s / %s", a, b)
 
     baseline = not db.has_discovered_models()
+    prev = db.last_discovery() or {}
+    seen_urls = {o["url"] for m in prev.get("results", []) for o in m.get("offers", [])}
     new_keys = db.upsert_discovered(run_id, results)
     offers_alert = await _real_offers(db, results, targets, cfg, send_alerts)
     alerts = 0
     for r in results:
-        r.is_new = r.key in new_keys and not baseline
+        # Nuevo de verdad: clave nunca vista Y ninguna de sus publicaciones estaba en la corrida
+        # anterior (si sólo cambió cómo se agrupa un título, no es un monitor nuevo)
+        r.is_new = (r.key in new_keys and not baseline
+                    and not any(o["url"] in seen_urls for o in r.offers))
     new_ok = [r for r in results if r.is_new and not r.tracked
               and r.status in ("cumple", "a_confirmar", "oled_oferta")]
     if new_ok:

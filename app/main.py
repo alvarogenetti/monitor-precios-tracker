@@ -133,7 +133,7 @@ def recommendations(rows: list[dict], models: list[dict], limit: int = 5) -> lis
 def build_context(static: bool = False) -> dict:
     """Todo lo que necesita el dashboard (se usa igual en la web local y en GitHub Pages)."""
     from scrapers.base import matches_keywords
-    from services.discovery import SpecCatalog, evaluate_target, load_json, usb_c_label
+    from services.discovery import SpecCatalog, evaluate_target, load_json, tracked_by, usb_c_label
 
     cfg = load_json(settings.discovery_path, {})
     catalog = SpecCatalog(load_json(settings.specs_path, []))
@@ -169,8 +169,7 @@ def build_context(static: bool = False) -> dict:
         for m in disc["results"]:
             reevaluate(m, cfg, catalog, ml.get(m["key"]) or None, ovs.get(m["key"]))
             # ¿Lo seguís? (se recalcula en vivo: puede haberse agregado después del descubrimiento)
-            m["tracked"] = next((t.id for t in targets if t.keywords and any(
-                matches_keywords(o["title"], t.keywords, []) for o in m["offers"])), None)
+            m["tracked"] = tracked_by(m["key"], m["offers"], targets, catalog)
             m["usb_c"] = usb_c_label(m.get("spec"), m.get("badges") or [])
             m["generic"] = m.get("generic") or any(g in (m["name"] + " " + (m.get("brand") or "")).lower()
                                                    for g in generic)
@@ -397,6 +396,11 @@ def api_discover_track(body: TrackRequest):
     if not m:
         raise HTTPException(404, "Ese modelo no está en el último descubrimiento")
     targets = load_targets(settings.targets_path)
+    from services.discovery import SpecCatalog, load_json, tracked_by
+
+    already = tracked_by(m["key"], m["offers"], targets, SpecCatalog(load_json(settings.specs_path, [])))
+    if already:
+        raise HTTPException(409, f"Ya lo seguís ({already})")
     new_id = slugify(m["name"])[:50].strip("-")
     if any(t.id == new_id for t in targets):
         raise HTTPException(409, f"Ya existe un producto con id '{new_id}'")
@@ -415,7 +419,8 @@ def api_discover_track(body: TrackRequest):
     from services.discovery import usb_c_label
     from services.segments import auto_segment
 
-    cheapest = min((r["best"]["price_cash"] for r in build_dashboard() if r["best"]), default=None)
+    cheapest = min((r["best"]["price_cash"] for r in build_dashboard()
+                    if r["best"] and r["target"].kind == "monitor"), default=None)
     usb = bool(usb_c_label(m.get("spec"), m.get("badges") or []))
     t = Target(id=new_id, name=m["name"][:90], target_price=round(best * 0.95, -3),
                price_high=round(best * 1.10, -3), market_price=round(best, -3), keywords=keywords,

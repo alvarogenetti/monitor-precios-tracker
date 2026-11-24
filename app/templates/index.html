@@ -360,7 +360,7 @@
 
   {# ======================= DESCUBRIMIENTO ======================= #}
   <section data-panel="descubrimiento" hidden>
-    <p class="note" style="margin:14px 0 0">Todos los 27" QHD de las tiendas, una vez por día. Si alguno baja 15 % o más, avisa aunque no lo sigas. Seguir lo escanea cada 3 h en cada tienda.{% if discovery %} Último: <span data-ts="{{ discovery.finished_at }}"></span>.{% endif %}</p>
+    <p class="note" style="margin:14px 0 0">Todos los 27" QHD de las tiendas, una vez por día. Si alguno baja 15 % o más, avisa aunque no lo sigas. Seguir lo escanea cada 3 h en cada tienda.{% set n_tr = models|selectattr('tracked')|list|length %}{% if n_tr %} Los {{ n_tr }} que ya seguís no se repiten acá: están en Seguidos.{% endif %}{% if discovery %} Último: <span data-ts="{{ discovery.finished_at }}"></span>.{% endif %}</p>
     {% if recs %}
       <div class="callout"><h3>Conviene empezar a seguir</h3><ul>
         {% for m in recs %}<li><a class="link" style="font-size:13px" target="_blank" rel="noopener" href="{{ m.best.url }}">{{ m.name }}</a>
@@ -372,7 +372,7 @@
       {{ toolbar('descubrimiento', true) }}
       {{ sections() }}
       <div id="pool-descubrimiento" hidden>
-      {% for m in models %}
+      {% for m in models if not m.tracked %}
         <details class="row item" data-status="{{ m.status }}" data-usbc="{{ 1 if m.usb_c else 0 }}" data-offer="{{ 1 if m.level else 0 }}" data-known="{{ 0 if m.generic else 1 }}"
                  data-price="{{ m.best.price }}" data-real="{{ m.real if m.real is not none else -9 }}"
                  data-name="{{ m.name|lower }} {{ m.search|lower }} {{ (m.best.seller or m.best.store)|lower }}"
