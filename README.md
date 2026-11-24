@@ -24,6 +24,8 @@ por **Telegram**. Corre solo en GitHub Actions y publica un dashboard.
   **Opciones baratas** · **Un escalón arriba** · **Con USB-C 65 W** · **Gama alta: solo si caen fuerte** ·
   **Accesorios** (el brazo Ironstek FL04A: sólo precio, sin evaluar requisitos).
   Arriba de todo, las ofertas reales del momento.
+  Cada seguido suma además las ofertas que el descubrimiento encontró para ese modelo en las
+  otras tiendas ("visto en Descubrimiento"): si alguna es más barata, pasa a ser su mejor precio.
 - **Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos,
   una vez por día. Arriba aparecen los **💡 sugeridos para seguir**. Con **+ Seguir** un modelo pasa
   a Seguidos. Los no seguidos igual se vigilan: si aparece una oferta real, avisa.

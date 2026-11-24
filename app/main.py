@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -103,6 +104,55 @@ def series_stats(prices: list[float]) -> dict | None:
     return {"n": n, "min": srt[0], "max": srt[-1], "median": median}
 
 
+def merge_discovery_offers(rows: list[dict], models: list[dict], finished_at: str | None,
+                           max_age_h: float = 30) -> None:
+    """Suma a cada seguido las ofertas que el descubrimiento encontró para ese mismo modelo en las
+    otras ~75 tiendas (si el descubrimiento es reciente). Si alguna es más barata, pasa a ser la mejor
+    oferta de la fila (precio, descuento real, banda), marcada como vista en Descubrimiento."""
+    from datetime import datetime, timezone
+
+    if not finished_at:
+        return
+    age = datetime.now(timezone.utc) - datetime.fromisoformat(finished_at)
+    if age.total_seconds() > max_age_h * 3600:
+        return
+    found: dict[str, list[dict]] = {}
+    for m in models:
+        if m.get("tracked"):
+            found.setdefault(m["tracked"], []).extend(m.get("offers") or [])
+    for r in rows:
+        t = r["target"]
+        own = {o["url"] for o in r["offers"]} | {o["snap"].get("product_url") for o in r["offers"] if o["snap"]}
+        extra, seen = [], set()
+        for o in sorted(found.get(t.id, []), key=lambda o: o["price"]):
+            if o["url"] in own or o["url"] in seen or not o.get("price"):
+                continue
+            seen.add(o["url"])
+            title = re.sub(r"\s*\[.*\]$", "", o.get("title") or "")
+            promo = re.search(r"\[(.*)\]$", o.get("title") or "")
+            snap = {"store": o["store"], "url": o["url"], "product_url": o["url"], "title": title,
+                    "seller": o.get("seller"), "price_cash": o["price"], "price_list": o.get("price_list"),
+                    "in_stock": 1, "error": None, "scanned_at": finished_at,
+                    "promo": promo.group(1) if promo else None}
+            extra.append({"store": o["store"], "url": o["url"], "active": True, "via": "descubrimiento",
+                          "note": "Visto en Descubrimiento", "snap": snap, "hike": None,
+                          "market": describe(o["price"], o.get("price_list"), r["ref"])})
+        if not extra:
+            continue
+        r["offers"] += extra[:5]
+        cand = extra[0]["snap"]
+        if r["best"] is None or cand["price_cash"] < r["best"]["price_cash"]:
+            b = r["best"] = cand
+            r["real"] = real_discount(b["price_cash"], r["ref"])
+            r["level"] = level(r["real"])
+            r["band"] = t.band(b["price_cash"], r["ref"])
+            r["inflated"] = bool(inflated(b["price_cash"], b["price_list"], r["ref"]))
+            r["hit"] = b["price_cash"] <= t.target_price
+            r["diff"] = (b["price_cash"] - t.target_price) / t.target_price * 100
+            r["stock"] = "in"
+            r["best_via"] = "descubrimiento"
+
+
 def recommendations(rows: list[dict], models: list[dict], limit: int = 5) -> list[dict]:
     """Modelos descubiertos que conviene empezar a seguir, con el motivo.
 
@@ -174,6 +224,8 @@ def build_context(static: bool = False) -> dict:
             m["generic"] = m.get("generic") or any(g in (m["name"] + " " + (m.get("brand") or "")).lower()
                                                    for g in generic)
             models.append(m)
+
+    merge_discovery_offers(rows, models, (disc or {}).get("finished_at"))
 
     def best_ok(items, price):
         ok = [x for x in items if x[1] is not None]

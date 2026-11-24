@@ -725,6 +725,8 @@ async def collect(session: BrowserSession, sources: list[dict],
             else:
                 got = await _collect_hardgamers(session, src["url"])
             log.info("Descubrimiento %s: %d ofertas (%s)", src["store"], len(got), src["url"])
+            if not got:   # la tienda cambió su página o el lector dejó de andar: que se note
+                errors.append(f"{src['store']}: 0 resultados")
             offers += got
         except Exception as e:  # noqa: BLE001
             log.warning("Descubrimiento: falló %s: %s", src["url"], e)

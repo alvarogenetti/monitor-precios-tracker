@@ -36,9 +36,10 @@ def pre_event_block(db, rows) -> list[str]:
 
 
 def build_summary() -> str:
-    from app.main import build_dashboard, db
+    from app.main import build_context, db
 
-    rows = [r for r in build_dashboard() if r["target"].active]
+    ctx = build_context()      # incluye las ofertas de las ~75 tiendas del descubrimiento
+    rows = [r for r in ctx["rows"] if r["target"].active]
     rows.sort(key=lambda r: (r["best"] is None, -(r.get("real") or -1)))
     lines = pre_event_block(db, rows) + ["📊 <b>Resumen diario de precios</b>"]
     for r in rows:
@@ -52,9 +53,7 @@ def build_summary() -> str:
               else f"{round(r['diff']):+d}% vs objetivo")
         mark = {"excepcional": " 🔥", "buena": " 💰"}.get(r.get("level"), "")
         lines.append(f"{EMOJI[r['band']]} {name}: <b>{fmt_ars(b['price_cash'])}</b> ({vs}){mark} — {where}")
-    from app.main import build_context
-
-    recs = build_context()["recs"]
+    recs = ctx["recs"]
     if recs:
         lines.append("\n💡 <b>Conviene empezar a seguir:</b>")
         for m in recs[:3]:
@@ -64,6 +63,8 @@ def build_summary() -> str:
     if disc:
         n = sum(1 for m in disc["results"] if m["status"] == "cumple")
         lines.append(f"\n🔎 Descubrimiento: {n} modelos cumplen todos tus requisitos")
+        if disc.get("errors"):
+            lines.append("⚠️ Tiendas con problemas: " + html.escape(", ".join(e.split(":")[0] for e in disc["errors"])))
     lines.append("🟢 oferta real ≥15 % · 🔵 precio normal · 🔴 caro (+10 % sobre el mercado)")
     lines.append(f'<a href="{PAGES_URL}">Ver dashboard</a>')
     return "\n".join(lines)

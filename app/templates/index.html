@@ -320,7 +320,7 @@
             <tbody>
             {% for o in r.offers %}{% set s = o.snap %}
               <tr style="{% if not o.active %}opacity:.45{% endif %}">
-                <td><a href="{{ (s.product_url if s and s.product_url) or o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.store|capitalize }}</a>{% if s and s.seller %}<div class="note">{{ s.seller }}</div>{% endif %}</td>
+                <td><a href="{{ (s.product_url if s and s.product_url) or o.url }}" target="_blank" rel="noopener" style="text-decoration:none">{{ o.store|capitalize }}</a>{% if s and s.seller and s.seller|lower != o.store %}<div class="note">{{ s.seller }}</div>{% endif %}{% if o.via %}<div class="note">visto en Descubrimiento</div>{% endif %}</td>
                 <td class="r num">
                   {% if not s %}<span class="muted">—</span>
                   {% elif s.error %}<span style="color:var(--bad)" title="{{ s.error }}">error</span>
@@ -329,9 +329,9 @@
                 </td>
                 <td class="note">{% if o.hike %}<span style="color:var(--bad)">subió {{ o.hike }} % vs su precio habitual</span> · {% endif %}{{ o.market or '' }}{% if s and s.promo %}{{ ' · ' if o.market }}{{ s.promo }}{% endif %}</td>
                 <td class="r note">{% if s %}<span data-ts="{{ s.scanned_at }}"></span>{% endif %}</td>
-                {% if not static %}<td class="r" style="white-space:nowrap">
+                {% if not static %}<td class="r" style="white-space:nowrap">{% if not o.via %}
                   <button class="link" onclick="toggleUrl('{{ t.id }}', {{ o.url|tojson|forceescape }}, {{ 'false' if o.active else 'true' }})">{{ 'pausar' if o.active else 'activar' }}</button>
-                  <button class="link danger" style="margin-left:8px" onclick="deleteUrl('{{ t.id }}', {{ o.url|tojson|forceescape }})">quitar</button></td>{% endif %}
+                  <button class="link danger" style="margin-left:8px" onclick="deleteUrl('{{ t.id }}', {{ o.url|tojson|forceescape }})">quitar</button>{% endif %}</td>{% endif %}
               </tr>
             {% endfor %}
             </tbody>
