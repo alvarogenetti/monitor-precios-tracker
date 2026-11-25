@@ -178,6 +178,19 @@ y Ebox) traen `Tax` 0, así que su historial no cambia. Además Frávega dejó V
 link de la API (`/<linkText>/p`) abre una página vacía, y la ficha real es
 `https://www.fravega.com/p/<nombre-del-producto>-<itemId>/`, que es lo que se guarda ahora.
 
+Revisión del 25/11/2026 (con datos reales):
+- **IVA:** de las 11 tiendas VTEX, sólo Frávega trae `Tax` distinto de 0 (4 de 50 ofertas, siempre el
+  21 % justo); en las demás es 0, así que sumarlo no duplica nada.
+- **Links:** la web nueva encuentra la ficha **sólo por el número** (`/p/cualquier-cosa-22718576/`
+  abre el mismo producto); el nombre de la dirección es decorativo.
+- **Ofertas fantasma (límite conocido):** la API de VTEX sigue devolviendo con stock productos que
+  ya no están en la web nueva (p. ej. Arzopa 22755673, Koorui 22725449, Acer KG271U de Glic 22747828:
+  "La página no existe"), y algunos que existen pero no se pueden comprar (Dell S2725DC de Glic
+  22878258: sin precio y con los botones desactivados). Otros de Glic andan bien (BenQ EW270Q $691.617,
+  ViewSonic VS2725), igual que los de Tienda Bae. En los datos de VTEX no hay una señal que los
+  distinga; la web nueva lo sabe por su propia API interna, que no se usa. Antes de comprar en
+  Frávega, abrir el link: si dice "La página no existe" o no muestra precio, esa oferta no vale.
+
 Los seguidos se escanean cada ~3 h (cada hora en eventos) y además suman lo que el descubrimiento
 (1 vez por día, cada ~3 h en eventos) vio en las demás tiendas.
 
