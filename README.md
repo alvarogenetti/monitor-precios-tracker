@@ -318,6 +318,17 @@ Activo desde el 25/11/2026 (job `despertador-monitor` en cron-job.org, cada 15 m
      mayoría termina en segundos ("no toca") y cada 2 h 45 (45 min en eventos) escanea.
 3. El token sólo puede disparar workflows de este repo. Si vence, el cron de GitHub sigue de respaldo.
 
+**Si llega un mail "Cronjob failed: despertador-monitor".** Mirar el código de estado:
+- **500/502/503** (25/11/2026, 12:45 UTC y 15:45 UTC: primera vez en 13 llamadas): falla de GitHub, puntual.
+  La llamada de 15 min después hace lo mismo y el workflow decide solo; el peor caso es un atraso de 15
+  min. Comprobar en `gh run list --workflow price_watch.yml` que las corridas `workflow_dispatch`
+  siguen llegando cada ~15 min y en githubstatus.com que no haya incidente. No hay que hacer nada.
+- **401/403:** el token venció o le faltan permisos (*Actions: Read and write* sobre este repo): generar
+  uno nuevo y pegarlo en el header `Authorization` del job.
+- **404/422:** cambió la URL o el body del job (deben ser los de arriba).
+cron-job.org manda un solo mail y no repite hasta que el job se recupere; para saber cuándo vuelve a
+andar, activar "notify on success" en la pestaña Notifications del job.
+
 ### Configuración
 
 | Archivo | Qué tiene |
