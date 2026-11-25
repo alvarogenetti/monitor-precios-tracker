@@ -12,8 +12,9 @@ STORES = [
         ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo, Samsung Shop, "
                            "Diamond Computación y Provincia Compras: la más barata entre todas", "GitHub"),
         ("Frávega", "API de su buscador (incluye vendedores del marketplace; precio con IVA: "
-                     "algunos vendedores lo informan aparte y se suma). Ojo: la API todavía muestra "
-                     "algunos productos que ya no están en la web nueva; abrí el link antes de comprar", "Tu PC"),
+                     "algunos vendedores lo informan aparte y se suma). La API todavía muestra productos que "
+                     "la web nueva no tiene o no vende: antes de usar una oferta como mejor precio se abre "
+                     "su ficha en un navegador y se descarta si no existe o no tiene precio", "Tu PC"),
         ("Venex", "Ficha directa (GS27QA)", "Tu PC"),
         ("Maximus", "Ficha directa (MSI 275QF)", "GitHub"),
     ]},

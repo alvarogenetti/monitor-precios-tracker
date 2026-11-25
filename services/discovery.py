@@ -722,6 +722,25 @@ def _collect_vtex(store: str, url: str) -> list[Offer]:
     return out
 
 
+def _drop_fravega_ghosts(offers: list[Offer], results: list[ModelResult], cfg: dict,
+                         catalog: SpecCatalog) -> tuple[list[Offer], list[ModelResult]]:
+    """Si la mejor oferta de un modelo es de Frávega, se abre su ficha (services/fravega_check): las
+    que no existen en la web nueva o no se pueden comprar se sacan y se vuelve a evaluar."""
+    from services import fravega_check
+
+    if not fravega_check.enabled() or not any(o.store == "fravega" for o in offers):
+        return offers, results
+    for _ in range(4):           # al sacar una, la siguiente más barata puede ser otra de Frávega
+        cand = [r.best["url"] for r in results if r.best["store"] == "fravega"]
+        bad = {u for u, st in fravega_check.check(cand).items() if st in fravega_check.BAD}
+        if not bad:
+            break
+        log.info("Frávega: %d ofertas fantasma fuera del descubrimiento", len(bad))
+        offers = [o for o in offers if o.url not in bad]
+        results = analyze(offers, cfg, catalog)
+    return offers, results
+
+
 def _collect_comparaya(db, cfg: dict, prev: dict | None, offers: list[Offer], stats: list[dict],
                        on_progress=None) -> list[Offer]:
     """Mercado Libre y tiendas que no leemos, desde las fichas de ComparaYa de los modelos que
@@ -908,6 +927,8 @@ async def run_discovery(trigger: str = "cli", send_alerts: bool = True,
     if cfg.get("comparaya", True):
         offers += await asyncio.to_thread(_collect_comparaya, db, cfg, prev, offers, stats, on_progress)
     results = analyze(offers, cfg, catalog)
+    # Playwright sync no puede correr dentro del loop: va en un thread aparte
+    offers, results = await asyncio.to_thread(_drop_fravega_ghosts, offers, results, cfg, catalog)
     # Lo que el título no dice (mate, VESA, peso...) se completa con el catálogo de ML
     pending = [(r.key, r.search, r.brand) for r in results if r.status == "a_confirmar"]
     if pending:

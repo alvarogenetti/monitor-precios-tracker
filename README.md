@@ -188,8 +188,24 @@ Revisión del 25/11/2026 (con datos reales):
   "La página no existe"), y algunos que existen pero no se pueden comprar (Dell S2725DC de Glic
   22878258: sin precio y con los botones desactivados). Otros de Glic andan bien (BenQ EW270Q $691.617,
   ViewSonic VS2725), igual que los de Tienda Bae. En los datos de VTEX no hay una señal que los
-  distinga; la web nueva lo sabe por su propia API interna, que no se usa. Antes de comprar en
-  Frávega, abrir el link: si dice "La página no existe" o no muestra precio, esa oferta no vale.
+  distinga (la web nueva lo sabe por su propia API interna, que no se usa).
+
+**Chequeo de fichas de Frávega (desde el 25/11/2026, sólo en la PC).** `services/fravega_check.py`
+abre la ficha en Chromium (Playwright), como lo haría una persona, y la clasifica: **ok** (precio y
+botón Comprar activo), **missing** ("La página no existe") o **unavailable** (sin precio o "no
+disponible para tu ubicación"). Se usa en dos lugares:
+- **Seguidos** (tarea local cada 3 h): de las ofertas de Frávega que matchean, se toma la más barata
+  que pasa el chequeo; si ninguna pasa, queda sin stock con la nota "la API lo muestra, pero en la
+  web de Frávega no existe o no se puede comprar".
+- **Descubrimiento desde la PC**: sólo se abren las ofertas de Frávega que quedan como mejor precio de
+  un modelo; las que fallan se sacan y el modelo se vuelve a evaluar (hasta 4 vueltas, 40 fichas por
+  corrida, pausa de 2 s).
+Resultados en `data/fravega_check.json` (no va a git): ok vale 12 h, no válidas 24 h. Unos 6 s por
+ficha sin caché. Si una ficha no carga (error de red) la oferta no se descarta. `FRAVEGA_CHECK=0` lo
+apaga; en GitHub Actions no corre (Frávega bloquea a GitHub) y los tests lo apagan solos.
+Primera corrida (25/11/2026): de 54 fichas que eran mejor precio de algún modelo, **29 no servían**
+(10 no existen, 19 sin precio o no disponibles para la ubicación por defecto de la web, Capital Federal)
+y el descubrimiento bajó de 292 a 270 modelos. Sin caché suma ~3-4 min al descubrimiento local.
 
 Los seguidos se escanean cada ~3 h (cada hora en eventos) y además suman lo que el descubrimiento
 (1 vez por día, cada ~3 h en eventos) vio en las demás tiendas.
@@ -248,6 +264,7 @@ services/summary.py  resumen diario · event_report.py: informe al terminar un e
 services/events.py   eventos y "¿toca escanear?" · daily.py: "¿toca descubrir/resumen?"
 services/datastore.py rama `data` · db.py: SQLite · overrides.py: confirmaciones
 services/page_specs.py / spec_enrich.py  datos de fichas de tiendas / caché de atributos de ML
+services/fravega_check.py               abre fichas de Frávega en Chromium y descarta las que no existen o no se venden
 services/segments.py · stores_info.py · notifier.py (Telegram) · targets.py · price_parser.py
 config/              targets, discovery, specs, overrides, events
 tests/               pytest, sin red

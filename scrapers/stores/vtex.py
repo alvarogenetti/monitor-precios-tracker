@@ -121,7 +121,14 @@ def product_url(store: str, p: dict, item: dict) -> str:
 
 def best_match(offers: list[dict], keywords: list[str], exclude) -> dict | None:
     hits = [o for o in offers if matches_keywords(o["title"], keywords, exclude)]
-    return min(hits, key=lambda o: o["price"]) if hits else None
+    if not hits:
+        return None
+    from services import fravega_check
+
+    if hits[0]["store"] == "fravega" and fravega_check.enabled():
+        # La API vieja de Frávega trae productos que la web nueva no tiene o no vende: se abre la ficha
+        return fravega_check.first_valid(hits)
+    return min(hits, key=lambda o: o["price"])
 
 
 def promo_text(o: dict) -> str | None:
@@ -172,6 +179,10 @@ class VtexScraper(BaseScraper):
         if not found:
             note = f"(no lo tiene: {', '.join(checked)})" if store == "electro" else \
                    f"(sin resultados para {query})"
+            from services import fravega_check
+
+            if store == "fravega" and fravega_check.REJECTED:
+                note = "(la API lo muestra, pero en la web de Frávega no existe o no se puede comprar)"
             return ScrapeResult(store=label, url=url, in_stock=False, title=note)
         best = min(found, key=lambda o: o["price"])
         res = ScrapeResult(store=label, url=url, title=best["title"], price_cash=best["price"],

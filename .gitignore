@@ -9,6 +9,7 @@ data/*.db-shm
 data/debug/
 data/escaneo-local.log
 data/prices.db
+data/fravega_check.json
 data/.data_sha
 site/
 data/meli_token.enc
