@@ -297,6 +297,9 @@ def build_context(static: bool = False) -> dict:
                 ev = evaluate_target(r["target"], snaps, cfg, catalog, {ev["key"]: ml_specs_k})
         r["eval"] = ev or {}
         r["usb_c"] = (ev or {}).get("usb_c")
+    for r in rows:   # minigráfico = misma serie que el gráfico grande (sus tiendas + las del descubrimiento)
+        daily = db.tracked_series(r["target"].id, r["eval"].get("key"))[-30:]
+        r["series"] = [{"ts": x["d"] + "T12:00:00-03:00", "price": x["lo"]} for x in daily]
 
     disc = db.last_discovery()
     models = []

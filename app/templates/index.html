@@ -333,7 +333,6 @@
             {% if r.hist %}<span>Mínimo histórico <b class="num">{{ r.hist.price_cash|ars }}</b></span>{% endif %}
             {% if r.cuotas %}<span title="{{ r.cuotas.n }} cuotas sin interés de {{ (r.cuotas.price / r.cuotas.n)|ars }}, valuadas con {{ '%.1f'|format(inflation * 100) }} % de inflación mensual">En {{ r.cuotas.n }} cuotas en {{ r.cuotas.store }} <b class="num">≈ {{ r.cuotas.pv|ars }}</b> de hoy</span>{% endif %}
             {% if r.ev_ref and r.ev_ref.ref %}<span>Antes de {{ r.ev_name }} <b class="num">{{ r.ev_ref.ref|ars }}</b></span>{% endif %}
-            {% if r.stats %}<span>Máximo <b class="num">{{ r.stats.max|ars }}</b></span>{% endif %}
             <span>Aviso si baja de <b class="num">{{ t.target_price|ars }}</b></span>
             {% if ev.key %}<span class="muted" title="Identificador del modelo (código normalizado)">ID {{ ev.key }}</span>{% endif %}
           </div>

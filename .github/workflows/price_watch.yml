@@ -3,7 +3,12 @@ name: price-watch
 on:
   schedule:
     - cron: "7,37 * * * *"  # cada 30 min (GitHub pierde corridas); services/events decide si escanea
-  workflow_dispatch: {}      # botón "Run workflow" para correrlo a mano
+  workflow_dispatch:         # botón "Run workflow" (fuerza todo) o despertador externo (auto=true)
+    inputs:
+      auto:
+        description: "Disparo automático (despertador externo): respeta el horario como el cron"
+        type: boolean
+        default: false
 
 permissions:
   contents: write            # publicar la base en la rama "data"
@@ -22,6 +27,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url || steps.deploy_retry.outputs.page_url }}
     env:
+      # A mano = forzado (escanea, descubre y manda resumen). Cron o despertador externo = decide el horario.
+      FORCED: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.auto) != 'true' }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
@@ -32,7 +39,7 @@ jobs:
         run: |
           # Base de la rama data (sin dependencias) para ver cuándo fue el último escaneo de GitHub
           git fetch --quiet --depth=1 origin data && git cat-file blob FETCH_HEAD:prices.db > /tmp/prices.db || true
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python3 -m services.events should-run /tmp/prices.db; then
+          if [ "$FORCED" = "true" ] || python3 -m services.events should-run /tmp/prices.db; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -72,7 +79,7 @@ jobs:
         if: always() && steps.gate.outputs.run == 'true'
         timeout-minutes: 20
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || python -m services.daily due; then
+          if [ "$FORCED" = "true" ] || python -m services.daily due; then
             python scan.py --discover
             python scan.py --summary
           elif python -m services.daily discover-due; then

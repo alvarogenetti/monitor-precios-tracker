@@ -27,3 +27,14 @@ def test_merge_daily_weights_average():
 def test_series_file_is_safe():
     from app.main import series_file
     assert series_file("m", "SAMSUNG~0HZ") == "series/m-SAMSUNG_0HZ.json"
+
+
+def test_daily_value_is_closing(tmp_path):
+    """Cada día vale su último escaneo (así el último punto = precio de la fila)."""
+    db = Database(tmp_path / "p.db")
+    mk = lambda p, s: SimpleNamespace(key="K", name="X", status="cumple", spread=None,  # noqa: E731
+                                      best={"price": p, "store": s, "seller": None})
+    db.upsert_discovered(db.start_discovery("cli"), [mk(250.0, "a")])
+    db.upsert_discovered(db.start_discovery("cli"), [mk(300.0, "b")])
+    s = db.daily_series("m", "K")
+    assert s[-1]["lo"] == 300 and s[-1]["where"] == "b"

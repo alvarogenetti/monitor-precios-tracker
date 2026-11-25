@@ -46,13 +46,16 @@ qué comprar y avisa por **Telegram**. Corre solo en GitHub Actions y publica un
 - **Descubrimiento**: todos los 27" QHD de todas las tiendas, evaluados contra los requisitos.
   Arriba, los **sugeridos para seguir**. De "falta confirmar" se ven los 6 más baratos (**Ver los N**).
   Los que ya seguís no se repiten acá.
-- **Historial** (al abrir cualquier seguido o modelo): un punto por día con el **más barato** (línea
+- **Historial** (al abrir cualquier seguido o modelo): un punto por día (día de Argentina, valor al
+  **cierre**: el último escaneo del día) con el **más barato** (línea
   llena), el **promedio** (rayada) y el **más caro** (punteada) de las ofertas nuevas con stock, más el
   precio de mercado. Períodos **1 semana · 1 mes · 3 meses · 6 meses · 1 año · Todo** (sólo aparecen los
   que ya tienen datos; recuerda el último elegido), mínimo y máximo del período y variación del más
   barato. Los seguidos suman lo que el descubrimiento vio del mismo modelo en las otras tiendas. El
   historial se baja recién al abrir el gráfico (`/api/series/...` en la PC, `series/*.json` en la web).
-  Del descubrimiento, más caro y promedio existen desde el 24/11/2026.
+  Del descubrimiento, más caro y promedio existen desde el 24/11/2026. El minigráfico de la fila usa la
+  misma serie (últimos 30 días), así que su último punto es el precio de la fila; lo del descubrimiento
+  vale 30 h, como en la fila.
 - **Alertas** e **Info** (requisitos, tiendas y **estado de las tiendas**: ofertas que trajo cada una
   en el último descubrimiento, última vez con datos y último problema).
 
@@ -187,7 +190,8 @@ tiendas evaluadas y descartadas (con el motivo) y el estado de cada una.
 ## 4. Arquitectura
 
 ```
-GitHub Actions · price_watch.yml (cron cada 30 min; decide si toca)
+Despertador externo (cron-job.org, cada 15 min) ─┐   el cron de GitHub solo corre cada 6-12 h
+GitHub Actions · price_watch.yml  ◄──────────────┘   (cron cada 30 min + workflow_dispatch auto=true; decide si toca)
  ├─ escaneo de seguidos        si pasaron 2 h 45 desde el último (45 min en eventos)
  ├─ descubrimiento + resumen   primera corrida desde las 9 AR
  ├─ descubrimiento extra       cada ~3 h durante eventos (sin resumen)
@@ -205,6 +209,12 @@ Tu PC
   (escaneos, descubrimientos, referencias de eventos, avisos ya enviados, caché de specs), y un `pull`
   no pisa lo que tenías local sin publicar.
 - Cada paso largo del workflow tiene su propio límite de 20 min, así la base siempre se publica.
+- **Por qué un despertador externo.** El `schedule` de GitHub es "lo mejor que se pueda": con
+  `7,37 * * * *` corrió cada 6 a 12 h (21-25/11/2026: 13 corridas automáticas en 4 días). Un servicio
+  de cron gratuito (cron-job.org) llama cada 15 min a la API de GitHub con
+  `workflow_dispatch` + `auto=true`; el workflow decide igual que con el cron (2 h 45 / 45 min en
+  eventos). Con **Run workflow** a mano (sin `auto`) se fuerza todo: escaneo, descubrimiento y resumen.
+  Si el despertador falla, sigue el cron de GitHub como respaldo. Configuración en la sección 5.
 - Secrets del repo: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 ### Código
@@ -253,6 +263,21 @@ schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powe
 ---
 
 ## 6. Referencia
+
+### Despertador externo (para que corra cada 45 min en eventos)
+
+1. **Token** (GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token):
+   nombre `despertador-monitor`, vencimiento 1 año, *Repository access: Only select repositories* →
+   `monitor-precios-tracker`, *Permissions → Repository → Actions: Read and write*. Nada más.
+2. **cron-job.org** (cuenta gratis) → *Create cronjob*:
+   - URL: `https://api.github.com/repos/alvarogenetti/monitor-precios-tracker/actions/workflows/price_watch.yml/dispatches`
+   - Horario: cada 15 minutos.
+   - *Advanced* → método `POST`; headers `Accept: application/vnd.github+json`,
+     `Authorization: Bearer <token>`, `X-GitHub-Api-Version: 2022-11-28`; body
+     `{"ref":"main","inputs":{"auto":"true"}}`.
+   - Respuesta esperada: `204`. En Actions aparece una corrida "workflow_dispatch" cada 15 min; la
+     mayoría termina en segundos ("no toca") y cada 2 h 45 (45 min en eventos) escanea.
+3. El token sólo puede disparar workflows de este repo. Si vence, el cron de GitHub sigue de respaldo.
 
 ### Configuración
 

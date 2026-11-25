@@ -408,8 +408,9 @@ class Database:
         return new
 
     def daily_series(self, kind: str, key: str, days: int = 3650) -> list[dict]:
-        """Historial por día (fecha de Argentina) para el gráfico grande: más barato (lo), más caro
-        (hi) y promedio (avg) de las ofertas nuevas con stock, y dónde estaba el más barato.
+        """Historial por día (fecha de Argentina) para los gráficos: más barato (lo), más caro (hi) y
+        promedio (avg) de las ofertas nuevas con stock al cierre del día (último escaneo), y dónde
+        estaba el más barato.
         kind "t" = seguido (todas sus tiendas en cada escaneo); "m" = modelo del descubrimiento
         (hi/avg existen desde el 24/11/2026; antes quedan en None)."""
         from datetime import datetime
@@ -420,18 +421,9 @@ class Database:
         days_out: dict[str, dict] = {}
 
         def add(d, lo, hi, avg, n, where):
-            cur = days_out.get(d)
-            if cur is None:
-                days_out[d] = {"d": d, "lo": lo, "hi": hi, "avg": avg, "n": n, "where": where, "_k": 1}
-                return
-            if lo < cur["lo"]:
-                cur["lo"], cur["where"] = lo, where
-            if hi is not None:
-                cur["hi"] = max(cur["hi"] or hi, hi)
-            if avg is not None:   # promedio de los escaneos del día
-                cur["avg"] = avg if cur["avg"] is None else (cur["avg"] * cur["_k"] + avg) / (cur["_k"] + 1)
-                cur["_k"] += 1
-            cur["n"] = max(cur["n"] or 0, n or 0) or None
+            # Valor de cierre: el último escaneo del día pisa a los anteriores (vienen en orden).
+            # Así el último punto coincide con el precio que muestra la fila.
+            days_out[d] = {"d": d, "lo": lo, "hi": hi, "avg": avg, "n": n, "where": where}
 
         if kind == "t":
             for p in self.best_series(key, days):
@@ -447,15 +439,22 @@ class Database:
                 r = dict(r)
                 add(day(r["scanned_at"]), r["price"], r.get("price_max"), r.get("price_avg"), r.get("n_offers"),
                     (r["seller"] or r["store"] or ""))
-        out = sorted(days_out.values(), key=lambda x: x["d"])
-        for x in out:
-            x.pop("_k", None)
-        return out
+        return sorted(days_out.values(), key=lambda x: x["d"])
 
     def tracked_series(self, target_id: str, model_key: str | None) -> list[dict]:
-        """Seguido: sus tiendas + lo que el descubrimiento vio del mismo modelo en las otras."""
-        return merge_daily(self.daily_series("t", target_id),
-                           self.daily_series("m", model_key) if model_key else [])
+        """Seguido: sus tiendas + lo que el descubrimiento vio del mismo modelo en las otras. Como en la
+        fila, lo del descubrimiento vale 30 h: si hoy todavía no corrió, cuenta el de ayer."""
+        from datetime import datetime, timedelta, timezone
+
+        t = self.daily_series("t", target_id)
+        m = self.daily_series("m", model_key) if model_key else []
+        if t and m and t[-1]["d"] > m[-1]["d"]:
+            with self.connect() as con:
+                last = con.execute("SELECT MAX(scanned_at) FROM discovery_prices WHERE model_key=?",
+                                   (model_key,)).fetchone()[0]
+            if last and datetime.now(timezone.utc) - datetime.fromisoformat(last) <= timedelta(hours=30):
+                m = m + [{**m[-1], "d": t[-1]["d"]}]
+        return merge_daily(t, m)
 
     def discovery_series(self, model_key: str) -> list[dict]:
         with self.connect() as con:
@@ -489,12 +488,18 @@ class Database:
             d["results"] = json.loads(d["results"] or "[]")
             d["errors"] = json.loads(d["errors"] or "[]")
             meta = {r["model_key"]: dict(r) for r in con.execute("SELECT * FROM discovered_models")}
-            series: dict[str, list] = {}
-            for r in con.execute("""SELECT model_key, MIN(price) AS price, MAX(scanned_at) AS ts
-                                    FROM discovery_prices
-                                    WHERE scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', '-30 days')
-                                    GROUP BY model_key, substr(scanned_at, 1, 10) ORDER BY ts"""):
-                series.setdefault(r["model_key"], []).append({"ts": r["ts"], "price": r["price"]})
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+
+            ar = ZoneInfo("America/Argentina/Buenos_Aires")
+            closing: dict[str, dict] = {}
+            for r in con.execute("""SELECT model_key, price, scanned_at FROM discovery_prices
+                                    WHERE scanned_at >= strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now', '-31 days')
+                                    ORDER BY scanned_at"""):
+                dia = datetime.fromisoformat(r["scanned_at"]).astimezone(ar).date().isoformat()
+                closing.setdefault(r["model_key"], {})[dia] = r["price"]
+            series: dict[str, list] = {k: [{"ts": f"{dia}T12:00:00-03:00", "price": p} for dia, p in sorted(v.items())]
+                                       for k, v in closing.items()}
         for m in d["results"]:
             info = meta.get(m["key"], {})
             m["first_seen"] = info.get("first_seen")
