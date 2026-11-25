@@ -127,7 +127,7 @@
   .delta.flat { color: var(--muted); background: var(--hover); }
 
   /* detalle */
-  .detail { padding: 4px 16px 18px; display: grid; gap: 16px; }
+  .detail { padding: 4px 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 12px; color: var(--ink-2); }
   .facts b { color: var(--ink); font-weight: 600; }
   .hist { display: grid; gap: 12px; }
@@ -135,6 +135,10 @@
   .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
   .seg button { border: 0; background: none; color: var(--ink-2); font: inherit; font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--hover); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .hist, .hist-top > *, .hctl > * { min-width: 0; max-width: 100%; }
+  .hctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .hdate { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .hdate input { font: inherit; font-size: 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; color-scheme: light dark; }
   .hstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px 16px; font-size: 12px; color: var(--muted); }
   .hstats b { display: block; font-size: 16px; color: var(--ink); font-weight: 600; }
   .hstats .good { color: var(--good); } .hstats .bad { color: var(--bad); }
@@ -186,6 +190,7 @@
   .alert .msg { white-space: pre-line; margin-top: 3px; color: var(--ink-2); }
 
   @media (max-width: 760px) {
+    table.stores { display: block; overflow-x: auto; }
     .wrap { padding: 20px 14px 48px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     .stat:nth-child(3) { border-left: 0; }
@@ -623,20 +628,27 @@ async function hist(el, ref){
   if (!histCache[src]) histCache[src] = fetch(src).then(r => r.ok ? r.json() : []).catch(() => []);
   const all = await histCache[src];
   if (!all.length){ el.innerHTML = '<div class="note">Todavía no hay historial.</div>'; return; }
-  const span = (Date.now() - tDay(all[0].d)) / DAY;
-  const avail = RANGES.filter((r, i) => r[0] === 0 || i === 0 || span > RANGES[i - 1][0]);
-  let pick = +(el.dataset.range ?? mem.get('histRange', 90));
-  if (!avail.some(r => r[0] === pick)) pick = 0;
-  const pts = all.filter(p => !pick || tDay(p.d) >= Date.now() - pick * DAY);
+  // Períodos siempre visibles (como la referencia); si piden más de lo que hay, se ve todo lo que hay.
+  // "Desde / hasta" elige fechas a mano y pisa al período hasta que se toque un botón.
+  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Argentina/Buenos_Aires'});
+  const pick = el.dataset.from ? null : +(el.dataset.range ?? mem.get('histRange', 90));
+  const iso = t => new Date(t).toLocaleDateString('en-CA', {timeZone: 'America/Argentina/Buenos_Aires'});
+  const from = el.dataset.from || (pick ? iso(Date.now() - pick * DAY) : all[0].d);
+  const to = el.dataset.to || today;
+  let pts = all.filter(p => p.d >= from && p.d <= to);
+  if (!pts.length) pts = all.slice(-1);
+  const short = from < all[0].d;
   const last = pts.at(-1), first = pts[0];
   const minP = pts.reduce((m, p) => p.lo < m.lo ? p : m, first);
   const maxV = Math.max(...pts.map(p => p.hi ?? p.lo));
-  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Argentina/Buenos_Aires'});
   const varP = pts.length > 1 ? last.lo / first.lo - 1 : null;
   const pct = v => (v > 0 ? '+' : '') + Math.round(v * 100) + ' %';
   const lines = LINES();
   el.innerHTML = `<div class="hist-top"><div class="note">Historial de precios · ofertas nuevas, día por día${all.some(p => p.hi == null) ? ' (más caro y promedio desde el 24/11/2026)' : ''}</div>
-      <div class="seg" role="group" aria-label="Período">${avail.map(r => `<button type="button" data-r="${r[0]}" aria-pressed="${r[0] === pick}">${r[1]}</button>`).join('')}</div></div>
+      <div class="hctl"><div class="seg" role="group" aria-label="Período">${RANGES.map(r => `<button type="button" data-r="${r[0]}" aria-pressed="${r[0] === pick}">${r[1]}</button>`).join('')}</div>
+      <label class="hdate">Desde <input type="date" data-k="from" value="${from < all[0].d ? all[0].d : from}" min="${all[0].d}" max="${today}"></label>
+      <label class="hdate">hasta <input type="date" data-k="to" value="${to}" min="${all[0].d}" max="${today}"></label></div></div>
+    ${short && pick ? `<div class="note">Hay datos desde el ${fmtTick.format(new Date(tDay(all[0].d)))}: se muestra todo lo que hay.</div>` : ''}
     <div class="hstats">
       <div>${last.d === today ? 'Hoy, lo más barato' : 'Último dato (' + fmtDay.format(new Date(tDay(last.d))) + ')'}<b class="num">${ars(last.lo)}</b></div>
       <div>Mínimo del período<b class="num">${ars(minP.lo)}</b>el ${fmtTick.format(new Date(tDay(minP.d)))}</div>
@@ -646,7 +658,13 @@ async function hist(el, ref){
     <div class="legend">${lines.map(l => `<span>${swatch(l)}${l.label}</span>`).join('')}${ref ? `<span>${swatch({color: css('--line-strong'), w: 1, dash: '2 3'})}Precio de mercado</span>` : ''}</div>
     <div class="plot"></div>`;
   el.querySelectorAll('.seg button').forEach(bt => bt.addEventListener('click', () => {
+    delete el.dataset.from; delete el.dataset.to;
     el.dataset.range = bt.dataset.r; mem.set('histRange', +bt.dataset.r); hist(el, ref); }));
+  el.querySelectorAll('.hdate input').forEach(inp => inp.addEventListener('change', () => {
+    const v = {from: el.querySelector('[data-k=from]').value, to: el.querySelector('[data-k=to]').value};
+    if (!v.from || !v.to) return;
+    if (v.from > v.to) [v.from, v.to] = [v.to, v.from];
+    el.dataset.from = v.from; el.dataset.to = v.to; hist(el, ref); }));
   plot(el.querySelector('.plot'), pts, ref, lines);
 }
 function plot(el, pts, ref, lines){

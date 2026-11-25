@@ -49,9 +49,10 @@ qué comprar y avisa por **Telegram**. Corre solo en GitHub Actions y publica un
 - **Historial** (al abrir cualquier seguido o modelo): un punto por día (día de Argentina, valor al
   **cierre**: el último escaneo del día) con el **más barato** (línea
   llena), el **promedio** (rayada) y el **más caro** (punteada) de las ofertas nuevas con stock, más el
-  precio de mercado. Períodos **1 semana · 1 mes · 3 meses · 6 meses · 1 año · Todo** (sólo aparecen los
-  que ya tienen datos; recuerda el último elegido), mínimo y máximo del período y variación del más
-  barato. Los seguidos suman lo que el descubrimiento vio del mismo modelo en las otras tiendas. El
+  precio de mercado. Períodos **1 semana · 1 mes · 3 meses · 6 meses · 1 año · Todo** siempre visibles
+  (recuerda el último elegido; si el período es más largo que el historial, avisa desde cuándo hay datos y
+  muestra todo) y **Desde / hasta** para elegir fechas a mano; mínimo y máximo del período y variación del
+  más barato. Los seguidos suman lo que el descubrimiento vio del mismo modelo en las otras tiendas. El
   historial se baja recién al abrir el gráfico (`/api/series/...` en la PC, `series/*.json` en la web).
   Del descubrimiento, más caro y promedio existen desde el 24/11/2026. El minigráfico de la fila usa la
   misma serie (últimos 30 días), así que su último punto es el precio de la fila; lo del descubrimiento
