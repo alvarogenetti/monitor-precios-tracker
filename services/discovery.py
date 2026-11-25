@@ -602,6 +602,14 @@ def suspicious_pairs(results: list) -> list[tuple[str, str]]:
     return out
 
 
+# Accesorios cuyo título dice "monitor" (TRANSFORMADOR MONITOR ... SAMSUNG, SOPORTE ... PARA MONITOR,
+# Combo GPU + Monitor, bafles "monitor de estudio"): empiezan con el accesorio o lo dicen así.
+ACCESSORY_RE = re.compile(
+    r"^\W*(transformador|cargador|fuente|adaptador|soporte|brazo|elevador|cable|bafle|tarjeta|combo|pc|"
+    r"accesorios?|kit|base|parlantes?|auriculares?|notebook|funda|protector|limpiador|hub|docking|lampara|"
+    r"luz|barra)\b|\bpara\s+monitor|\+\s*monitor|\bmonitor(es)?\s+(de\s+)?estudio|\bbafle")
+
+
 def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
             extra_specs: dict[str, dict] | None = None,
             overrides: dict[str, dict] | None = None) -> list[ModelResult]:
@@ -615,8 +623,8 @@ def analyze(offers: list[Offer], cfg: dict, catalog: SpecCatalog,
         low = _lower(o.title)
         if any(re.search(rf"\b{re.escape(e)}\b", low) for e in exclude) or o.price > max_price:
             continue
-        if "monitor" not in low:
-            continue
+        if "monitor" not in low or ACCESSORY_RE.search(low):
+            continue      # accesorios que dicen "monitor": transformadores, soportes, cables, bafles...
         facts = title_facts(o.title)
         # Pre-filtro barato: sólo 27" QHD (o sin dato) para no evaluar cientos de monitores
         if facts.size is not None and abs(facts.size - 27) > 0.6:
