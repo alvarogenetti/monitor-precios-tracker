@@ -266,6 +266,8 @@ schtasks /Create /SC HOURLY /MO 3 /ST 00:30 /TN "MonitorPrecios-local" /TR "powe
 
 ### Despertador externo (para que corra cada 45 min en eventos)
 
+Activo desde el 25/11/2026 (job `despertador-monitor` en cron-job.org, cada 15 min, aviso por mail si falla).
+
 1. **Token** (GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token):
    nombre `despertador-monitor`, vencimiento 1 año, *Repository access: Only select repositories* →
    `monitor-precios-tracker`, *Permissions → Repository → Actions: Read and write*. Nada más.
