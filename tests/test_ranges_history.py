@@ -143,6 +143,31 @@ def test_vtex_interest_free_installments():
     assert o["cuotas"] == 12 and promo_text(o) == "12 cuotas sin interés"
 
 
+def test_vtex_suma_tax_al_precio():
+    """Frávega: vendedores del marketplace traen Price sin IVA y el impuesto en Tax (caso real 25/11/2026)."""
+    from scrapers.stores.vtex import offers_from, promo_text
+    p = [{"productName": "HP Gamer Core i7 1355U", "items": [{"itemId": "990304719", "sellers": [
+        {"sellerName": "TLR", "commertialOffer": {"Price": 1979418.1, "Tax": 207838.9, "ListPrice": 2100000.0,
+                                                  "AvailableQuantity": 2}}]}]},
+         {"productName": "Monitor Y 27", "items": [{"sellers": [{"sellerName": "On City", "commertialOffer": {
+             "Price": 400000.0, "Tax": 0.0, "AvailableQuantity": 1}}]}]}]
+    hp = offers_from(p, "fravega")[0]
+    assert hp["price"] == 2187257.0
+    assert hp["list"] is None and promo_text(hp) is None   # la lista se compara contra el precio con IVA
+    assert offers_from(p[1:], "oncity")[0]["price"] == 400000.0   # Tax 0: no cambia nada
+
+
+def test_vtex_link_de_fravega_es_la_ficha_nueva():
+    from scrapers.stores.vtex import offers_from
+    p = [{"productName": "Monitor Gamer BenQ EW270Q LED 27\" QHD 200Hz Ñandú", "productId": "111",
+          "link": "https://www.fravega.com/monitor-benq/p", "items": [{"itemId": "22945516", "sellers": [
+              {"sellerName": "Glic", "commertialOffer": {"Price": 679460.0, "AvailableQuantity": 1}}]}]}]
+    assert offers_from(p, "fravega")[0]["url"] == \
+        "https://www.fravega.com/p/monitor-gamer-benq-ew270q-led-27-qhd-200hz-nandu-22945516/"
+    # las demás tiendas VTEX siguen usando el link de la API
+    assert offers_from(p, "oncity")[0]["url"] == "https://www.fravega.com/monitor-benq/p"
+
+
 def test_accesorio_no_se_evalua_como_monitor():
     from services.segments import SEGMENT_KEYS
     from services.targets import Target

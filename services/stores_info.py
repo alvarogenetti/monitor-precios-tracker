@@ -11,7 +11,8 @@ STORES = [
                           "(vale 3 días)", "GitHub + a mano"),
         ("Electro (VTEX)", "On City, Cetrogar, Carrefour, Pardo, Coppel, Naldo, Jumbo, Samsung Shop, "
                            "Diamond Computación y Provincia Compras: la más barata entre todas", "GitHub"),
-        ("Frávega", "API de su buscador (incluye vendedores del marketplace)", "Tu PC"),
+        ("Frávega", "API de su buscador (incluye vendedores del marketplace; precio con IVA: "
+                     "algunos vendedores lo informan aparte y se suma)", "Tu PC"),
         ("Venex", "Ficha directa (GS27QA)", "Tu PC"),
         ("Maximus", "Ficha directa (MSI 275QF)", "GitHub"),
     ]},

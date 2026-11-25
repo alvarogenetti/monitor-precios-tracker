@@ -166,6 +166,14 @@ leemos directo, sólo si el título tiene el código exacto (la ficha junta "ver
 "Tienda (vía ComparaYa)"; las de ML marcadas "Internacional" llevan el aviso de importado.
 MejoresCompras sigue como link **Historial** al lado de cada **Ver en ML**.
 
+**Frávega por VTEX** (corregido el 24/11/2026): la API todavía es la de VTEX, pero en vendedores del
+marketplace `Price` viene **sin IVA** y el impuesto aparte en `Tax` (p. ej. Acer KG271U de Microglobal:
+$394.884 + $82.926 = $477.810, el precio de la web). Se toma siempre `Price + Tax` (en las demás tiendas
+VTEX `Tax` es 0), y el % sobre lista se calcula contra ese total. Los monitores seguidos (vendedores Glic
+y Ebox) traen `Tax` 0, así que su historial no cambia. Además Frávega dejó VTEX para su web propia: el
+link de la API (`/<linkText>/p`) abre una página vacía, y la ficha real es
+`https://www.fravega.com/p/<nombre-del-producto>-<itemId>/`, que es lo que se guarda ahora.
+
 Los seguidos se escanean cada ~3 h (cada hora en eventos) y además suman lo que el descubrimiento
 (1 vez por día, cada ~3 h en eventos) vio en las demás tiendas.
 

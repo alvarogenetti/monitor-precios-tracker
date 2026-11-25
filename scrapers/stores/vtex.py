@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import unicodedata
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -81,6 +82,10 @@ def offers_from(products: list[dict], store: str) -> list[dict]:
                 price = o.get("Price")
                 if not is_plausible(price) or not o.get("AvailableQuantity"):
                     continue
+                # Frávega devuelve Price SIN IVA en algunos vendedores del marketplace y el impuesto
+                # aparte en Tax: lo que se paga (y lo que muestra la web y las cuotas) es la suma.
+                # En las demás tiendas Tax viene en 0, así que sumarlo siempre es seguro.
+                price = float(price) + float(o.get("Tax") or 0)
                 lst = o.get("ListPrice") if (o.get("ListPrice") or 0) > price else None
                 teasers = [t.get("Name") or t.get("name") for t in
                            (o.get("Teasers") or []) + (o.get("PromotionTeasers") or [])
@@ -90,7 +95,7 @@ def offers_from(products: list[dict], store: str) -> list[dict]:
                         if not i.get("InterestRate") and (i.get("NumberOfInstallments") or 0) > 1]
                 cuotas = max(free) if free else None
                 seller = s.get("sellerName") or ""
-                link = p.get("link") or f"https://{host}/{p.get('linkText', '')}/p"
+                link = product_url(store, p, it)
                 out.append({
                     "store": store, "label": label, "title": p.get("productName") or "",
                     "brand": p.get("brand"), "price": float(price), "list": lst, "promo": promo,
@@ -100,6 +105,18 @@ def offers_from(products: list[dict], store: str) -> list[dict]:
                     "url": link, "description": p.get("description") or "",
                 })
     return out
+
+
+def product_url(store: str, p: dict, item: dict) -> str:
+    """Link a la ficha. Frávega dejó VTEX para su web propia: el link de la API
+    (fravega.com/<linkText>/p) abre una página vacía; las fichas reales son
+    /p/<nombre del producto en slug>-<itemId>/ (el itemId del item, no el productId)."""
+    if store == "fravega" and item.get("itemId"):
+        name = unicodedata.normalize("NFKD", p.get("productName") or "").encode("ascii", "ignore").decode()
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+        return f"https://www.fravega.com/p/{slug}-{item['itemId']}/"
+    host = VTEX_STORES[store][1]
+    return p.get("link") or f"https://{host}/{p.get('linkText', '')}/p"
 
 
 def best_match(offers: list[dict], keywords: list[str], exclude) -> dict | None:
