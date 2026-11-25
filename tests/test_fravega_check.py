@@ -23,6 +23,7 @@ def test_first_valid_skips_ghosts(monkeypatch):
 
 def test_discovery_drops_fravega_ghost(monkeypatch):
     monkeypatch.setenv("FRAVEGA_CHECK", "1")
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)     # en GitHub el chequeo está apagado a propósito
     monkeypatch.setattr(fc, "check", lambda urls: {u: ("missing" if "fantasma" in u else "ok") for u in urls})
     cfg = {"requirements": {"size_in": 27, "min_hz": 120}}
     t = 'Monitor ASUS VG27AQL3A 27" QHD 180Hz IPS'
@@ -37,9 +38,18 @@ def test_discovery_drops_fravega_ghost(monkeypatch):
 def test_check_failure_never_drops(monkeypatch, tmp_path):
     """Si el navegador no arranca (o Playwright se queja), no se descarta ninguna oferta."""
     monkeypatch.setenv("FRAVEGA_CHECK", "1")
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setattr(fc, "CACHE", tmp_path / "c.json")
 
     def boom(urls):
         raise RuntimeError("Playwright Sync API inside the asyncio loop")
     monkeypatch.setattr(fc, "_check_pages", boom)
+    assert fc.check(["https://www.fravega.com/p/x-22755673/"]) == {"https://www.fravega.com/p/x-22755673/": "unknown"}
+
+
+def test_check_is_off_in_github_actions(monkeypatch):
+    """En GitHub Actions no se abre ninguna ficha (Frávega bloquea a GitHub): no se descarta nada."""
+    monkeypatch.setenv("FRAVEGA_CHECK", "1")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    assert not fc.enabled()
     assert fc.check(["https://www.fravega.com/p/x-22755673/"]) == {"https://www.fravega.com/p/x-22755673/": "unknown"}

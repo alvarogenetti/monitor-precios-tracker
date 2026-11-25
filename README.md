@@ -341,7 +341,15 @@ python -m app.site site               # generar el dashboard estático
 python -m services.datastore pull     # bajar la base de la rama data
 python -m services.daily due|discover-due   # ¿toca resumen? / ¿toca descubrimiento extra?
 python -m pytest -q                   # tests
+$env:GITHUB_ACTIONS='true'; python -m pytest -q; Remove-Item Env:GITHUB_ACTIONS   # tests como en GitHub
 ```
+
+**Antes de subir, correr los tests de las dos maneras.** En GitHub Actions corre con
+`GITHUB_ACTIONS=true` y en UTC, y varias partes del código se comportan distinto ahí (el chequeo de
+fichas de Frávega se apaga, Frávega y Venex se saltean, la fecha cambia a las 21 de Argentina). Dos
+veces un test pasó en la PC y falló en GitHub por eso (25/11/2026: el descarte de Frávega; antes, la
+fecha). Todo test que dependa de ese entorno tiene que fijarlo él mismo (`monkeypatch.setenv` /
+`delenv`), no heredarlo.
 
 ### API local
 
