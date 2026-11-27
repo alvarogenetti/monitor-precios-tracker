@@ -429,6 +429,14 @@ def evaluate(offers: list[Offer], key: str, search: str, spec: dict | None, cfg:
         warns.append(f"fuente {psu}: verificar 220 V")
     if facts.us_plug:
         warns.append("ficha USA (usar cable/adaptador)")
+    # Precio de error o de reserva: el mejor precio muy por debajo del resto (p. ej. una tienda que deja
+    # publicado un producto sin stock con un precio simbólico). No cambia el estado: sólo avisa.
+    rest = sorted(o.price for o in sellable if o is not best)
+    if len(rest) >= 3:
+        mid = (rest[len(rest) // 2] if len(rest) % 2 else (rest[len(rest) // 2 - 1] + rest[len(rest) // 2]) / 2)
+        if best.price < 0.5 * mid:
+            warns.append(f"precio {round((1 - best.price / mid) * 100)} % por debajo del resto: "
+                         "verificá en la tienda que exista y tenga stock antes de comprar")
     if not new and not accept_used:
         fails.append("sólo outlet/usado")
     elif len(new) < len(offers):

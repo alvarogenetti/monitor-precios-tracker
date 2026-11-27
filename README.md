@@ -124,6 +124,10 @@ VESA 75/100 · HDMI. Deseable: USB-C con carga ≥ 65 W. El peso es informativo.
   muestra ("dato de hace N días") pero no compite; un descubrimiento de más de 30 h no se usa para
   recomendar; una carga manual vale 3 días y no mueve el precio de mercado. En el descubrimiento, el
   mercado de cada modelo usa un punto por día (el mínimo), así los eventos no lo distorsionan.
+- **Precio sospechoso**: si el mejor precio de un modelo está más de un 50 % por debajo de la mediana
+  de las demás ofertas (con al menos 3 más), el modelo muestra el aviso "precio X % por debajo del
+  resto: verificá en la tienda que exista y tenga stock". No cambia el estado, sólo avisa. Con el
+  descubrimiento del 27/11/2026 saltaba en 1 de 193 modelos (el caso de abajo), sin falsos positivos.
 
 ### Cuotas en pesos de hoy
 
@@ -163,6 +167,15 @@ de hoy") y también "Qué compraría hoy".
 | Ficha directa (genérico) | Venex (desde la PC), Maximus, Electro y Hogar | Seguidos |
 | Comparador (fichas de producto en HTML) | **ComparaYa**: **Mercado Libre** (es afiliado de ML) y tiendas que no leemos directo (Portal Store, Gaming City, SCP Hardstore, Net Gaming…) | Descubrimiento |
 | **A mano** (link + "Lo vi a $") | **Mercado Libre** (además de ComparaYa), **Tienda BNA** (Cloudflare) | Cuando cargás un precio |
+
+**Tiendanube y el stock** (corregido el 27/11/2026). Las tarjetas de los temas sin `data-variants`
+(NG Technologies) traen siempre la etiqueta `data-label="Sin stock"`: con stock va oculta
+(`style="display:none"`) y sin stock va **visible y sin atributo `style`**. El lector exigía un `style` para
+decidir, así que no veía la etiqueta visible y daba por disponible un producto agotado. Pasó con un ASUS
+ROG Strix OLED XG27AQDMG-J que NG dejó publicado sin stock a $351.146 (el resto del mercado: $1.15 a
+$1.47 millones): salió como mejor precio y, por ser OLED bajo el tope de $650.000, como "OLED en oferta"
+recomendada; la ficha ya no existía ("No encontramos esta página", que Tiendanube responde con un 200).
+Ahora se lee la etiqueta entera. Sólo NG usa ese tema: con su listado del 27/11 no cambia ninguna otra oferta.
 
 Los comparadores (HardGamers, Seguimiento Gamer, BuscaHard, Precios GG, Historial de Precios, Precialo,
 ComparaYa, Libre Opción) se revisaron uno por uno (noviembre 2026): se leen los que lo permiten y sus tiendas útiles

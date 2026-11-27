@@ -132,8 +132,10 @@ def parse_tiendanube(page_html: str, store: str, label: str) -> list[dict]:
         if url and name and not m:
             # Otros temas: sin data-variants, el precio va en data-product-price (en centavos)
             pp = re.search(r'data-product-price="(\d+)"', chunk)
-            lab = re.search(r'data-label="Sin stock"[^>]*style="([^"]*)"', chunk)
-            no_stock = bool(lab) and "display:none" not in lab.group(1).replace(" ", "").lower()
+            # La etiqueta "Sin stock" existe en todas las tarjetas: con stock va oculta (style="display:none"),
+            # sin stock va visible y SIN atributo style. Hay que mirar la etiqueta entera, no exigir el style.
+            lab = re.search(r'<[^>]*data-label="Sin stock"[^>]*>', chunk)
+            no_stock = bool(lab) and "display:none" not in lab.group(0).replace(" ", "").lower()
             if pp and not no_stock:
                 price = int(pp.group(1)) / 100
                 if is_plausible(price):
